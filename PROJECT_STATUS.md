@@ -90,8 +90,8 @@
     - 完成：统一 ChromaDB 异常包装为 `VectorStoreUnavailable`，提升 worker/API 稳定性
     - 完成：完善 `/search`、`/chat` 的 index job 去重逻辑（优先复用 pending/running job）
     - 完成：引入并跑通静态检查（mypy/pyright），补齐 `backend/pyrightconfig.json`，并新增 `backend/requirements-dev.txt`、`backend/.flake8`
-    - 下一步：将质量检查纳入 CI（flake8 + mypy + pyright）
-    - 下一步：补最小 pytest 回归（`TestClient`）覆盖 `/health`、`/videos/import`、`/search`（无 transcript / 未索引 / 已索引）与错误码
+    - 完成：将质量检查纳入 CI（GitHub Actions：flake8 + mypy + pyright + pytest）
+    - 完成：补最小 pytest 回归（`TestClient`）覆盖 `/health`、`/index`、`/search`、`/chat` 关键分支与错误码
   - MVP-2：本地 LLM 推理引擎接入（RAG）
     - 优先 `llama.cpp`（`llama-cpp-python` 或 `llama-server`）
     - 支持流式输出（SSE/WebSocket/HTTP chunked）
@@ -234,6 +234,12 @@ curl.exe -X POST http://127.0.0.1:8001/chat -H "Content-Type: application/json" 
 
 ## 开发质量工具（本地）
 
+- 一键：
+
+```powershell
+./scripts/run_quality_checks.ps1
+```
+
 - flake8：
 
 ```powershell
@@ -267,3 +273,4 @@ powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\
 - 2026-01-10：补齐并通过一键验证脚本（列表分页/导出与错误处理/云摘要开关）；字幕导出增加 transcript 必需校验（无 transcript 返回 `TRANSCRIPT_NOT_FOUND`）。
 - 2026-01-10：MVP-2 索引/检索/问答接口落地（`/videos/{video_id}/index`、`/videos/{video_id}/chunks`、`/search`、`/chat`）；修复 Windows PowerShell 中文 JSON 乱码（强制 `charset=utf-8`）。
 - 2026-01-11：新增 `/index`、`/search`、`/chat` 回归脚本（竞态容忍 200/202 且严格断言索引 job 去重复用）；完善 `scripts/run_backend_dev.ps1` 以强制使用 `backend/.venv` Python 并修复参数名冲突；统一 ChromaDB 异常包装为 `VectorStoreUnavailable`；引入并跑通 mypy/pyright，新增 `backend/pyrightconfig.json`、`backend/requirements-dev.txt`、`backend/.flake8`。
+- 2026-01-11：新增 GitHub Actions CI（`.github/workflows/quality.yml`：flake8/mypy/pyright/pytest）；初始化并推送 GitHub 仓库；根目录 `.gitignore` 忽略 `demo/`、`artifacts/`、`backend/.venv/`。
