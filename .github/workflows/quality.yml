@@ -1,0 +1,48 @@
+name: Backend Quality
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Create venv
+        run: python -m venv .venv
+
+      - name: Install dependencies
+        run: |
+          .venv/bin/python -m pip install -U pip
+          .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: flake8
+        run: .venv/bin/python -m flake8 app
+
+      - name: mypy
+        run: .venv/bin/python -m mypy app --ignore-missing-imports --show-error-codes
+
+      - name: pyright
+        run: .venv/bin/python -m pyright -p .
+
+      - name: pytest
+        env:
+          EDGE_VIDEO_AGENT_DISABLE_WORKER: "1"
+        run: .venv/bin/python -m pytest -q

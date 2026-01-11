@@ -1,0 +1,15 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "none",
+  "reportMissingTypeStubs": "none",
+  "exclude": [
+    ".venv",
+    "**/__pycache__",
+    "**/.mypy_cache",
+    "data",
+    "storage",
+    "logs"
+  ]
+}
