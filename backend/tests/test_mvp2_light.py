@@ -95,6 +95,7 @@ def test_search_and_chat_200_when_index_completed(
 ) -> None:
     from app import main as main_mod
     from app.repo import upsert_video_index
+    from app.repo import set_default_llm_preferences
     from app.transcript_store import get_transcript_hash
 
     v = _create_video(tmp_path)
@@ -123,6 +124,8 @@ def test_search_and_chat_200_when_index_completed(
         }
 
     monkeypatch.setattr(main_mod, "query_vectors", fake_query_vectors)
+
+    set_default_llm_preferences({"provider": "none"})
 
     r1 = client.get(
         "/search",
@@ -215,6 +218,7 @@ def test_search_and_chat_fallback_to_legacy_collection_when_missing(
 ) -> None:
     from app import main as main_mod
     from app.repo import upsert_video_index
+    from app.repo import set_default_llm_preferences
     from app.transcript_store import get_transcript_hash
     from app.vector_store import LEGACY_COLLECTION_NAME, chunks_collection_name
 
@@ -271,13 +275,19 @@ def test_search_and_chat_fallback_to_legacy_collection_when_missing(
 
     monkeypatch.setattr(main_mod, "query_vectors", fake_query_vectors)
 
+    set_default_llm_preferences({"provider": "none"})
+
     r1 = client.get(
         "/search",
         params={"video_id": video_id, "query": "hello", "top_k": 1},
     )
     assert r1.status_code == 200
     items = r1.json().get("items")
-    assert isinstance(items, list) and items and items[0].get("chunk_id") == "c1"
+    assert (
+        isinstance(items, list)
+        and items
+        and items[0].get("chunk_id") == "c1"
+    )
 
     r2 = client.post(
         "/chat",
@@ -297,3 +307,77 @@ def test_search_and_chat_fallback_to_legacy_collection_when_missing(
         (versioned, False),
         (LEGACY_COLLECTION_NAME, False),
     ]
+
+
+def test_llm_default_preferences_get_put(client) -> None:
+    r1 = client.get("/llm/preferences/default")
+    assert r1.status_code == 200
+    prefs = r1.json().get("preferences")
+    assert isinstance(prefs, dict)
+
+    r2 = client.put(
+        "/llm/preferences/default",
+        json={
+            "provider": "fake",
+            "model": "unit-test",
+            "temperature": 0.1,
+            "max_tokens": 64,
+        },
+    )
+    assert r2.status_code == 200
+    prefs2 = r2.json().get("preferences")
+    assert isinstance(prefs2, dict)
+    assert prefs2.get("provider") == "fake"
+
+
+def test_chat_sse_streaming_with_fake_provider(
+    client,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from app import main as main_mod
+    from app.repo import set_default_llm_preferences, upsert_video_index
+    from app.transcript_store import get_transcript_hash
+
+    v = _create_video(tmp_path)
+    video_id = v["id"]
+    _write_transcript(video_id)
+
+    transcript_hash = get_transcript_hash(video_id)
+    upsert_video_index(
+        video_id=video_id,
+        status="completed",
+        progress=1.0,
+        embed_model="hash",
+        embed_dim=384,
+        transcript_hash=transcript_hash,
+        chunk_count=1,
+        indexed_count=1,
+    )
+
+    def fake_query_vectors(*args: Any, **kwargs: Any) -> Dict[str, Any]:
+        return {
+            "ids": [["c1"]],
+            "documents": [["hello world"]],
+            "metadatas": [[{"start_time": 0.0, "end_time": 1.0}]],
+            "distances": [[0.0]],
+        }
+
+    monkeypatch.setattr(main_mod, "query_vectors", fake_query_vectors)
+    set_default_llm_preferences({"provider": "fake", "model": "unit-test"})
+
+    r = client.post(
+        "/chat",
+        json={
+            "video_id": video_id,
+            "query": "hello",
+            "top_k": 1,
+            "stream": True,
+        },
+    )
+    assert r.status_code == 200
+    assert "text/event-stream" in r.headers.get("content-type", "")
+
+    text = r.text
+    assert "event: token" in text
+    assert "event: done" in text

@@ -101,6 +101,18 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_chunks_hash ON chunks(content_hash);
             CREATE INDEX IF NOT EXISTS idx_chunks_time
                 ON chunks(video_id, start_time);
+
+            CREATE TABLE IF NOT EXISTS llm_preferences (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                prefs_json TEXT NOT NULL,
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+
+            INSERT OR IGNORE INTO llm_preferences (id, prefs_json)
+                VALUES (
+                    1,
+                    '{"provider":"fake","temperature":0.2,"max_tokens":512}'
+                );
             """
         )
         _migrate(conn)

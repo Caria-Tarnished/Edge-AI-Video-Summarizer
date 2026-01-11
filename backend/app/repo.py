@@ -209,6 +209,35 @@ def recover_incomplete_state() -> None:
         )
 
 
+def get_default_llm_preferences() -> Dict[str, Any]:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT prefs_json FROM llm_preferences WHERE id=1",
+        ).fetchone()
+        prefs_json = str(row["prefs_json"] or "{}") if row else "{}"
+
+    try:
+        obj = json.loads(prefs_json)
+        return obj if isinstance(obj, dict) else {}
+    except Exception:
+        return {}
+
+
+def set_default_llm_preferences(prefs: Dict[str, Any]) -> Dict[str, Any]:
+    payload = prefs if isinstance(prefs, dict) else {}
+    prefs_json = json.dumps(payload, ensure_ascii=False)
+    with connect() as conn:
+        conn.execute(
+            (
+                "UPDATE llm_preferences SET prefs_json=? "
+                ", updated_at=strftime('%Y-%m-%d %H:%M:%f','now') "
+                "WHERE id=1"
+            ),
+            (prefs_json,),
+        )
+    return get_default_llm_preferences()
+
+
 def update_job(
     job_id: str,
     *,

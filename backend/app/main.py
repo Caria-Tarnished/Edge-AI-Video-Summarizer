@@ -13,12 +13,14 @@ from .cloud_summary import summarize
 from .db import init_db
 from .ffmpeg_util import get_duration_seconds
 from .hashing import sha256_file
+from .llm_provider import ChatMessage, LLMPreferences, get_provider, list_providers
 from .repo import (
     cancel_job,
     create_job,
     create_or_get_video,
     delete_chunks_for_video,
     delete_video_index,
+    get_default_llm_preferences,
     get_active_job_for_video,
     get_job,
     get_video,
@@ -28,6 +30,7 @@ from .repo import (
     list_videos,
     recover_incomplete_state,
     reset_job,
+    set_default_llm_preferences,
     set_video_status,
 )
 from .settings import settings
@@ -78,12 +81,21 @@ class ChatRequest(BaseModel):
     video_id: str
     query: str
     top_k: int = 5
+    stream: bool = False
+    confirm_send: bool = False
 
 
 class CloudSummaryRequest(BaseModel):
     text: str
     api_key: Optional[str] = None
     confirm_send: bool = False
+
+
+class LLMDefaultPreferencesRequest(BaseModel):
+    provider: str = "fake"
+    model: Optional[str] = None
+    temperature: float = 0.2
+    max_tokens: int = 512
 
 
 class RetryJobRequest(BaseModel):
@@ -132,6 +144,35 @@ def health() -> Dict[str, Any]:
         "status": "ok",
         "data_dir": settings.data_dir,
         "cloud_summary_default": bool(settings.enable_cloud_summary),
+    }
+
+
+@app.get("/llm/preferences/default")
+def get_llm_default_preferences_api() -> Dict[str, Any]:
+    return {
+        "preferences": get_default_llm_preferences(),
+    }
+
+
+@app.get("/llm/providers")
+def list_llm_providers_api() -> Dict[str, Any]:
+    return {
+        "providers": ["none"] + list_providers(),
+    }
+
+
+@app.put("/llm/preferences/default")
+def set_llm_default_preferences_api(
+    req: LLMDefaultPreferencesRequest,
+) -> Dict[str, Any]:
+    prefs = {
+        "provider": str(req.provider or "").strip(),
+        "model": req.model,
+        "temperature": float(req.temperature),
+        "max_tokens": int(req.max_tokens),
+    }
+    return {
+        "preferences": set_default_llm_preferences(prefs),
     }
 
 
@@ -332,7 +373,11 @@ def search_api(
     if idx and str(idx.get("status") or "") == "completed":
         current_transcript_hash = get_transcript_hash(video_id)
         idx_hash = str(idx.get("transcript_hash") or "")
-        if idx_hash and current_transcript_hash and idx_hash == current_transcript_hash:
+        if (
+            idx_hash
+            and current_transcript_hash
+            and idx_hash == current_transcript_hash
+        ):
             pass
         else:
             idx = None
@@ -471,6 +516,11 @@ def _generate_answer_retrieval_only(
     return "\n".join(lines).strip()
 
 
+def _sse_event(event: str, data: Dict[str, Any]) -> str:
+    payload = json.dumps(data, ensure_ascii=False)
+    return f"event: {event}\ndata: {payload}\n\n"
+
+
 @app.post("/chat")
 def chat_api(req: ChatRequest) -> Response:
     video_id = str(req.video_id or "").strip()
@@ -504,7 +554,11 @@ def chat_api(req: ChatRequest) -> Response:
     if idx and str(idx.get("status") or "") == "completed":
         current_transcript_hash = get_transcript_hash(video_id)
         idx_hash = str(idx.get("transcript_hash") or "")
-        if idx_hash and current_transcript_hash and idx_hash == current_transcript_hash:
+        if (
+            idx_hash
+            and current_transcript_hash
+            and idx_hash == current_transcript_hash
+        ):
             pass
         else:
             idx = None
@@ -597,13 +651,117 @@ def chat_api(req: ChatRequest) -> Response:
             }
         )
 
-    answer = _generate_answer_retrieval_only(query=q, items=items)
+    stored = get_default_llm_preferences()
+    provider_name = str(stored.get("provider") or "fake").strip() or "fake"
+    if provider_name == "none":
+        answer = _generate_answer_retrieval_only(query=q, items=items)
+        if bool(req.stream):
+
+            def gen():
+                for i in range(0, len(answer), 16):
+                    yield _sse_event("token", {"delta": answer[i:i + 16]})
+                yield _sse_event(
+                    "done",
+                    {
+                        "video_id": video_id,
+                        "query": q,
+                        "mode": "retrieval_only",
+                        "answer": answer,
+                        "citations": items,
+                    },
+                )
+
+            return StreamingResponse(gen(), media_type="text/event-stream")
+
+        return UTF8JSONResponse(
+            status_code=200,
+            content={
+                "video_id": video_id,
+                "query": q,
+                "mode": "retrieval_only",
+                "answer": answer,
+                "citations": items,
+            },
+        )
+
+    provider = get_provider(provider_name)
+    if provider is None:
+        raise HTTPException(status_code=400, detail="LLM_PROVIDER_NOT_FOUND")
+
+    prefs = LLMPreferences(
+        provider=provider_name,
+        model=str(stored.get("model") or "") or None,
+        temperature=float(stored.get("temperature") or 0.2),
+        max_tokens=int(stored.get("max_tokens") or 512),
+    )
+
+    if bool(getattr(provider, "requires_confirm_send", False)) and not bool(
+        req.confirm_send
+    ):
+        raise HTTPException(status_code=400, detail="CONFIRM_SEND_REQUIRED")
+
+    messages: list[ChatMessage] = [
+        {
+            "role": "system",
+            "content": "你是一个本地优先的视频内容整理助手。请基于给定的引用片段回答问题。",
+        },
+        {
+            "role": "user",
+            "content": (
+                f"问题：{q}\n\n"
+                f"引用片段（带时间戳）：\n"
+                + "\n".join(
+                    [
+                        f"[{_format_seconds(it.get('start_time'))} - "
+                        f"{_format_seconds(it.get('end_time'))}] "
+                        f"{str(it.get('text') or '')}"
+                        for it in items
+                    ]
+                )
+            ),
+        },
+    ]
+
+    if bool(req.stream):
+
+        def gen():
+            parts: list[str] = []
+            try:
+                for part in provider.stream_generate(
+                    messages=messages,
+                    prefs=prefs,
+                    confirm_send=bool(req.confirm_send),
+                ):
+                    parts.append(part)
+                    yield _sse_event("token", {"delta": part})
+
+                answer = "".join(parts)
+                yield _sse_event(
+                    "done",
+                    {
+                        "video_id": video_id,
+                        "query": q,
+                        "mode": "rag",
+                        "answer": answer,
+                        "citations": items,
+                    },
+                )
+            except Exception as e:
+                yield _sse_event("error", {"detail": str(e)})
+
+        return StreamingResponse(gen(), media_type="text/event-stream")
+
+    answer = provider.generate(
+        messages=messages,
+        prefs=prefs,
+        confirm_send=bool(req.confirm_send),
+    )
     return UTF8JSONResponse(
         status_code=200,
         content={
             "video_id": video_id,
             "query": q,
-            "mode": "retrieval_only",
+            "mode": "rag",
             "answer": answer,
             "citations": items,
         },
