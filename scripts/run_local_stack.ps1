@@ -1,0 +1,172 @@
+param(
+    [string]$LlamaServerExe = "",
+    [string]$ModelPath = "",
+    [string]$BackendBaseUrl = "http://127.0.0.1:8001",
+    [string]$LocalLLMBaseUrl = "http://127.0.0.1:8080/v1",
+    [int]$BackendPort = 8001,
+    [int]$LlamaPort = 8080,
+    [int]$LlamaCtxSize = 4096,
+    [int]$LlamaThreads = 0,
+    [int]$LlamaGpuLayers = -1,
+    [int]$LLMTimeoutSeconds = 600,
+    [string]$LLMModelId = "llama",
+    [int]$LLMMaxTokens = 128,
+    [switch]$RunE2E,
+    [string]$VideoId = "",
+    [string]$VideoPath = "",
+    [string]$OutDir = "artifacts",
+    [string[]]$LlamaExtraArgs = @()
+)
+
+$ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
+
+$BackendBaseUrl = $BackendBaseUrl.TrimEnd('/')
+$LocalLLMBaseUrl = $LocalLLMBaseUrl.TrimEnd('/')
+
+New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+$logDir = Join-Path $OutDir "logs"
+New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+
+$iwrHasBasic = $false
+try {
+    $iwrHasBasic = (Get-Command Invoke-WebRequest).Parameters.ContainsKey("UseBasicParsing")
+} catch {
+    $iwrHasBasic = $false
+}
+
+function Wait-HttpOk([string]$url, [int]$timeoutSeconds) {
+    $deadline = (Get-Date).AddSeconds($timeoutSeconds)
+    while ($true) {
+        try {
+            $args = @{ Uri = $url; Method = "Get" }
+            if ($iwrHasBasic) {
+                $args["UseBasicParsing"] = $true
+            }
+            $resp = Invoke-WebRequest @args
+            if ([int]$resp.StatusCode -eq 200) {
+                return $resp.Content
+            }
+        } catch {
+        }
+
+        if ((Get-Date) -gt $deadline) {
+            throw "Not ready at $url (timeout ${timeoutSeconds}s)"
+        }
+        Start-Sleep -Milliseconds 500
+    }
+}
+
+function Invoke-WebJson {
+    param(
+        [Parameter(Mandatory = $true)][string]$Method,
+        [Parameter(Mandatory = $true)][string]$Uri,
+        [object]$Body = $null
+    )
+
+    $args = @{ Method = $Method; Uri = $Uri }
+    if ($iwrHasBasic) {
+        $args["UseBasicParsing"] = $true
+    }
+
+    if ($Body -ne $null) {
+        $args["ContentType"] = "application/json; charset=utf-8"
+        $args["Body"] = ($Body | ConvertTo-Json -Compress)
+    }
+
+    $resp = Invoke-WebRequest @args
+    $json = $null
+    if ($resp.Content) {
+        $json = $resp.Content | ConvertFrom-Json
+    }
+
+    return [PSCustomObject]@{
+        StatusCode = [int]$resp.StatusCode
+        Json = $json
+        Raw = $resp
+    }
+}
+
+Write-Host "OutDir: $OutDir"
+
+Write-Host "1) Starting llama-server (if paths provided)..."
+if ($LlamaServerExe -and $ModelPath) {
+    $startLlama = Join-Path $PSScriptRoot "run_llama_server.ps1"
+    if (-not (Test-Path -LiteralPath $startLlama)) {
+        throw "Missing script: $startLlama"
+    }
+
+    & $startLlama `
+        -LlamaServerExe $LlamaServerExe `
+        -ModelPath $ModelPath `
+        -ListenHost "127.0.0.1" `
+        -Port $LlamaPort `
+        -CtxSize $LlamaCtxSize `
+        -Threads $LlamaThreads `
+        -GpuLayers $LlamaGpuLayers `
+        -ApiBaseUrl $LocalLLMBaseUrl `
+        -OutDir $OutDir `
+        -ExtraArgs $LlamaExtraArgs
+} else {
+    Write-Host "Skipping llama-server start (provide -LlamaServerExe and -ModelPath to auto-start)."
+    Write-Host "Checking existing llama-server: $LocalLLMBaseUrl/models"
+    Wait-HttpOk "$LocalLLMBaseUrl/models" 10 | Out-Null
+}
+
+Write-Host "2) Starting backend (uvicorn)..."
+$env:LLM_LOCAL_BASE_URL = $LocalLLMBaseUrl
+$env:LLM_LOCAL_MODEL = $LLMModelId
+$env:LLM_REQUEST_TIMEOUT_SECONDS = "$LLMTimeoutSeconds"
+
+$runBackend = Join-Path $PSScriptRoot "run_backend_dev.ps1"
+if (-not (Test-Path -LiteralPath $runBackend)) {
+    throw "Missing script: $runBackend"
+}
+
+$ts = (Get-Date).ToString("yyyyMMdd_HHmmss")
+$backendStdout = Join-Path $logDir "backend_${ts}.stdout.log"
+$backendStderr = Join-Path $logDir "backend_${ts}.stderr.log"
+
+$backendArgs = @("-Port", "$BackendPort", "-ListenHost", "127.0.0.1")
+$backendProc = Start-Process -FilePath "powershell" -ArgumentList (@("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $runBackend) + $backendArgs) -PassThru -RedirectStandardOutput $backendStdout -RedirectStandardError $backendStderr
+
+Write-Host "backend pid: $($backendProc.Id)"
+Write-Host "backend stdout: $backendStdout"
+Write-Host "backend stderr: $backendStderr"
+
+Wait-HttpOk "$BackendBaseUrl/health" 60 | Out-Null
+Write-Host "backend ready: $BackendBaseUrl"
+
+Write-Host "3) Setting backend LLM preferences..."
+$prefs = @{ provider = "openai_local"; model = $LLMModelId; temperature = 0.2; max_tokens = $LLMMaxTokens }
+$prefsResp = Invoke-WebJson -Method Put -Uri "$BackendBaseUrl/llm/preferences/default" -Body $prefs
+if ($prefsResp.StatusCode -ne 200) {
+    throw "Failed to set LLM preferences. status=$($prefsResp.StatusCode)"
+}
+
+if ($RunE2E) {
+    Write-Host "4) Running local LLM E2E test..."
+    $e2e = Join-Path $PSScriptRoot "local_llm_e2e_test.ps1"
+    if (-not (Test-Path -LiteralPath $e2e)) {
+        throw "Missing script: $e2e"
+    }
+
+    $e2eArgs = @(
+        "-BaseUrl", $BackendBaseUrl,
+        "-LocalLLMBaseUrl", $LocalLLMBaseUrl,
+        "-Model", $LLMModelId,
+        "-MaxTokens", "$LLMMaxTokens",
+        "-OutDir", $OutDir
+    )
+
+    if ($VideoId) {
+        $e2eArgs += @("-VideoId", $VideoId)
+    }
+    if ($VideoPath) {
+        $e2eArgs += @("-VideoPath", $VideoPath)
+    }
+
+    & $e2e @e2eArgs
+}
+
+Write-Host "OK"

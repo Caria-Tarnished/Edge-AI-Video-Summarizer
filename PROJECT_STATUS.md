@@ -73,6 +73,8 @@
   - 索引进行中允许 `202`，并严格断言 `job_id` 复用（去重策略）
   - 若索引完成过快允许直接 `200`
 - `scripts/local_llm_e2e_test.ps1`：端到端验证本地 LLM（llama-server）+ 设置默认 LLM 偏好 + index + `/chat` 非流式与 SSE
+- `scripts/run_llama_server.ps1`：一键启动本地 `llama-server`（含 `/v1/models` 健康检查与日志落盘）
+- `scripts/run_local_stack.ps1`：一键启动 llama-server + backend，并可选自动运行 `local_llm_e2e_test.ps1`
 
 ## API 一览（MVP-1 + MVP-2）
 
