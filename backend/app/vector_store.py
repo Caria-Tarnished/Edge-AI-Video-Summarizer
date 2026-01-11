@@ -27,11 +27,12 @@ def chunks_collection_name(embed_model: str, embed_dim: int) -> str:
 def _require_chromadb():
     try:
         import chromadb  # type: ignore
-        from chromadb.api.models.Collection import Collection  # type: ignore
 
-        return chromadb, Collection
+        return chromadb
     except Exception as e:
-        raise VectorStoreUnavailable("CHROMADB_NOT_AVAILABLE") from e
+        raise VectorStoreUnavailable(
+            f"CHROMADB_NOT_AVAILABLE: {type(e).__name__}: {e}"
+        ) from e
 
 
 _client: Any = None
@@ -42,13 +43,15 @@ def get_client():
     if _client is not None:
         return _client
 
-    chromadb, _ = _require_chromadb()
+    chromadb = _require_chromadb()
     try:
         _client = chromadb.PersistentClient(path=chroma_dir())
         return _client
     except Exception as e:
         _client = None
-        raise VectorStoreUnavailable("CHROMADB_CLIENT_FAILED") from e
+        raise VectorStoreUnavailable(
+            f"CHROMADB_CLIENT_FAILED: {type(e).__name__}: {e}"
+        ) from e
 
 
 def get_collection(name: str):

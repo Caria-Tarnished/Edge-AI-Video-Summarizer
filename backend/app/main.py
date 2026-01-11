@@ -13,7 +13,12 @@ from .cloud_summary import summarize
 from .db import init_db
 from .ffmpeg_util import get_duration_seconds
 from .hashing import sha256_file
-from .llm_provider import ChatMessage, LLMPreferences, get_provider, list_providers
+from .llm_provider import (
+    ChatMessage,
+    LLMPreferences,
+    get_provider,
+    list_providers,
+)
 from .repo import (
     cancel_job,
     create_job,
@@ -751,11 +756,17 @@ def chat_api(req: ChatRequest) -> Response:
 
         return StreamingResponse(gen(), media_type="text/event-stream")
 
-    answer = provider.generate(
-        messages=messages,
-        prefs=prefs,
-        confirm_send=bool(req.confirm_send),
-    )
+    try:
+        answer = provider.generate(
+            messages=messages,
+            prefs=prefs,
+            confirm_send=bool(req.confirm_send),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"LLM_FAILED:{str(e)[:2000]}",
+        )
     return UTF8JSONResponse(
         status_code=200,
         content={

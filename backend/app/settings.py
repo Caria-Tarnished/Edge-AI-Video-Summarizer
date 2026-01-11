@@ -49,5 +49,25 @@ class Settings:
     dashscope_api_key: str = os.getenv("DASHSCOPE_API_KEY", "")
     cloud_llm_model: str = os.getenv("CLOUD_LLM_MODEL", "qwen-plus")
 
+    llm_local_base_url: str = os.getenv(
+        "LLM_LOCAL_BASE_URL",
+        "http://127.0.0.1:8080/v1",
+    )
+    llm_local_model: str = os.getenv("LLM_LOCAL_MODEL", "llama")
+
+    enable_cloud_llm: bool = os.getenv("ENABLE_CLOUD_LLM", "0") in (
+        "1",
+        "true",
+        "True",
+        "yes",
+        "YES",
+    )
+    llm_cloud_base_url: str = os.getenv(
+        "LLM_CLOUD_BASE_URL",
+        "https://api.openai.com/v1",
+    )
+    llm_cloud_api_key: str = os.getenv("LLM_CLOUD_API_KEY", "")
+    llm_cloud_model: str = os.getenv("LLM_CLOUD_MODEL", "gpt-4o-mini")
+
 
 settings = Settings()

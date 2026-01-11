@@ -1,0 +1,6 @@
+﻿{
+  "provider": "openai_local",
+  "model": "llama",
+  "temperature": 0.2,
+  "max_tokens": 128
+}

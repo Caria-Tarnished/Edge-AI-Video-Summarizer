@@ -8,7 +8,7 @@
 - 抽取音频并进行 ASR 分段转写（支持断点续跑）
 - 导出可播放字幕（SRT/VTT）
 - 对转写内容进行分块、Embedding、向量索引
-- 提供检索（`/search`）与无 LLM（retrieval-only）的问答（`/chat`）接口
+- 提供检索（`/search`）与问答（`/chat`）接口：支持 retrieval-only，也支持接入本地 LLM（RAG）
 
 后端基于 **FastAPI + SQLite**，向量库使用 **ChromaDB**。
 
@@ -33,9 +33,17 @@
 - 向量库：ChromaDB 持久化
 - Index Job：分块 → embedding → upsert 到向量库
 - 搜索：`GET /search`
-- 问答（无 LLM）：`POST /chat`，返回 `answer + citations`
+- 问答：`POST /chat`
+  - retrieval-only：返回 `answer + citations`
+  - 本地 LLM（RAG）：返回 `answer + citations`，LLM provider 通过 `/llm/preferences/default` 配置
 - 索引过期检测：基于 transcript 文件 hash 判断 stale index，并自动触发重建
 - Chroma collection 版本化：按 `embed_model + embed_dim` 隔离，避免维度冲突；必要时对 legacy collection 做兼容回退
+
+### MVP-2：本地 LLM（llama-server）
+
+- 支持 `llama.cpp` 的 `llama-server`（OpenAI-compatible `/v1/chat/completions`）
+- 后端通过 provider `openai_local` 调用本地 LLM
+- 支持非流式与 SSE 流式输出
 
 ### 实时进度推送
 
@@ -105,6 +113,9 @@ curl.exe http://127.0.0.1:8001/health
 - `POST /videos/{video_id}/index`
 - `GET /search?video_id=...&query=...&top_k=...`
 - `POST /chat`
+- `GET /llm/providers`
+- `GET /llm/preferences/default`
+- `PUT /llm/preferences/default`
 
 更完整 API 与 PowerShell 示例见：`PROJECT_STATUS.md`。
 
@@ -113,6 +124,7 @@ curl.exe http://127.0.0.1:8001/health
 ## 自动化脚本（PowerShell）
 
 - `scripts/index_search_chat_test.ps1`：回归验证 `/index`、`/search`、`/chat`（含 200/202 竞态容忍与 job_id 复用断言）
+- `scripts/local_llm_e2e_test.ps1`：端到端验证本地 LLM（llama-server）+ 设置默认 LLM 偏好 + index + `/chat` 非流式与 SSE
 - `scripts/restart_recovery_test.ps1`：验证重启恢复
 - `scripts/cancel_retry_test.ps1`：验证取消/重试
 - `scripts/run_quality_checks.ps1`：一键运行 flake8/mypy/pyright/pytest
@@ -135,6 +147,9 @@ curl.exe http://127.0.0.1:8001/health
 - `EDGE_VIDEO_AGENT_DATA_DIR`：数据目录（SQLite/转写/索引等）
 - `EDGE_VIDEO_AGENT_DISABLE_WORKER`：禁用后台 worker（测试用）
 - `ENABLE_CLOUD_SUMMARY`：是否允许云摘要（默认关闭）
+- `LLM_LOCAL_BASE_URL`：本地 llama-server 的 OpenAI API base url（默认 `http://127.0.0.1:8080/v1`）
+- `LLM_LOCAL_MODEL`：本地 llama-server 的默认 model id（默认 `llama`）
+- `LLM_REQUEST_TIMEOUT_SECONDS`：后端调用 LLM 的 HTTP 超时（秒），用于非流式请求（默认 `600`）
 
 更多配置项请参考：`backend/app/settings.py`。
 

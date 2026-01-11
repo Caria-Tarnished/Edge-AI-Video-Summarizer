@@ -40,8 +40,19 @@
   - `GET /videos/{video_id}/index`：查看 index 状态
   - `GET /videos/{video_id}/chunks`：查看 chunk 列表
   - `GET /search`：向量检索（若未完成索引会自动触发 index，并返回 `202 + job_id`）
-  - `POST /chat`：无 LLM（retrieval-only）问答，返回 `answer + citations`（同样支持自动触发索引）
+  - `POST /chat`：问答（retrieval-only / 本地 LLM RAG），返回 `answer + citations`（同样支持自动触发索引）
 - Windows PowerShell 兼容性：JSON 响应强制 `charset=utf-8`，避免中文转写/检索结果乱码
+
+### MVP-2：本地 LLM 推理引擎（已跑通）
+
+- 本地 `llama.cpp` 的 `llama-server`（OpenAI-compatible `/v1/chat/completions`）
+- 后端 provider：`openai_local`
+- 默认偏好持久化：`PUT /llm/preferences/default`
+- 已验证：
+  - `/chat` 非流式 `200` 返回真实 LLM 输出
+  - `/chat` SSE 流式 `event: token` + `event: done`
+  - 索引完成后 RAG 正常返回 `answer + citations`
+  - 非流式超时风险已缓解：可通过 `LLM_REQUEST_TIMEOUT_SECONDS` 调整
 
 ### 实时进度推送（已新增接口）
 
@@ -61,6 +72,7 @@
 - `scripts/index_search_chat_test.ps1`：回归验证 `/index`、`/search`、`/chat`：
   - 索引进行中允许 `202`，并严格断言 `job_id` 复用（去重策略）
   - 若索引完成过快允许直接 `200`
+- `scripts/local_llm_e2e_test.ps1`：端到端验证本地 LLM（llama-server）+ 设置默认 LLM 偏好 + index + `/chat` 非流式与 SSE
 
 ## API 一览（MVP-1 + MVP-2）
 
@@ -92,14 +104,33 @@
     - 完成：引入并跑通静态检查（mypy/pyright），补齐 `backend/pyrightconfig.json`，并新增 `backend/requirements-dev.txt`、`backend/.flake8`
     - 完成：将质量检查纳入 CI（GitHub Actions：flake8 + mypy + pyright + pytest）
     - 完成：补最小 pytest 回归（`TestClient`）覆盖 `/health`、`/index`、`/search`、`/chat` 关键分支与错误码
-  - MVP-2：本地 LLM 推理引擎接入（RAG）
-    - 优先 `llama.cpp`（`llama-cpp-python` 或 `llama-server`）
-    - 支持流式输出（SSE/WebSocket/HTTP chunked）
-    - Prompt 组装与引用格式规范（时间戳可解析，前端可跳转）
-  - MVP-3：层级摘要（Map-Reduce）与大纲结构 + 导出
-  - MVP-4：关键帧提取（固定间隔/场景切换）+ 索引存储（SQLite）+ 与章节/时间戳对齐
-  - 桌面端（Electron/React）接入：视频列表/任务进度（SSE/WS）/断线重连/状态恢复
-  - 打包与分发：PyInstaller + Electron Builder；模型下载/导入向导；数据目录迁移/备份
+	- MVP-2：本地 LLM 推理引擎接入（RAG）
+	  - 完成：`llama-server` + `openai_local` provider + `/chat` 非流式与 SSE 已跑通
+	  - 下一步：
+	    - 将本地 LLM 相关步骤固化为脚本：`scripts/local_llm_e2e_test.ps1`（已新增）
+	    - 将本地 LLM 配置（base url / model / max_tokens / timeout）做成可视化设置（桌面端优先）
+	    - 运行档位（Runtime Profile）落地：CPU 友好 / 均衡 / GPU 推荐（后端 + UI）
+  	- MVP-3：层级摘要（Map-Reduce）与大纲结构 + 导出
+	- MVP-4：关键帧提取（固定间隔/场景切换）+ 索引存储（SQLite）+ 与章节/时间戳对齐
+	- 桌面端（Electron/React）接入：视频列表/任务进度（SSE/WS）/断线重连/状态恢复
+	  - LLM 设置页（本地优先）：为非技术用户提供“档位选择 + 模型路径配置 + 一键启用”
+	    - 档位（Runtime Profile）：CPU 友好 / 均衡（默认）/ GPU 推荐（高级选项）
+	    - 模型文件：选择本地 `.gguf` 路径（例如 Qwen2.5-7B-Instruct Q4_K_M）
+	    - llama-server：可选由 Electron 启停并显示状态（端口、启动参数、日志片段）
+	    - 后端联动：
+	      - 读取 provider 列表：`GET /llm/providers`
+	      - 设置默认偏好：`PUT /llm/preferences/default`（provider=`openai_local`，model/temperature/max_tokens）
+	      - 读取默认偏好：`GET /llm/preferences/default`
+	    - 可选增强：探测本地 llama-server 可用性（例如 `GET {LLM_LOCAL_BASE_URL}/v1/models`）并在 UI 显示“已连接/未启动”
+	  - LLM 设置页流程：
+	    1. 读取 provider 列表（`GET /llm/providers`）
+	    2. 选择 provider（例如 `openai_local`）
+	    3. 配置模型路径（`.gguf` 文件）
+	    4. 启动 llama-server（可选）
+	    5. 设置默认偏好（`PUT /llm/preferences/default`）
+	    6. 读取默认偏好（`GET /llm/preferences/default`）
+	    7. 显示 llama-server 状态（可选）
+	- 打包与分发：PyInstaller + Electron Builder；模型下载/导入向导；数据目录迁移/备份
 
 ## 备忘 / 待验证事项（重要）
 
