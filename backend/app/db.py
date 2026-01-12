@@ -84,6 +84,26 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_video_indexes_status
                 ON video_indexes(status);
 
+            CREATE TABLE IF NOT EXISTS video_summaries (
+                video_id TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                progress REAL DEFAULT 0,
+                message TEXT DEFAULT '',
+                transcript_hash TEXT,
+                params_json TEXT,
+                segment_summaries_json TEXT,
+                summary_markdown TEXT,
+                outline_json TEXT,
+                error_code TEXT,
+                error_message TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_video_summaries_status
+                ON video_summaries(status);
+
             CREATE TABLE IF NOT EXISTS chunks (
                 id TEXT PRIMARY KEY,
                 video_id TEXT NOT NULL,

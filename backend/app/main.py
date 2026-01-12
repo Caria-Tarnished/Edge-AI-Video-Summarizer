@@ -24,12 +24,14 @@ from .repo import (
     create_job,
     create_or_get_video,
     delete_chunks_for_video,
+    delete_video_summary,
     delete_video_index,
     get_default_llm_preferences,
     get_active_job_for_video,
     get_job,
     get_video,
     get_video_index,
+    get_video_summary,
     list_chunks,
     list_jobs,
     list_videos,
@@ -76,6 +78,14 @@ class CreateIndexJobRequest(BaseModel):
     from_scratch: bool = True
     embed_model: Optional[str] = None
     embed_dim: Optional[int] = None
+    target_window_seconds: Optional[float] = None
+    max_window_seconds: Optional[float] = None
+    min_window_seconds: Optional[float] = None
+    overlap_seconds: Optional[float] = None
+
+
+class CreateSummarizeJobRequest(BaseModel):
+    from_scratch: bool = False
     target_window_seconds: Optional[float] = None
     max_window_seconds: Optional[float] = None
     min_window_seconds: Optional[float] = None
@@ -331,6 +341,160 @@ def get_index_status(video_id: str) -> Dict[str, Any]:
         if idx_hash != current_transcript_hash:
             out["is_stale"] = True
     return out
+
+
+@app.post("/videos/{video_id}/summarize")
+def create_summarize_job(
+    video_id: str,
+    req: CreateSummarizeJobRequest,
+) -> Response:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
+
+    if not transcript_exists(video_id):
+        raise HTTPException(status_code=404, detail="TRANSCRIPT_NOT_FOUND")
+    segs = load_segments(video_id, limit=1)
+    if not segs:
+        raise HTTPException(status_code=404, detail="TRANSCRIPT_NOT_FOUND")
+
+    existing = get_active_job_for_video(
+        video_id=video_id,
+        job_type="summarize",
+    )
+    if existing:
+        return UTF8JSONResponse(
+            status_code=202,
+            content={
+                "detail": "SUMMARIZING_IN_PROGRESS",
+                "job_id": existing["id"],
+                "video_id": video_id,
+            },
+        )
+
+    summary = get_video_summary(video_id)
+    current_transcript_hash = get_transcript_hash(video_id)
+    if summary and str(summary.get("status") or "") == "completed":
+        s_hash = str(summary.get("transcript_hash") or "")
+        if (
+            s_hash
+            and current_transcript_hash
+            and s_hash == current_transcript_hash
+            and not bool(req.from_scratch)
+        ):
+            return UTF8JSONResponse(
+                status_code=200,
+                content={
+                    "detail": "SUMMARY_ALREADY_COMPLETED",
+                    "video_id": video_id,
+                    "summary": summary,
+                },
+            )
+
+    from_scratch = bool(req.from_scratch)
+    if summary and str(summary.get("status") or "") == "completed":
+        s_hash = str(summary.get("transcript_hash") or "")
+        if current_transcript_hash and s_hash != current_transcript_hash:
+            from_scratch = True
+
+    params: Dict[str, Any] = {"from_scratch": from_scratch}
+    if req.target_window_seconds is not None:
+        params["target_window_seconds"] = float(req.target_window_seconds)
+    if req.max_window_seconds is not None:
+        params["max_window_seconds"] = float(req.max_window_seconds)
+    if req.min_window_seconds is not None:
+        params["min_window_seconds"] = float(req.min_window_seconds)
+    if req.overlap_seconds is not None:
+        params["overlap_seconds"] = float(req.overlap_seconds)
+
+    job = create_job(video_id, "summarize", params)
+    return UTF8JSONResponse(
+        status_code=202,
+        content={
+            "detail": "SUMMARIZE_STARTED",
+            "job_id": job["id"],
+            "video_id": video_id,
+        },
+    )
+
+
+@app.get("/videos/{video_id}/summary")
+def get_summary(video_id: str) -> Dict[str, Any]:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
+
+    current_transcript_hash = get_transcript_hash(video_id)
+    summary = get_video_summary(video_id)
+    if not summary:
+        return {
+            "video_id": video_id,
+            "status": "not_summarized",
+            "current_transcript_hash": current_transcript_hash,
+            "is_stale": False,
+        }
+
+    out = dict(summary)
+    out["current_transcript_hash"] = current_transcript_hash
+    out["is_stale"] = False
+    if str(out.get("status") or "") == "completed" and current_transcript_hash:
+        s_hash = str(out.get("transcript_hash") or "")
+        if s_hash != current_transcript_hash:
+            out["is_stale"] = True
+
+    try:
+        out["segment_summaries"] = json.loads(
+            str(out.get("segment_summaries_json") or "[]")
+        )
+    except Exception:
+        out["segment_summaries"] = []
+
+    return out
+
+
+@app.get("/videos/{video_id}/outline")
+def get_outline(video_id: str) -> Dict[str, Any]:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
+
+    summary = get_video_summary(video_id)
+    if not summary:
+        raise HTTPException(status_code=404, detail="SUMMARY_NOT_FOUND")
+
+    out: Dict[str, Any] = {
+        "video_id": video_id,
+        "status": str(summary.get("status") or ""),
+        "progress": float(summary.get("progress") or 0.0),
+        "message": str(summary.get("message") or ""),
+    }
+
+    try:
+        out["outline"] = json.loads(str(summary.get("outline_json") or "[]"))
+    except Exception:
+        out["outline"] = {"raw": str(summary.get("outline_json") or "")}
+
+    return out
+
+
+@app.get("/videos/{video_id}/export/markdown")
+def export_summary_markdown(video_id: str) -> Response:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
+
+    summary = get_video_summary(video_id)
+    if not summary:
+        raise HTTPException(status_code=404, detail="SUMMARY_NOT_FOUND")
+
+    if str(summary.get("status") or "") != "completed":
+        raise HTTPException(status_code=400, detail="SUMMARY_NOT_COMPLETED")
+
+    body = str(summary.get("summary_markdown") or "")
+    if not body.strip():
+        raise HTTPException(status_code=404, detail="SUMMARY_EMPTY")
+
+    return Response(content=body, media_type="text/markdown; charset=utf-8")
 
 
 @app.get("/videos/{video_id}/chunks")
@@ -932,7 +1096,9 @@ def retry_job_api(
             embed_model = str(
                 params.get("embed_model") or settings.embedding_model
             )
-            embed_dim = int(params.get("embed_dim") or settings.embedding_dim)
+            embed_dim = int(
+                params.get("embed_dim") or settings.embedding_dim
+            )
             collection_name = chunks_collection_name(embed_model, embed_dim)
             try:
                 delete_video_vectors(
@@ -949,6 +1115,8 @@ def retry_job_api(
                 )
             except VectorStoreUnavailable:
                 pass
+        elif str(job.get("job_type") or "") == "summarize":
+            delete_video_summary(job["video_id"])
 
     ok = reset_job(job_id)
     if not ok:

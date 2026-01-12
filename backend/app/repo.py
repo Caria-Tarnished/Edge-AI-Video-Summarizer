@@ -203,6 +203,11 @@ def recover_incomplete_state() -> None:
             "WHERE status='running'"
         )
         conn.execute(
+            "UPDATE video_summaries SET status='pending', message='recovered' "
+            ", updated_at=strftime('%Y-%m-%d %H:%M:%f','now') "
+            "WHERE status='running'"
+        )
+        conn.execute(
             "UPDATE videos SET status='pending' "
             ", updated_at=strftime('%Y-%m-%d %H:%M:%f','now') "
             "WHERE status='processing'"
@@ -288,6 +293,136 @@ def update_job(
     values.append(job_id)
     with connect() as conn:
         conn.execute(sql, tuple(values))
+
+
+def upsert_video_summary(
+    *,
+    video_id: str,
+    status: str,
+    progress: float = 0.0,
+    message: str = "",
+    transcript_hash: Optional[str] = None,
+    params_json: Optional[str] = None,
+    segment_summaries_json: Optional[str] = None,
+    summary_markdown: Optional[str] = None,
+    outline_json: Optional[str] = None,
+    error_code: Optional[str] = None,
+    error_message: Optional[str] = None,
+) -> None:
+    with connect() as conn:
+        conn.execute(
+            (
+                "INSERT INTO video_summaries ("
+                "video_id, status, progress, message, transcript_hash, "
+                "params_json, segment_summaries_json, summary_markdown, "
+                "outline_json, error_code, error_message"
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(video_id) DO UPDATE SET "
+                "status=excluded.status, "
+                "progress=excluded.progress, "
+                "message=excluded.message, "
+                "transcript_hash=excluded.transcript_hash, "
+                "params_json=excluded.params_json, "
+                "segment_summaries_json=excluded.segment_summaries_json, "
+                "summary_markdown=excluded.summary_markdown, "
+                "outline_json=excluded.outline_json, "
+                "error_code=excluded.error_code, "
+                "error_message=excluded.error_message, "
+                "updated_at=strftime('%Y-%m-%d %H:%M:%f','now')"
+            ),
+            (
+                video_id,
+                status,
+                float(progress),
+                message,
+                transcript_hash,
+                params_json,
+                segment_summaries_json,
+                summary_markdown,
+                outline_json,
+                error_code,
+                error_message,
+            ),
+        )
+
+
+def get_video_summary(video_id: str) -> Optional[Dict[str, Any]]:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM video_summaries WHERE video_id=?",
+            (video_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def update_video_summary(
+    video_id: str,
+    *,
+    status: Optional[str] = None,
+    progress: Optional[float] = None,
+    message: Optional[str] = None,
+    transcript_hash: Optional[str] = None,
+    params_json: Optional[str] = None,
+    segment_summaries_json: Optional[str] = None,
+    summary_markdown: Optional[str] = None,
+    outline_json: Optional[str] = None,
+    error_code: Optional[str] = None,
+    error_message: Optional[str] = None,
+) -> None:
+    fields: list[str] = []
+    values: list[Any] = []
+
+    if status is not None:
+        fields.append("status=?")
+        values.append(status)
+    if progress is not None:
+        fields.append("progress=?")
+        values.append(float(progress))
+    if message is not None:
+        fields.append("message=?")
+        values.append(message)
+    if transcript_hash is not None:
+        fields.append("transcript_hash=?")
+        values.append(transcript_hash)
+    if params_json is not None:
+        fields.append("params_json=?")
+        values.append(params_json)
+    if segment_summaries_json is not None:
+        fields.append("segment_summaries_json=?")
+        values.append(segment_summaries_json)
+    if summary_markdown is not None:
+        fields.append("summary_markdown=?")
+        values.append(summary_markdown)
+    if outline_json is not None:
+        fields.append("outline_json=?")
+        values.append(outline_json)
+    if error_code is not None:
+        fields.append("error_code=?")
+        values.append(error_code)
+    if error_message is not None:
+        fields.append("error_message=?")
+        values.append(error_message)
+
+    if not fields:
+        return
+
+    fields.append("updated_at=strftime('%Y-%m-%d %H:%M:%f','now')")
+    sql = (
+        "UPDATE video_summaries SET "
+        + ", ".join(fields)
+        + " WHERE video_id=?"
+    )
+    values.append(video_id)
+    with connect() as conn:
+        conn.execute(sql, tuple(values))
+
+
+def delete_video_summary(video_id: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            "DELETE FROM video_summaries WHERE video_id=?",
+            (video_id,),
+        )
 
 
 def list_videos(

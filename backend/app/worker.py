@@ -12,17 +12,22 @@ from .chunking_v2 import (
 )
 from .embeddings import embed_texts
 from .ffmpeg_util import extract_audio_wav
+from .llm_provider import LLMPreferences, get_provider
 from .repo import (
     claim_pending_job,
     delete_chunks_for_video,
+    delete_video_summary,
     fetch_next_pending_job,
+    get_default_llm_preferences,
     get_job,
     get_video,
     get_job_status,
     insert_chunk,
     set_video_status,
     update_video_index,
+    update_video_summary,
     upsert_video_index,
+    upsert_video_summary,
     update_job,
 )
 from .settings import settings
@@ -110,6 +115,8 @@ class JobWorker:
                     self._run_transcribe(job, claimed_started_at)
                 elif job_type == "index":
                     self._run_index(job, claimed_started_at)
+                elif job_type == "summarize":
+                    self._run_summarize(job, claimed_started_at)
                 else:
                     raise RuntimeError(f"unsupported job_type: {job_type}")
 
@@ -136,12 +143,24 @@ class JobWorker:
                         status="cancelled",
                         message="cancelled",
                     )
+                elif job_type == "summarize":
+                    update_video_summary(
+                        video_id,
+                        status="cancelled",
+                        message="cancelled",
+                    )
             except Exception as e:
                 if get_job_status(job_id) == "cancelled":
                     if job_type == "transcribe":
                         set_video_status(video_id, "pending")
                     elif job_type == "index":
                         update_video_index(
+                            video_id,
+                            status="cancelled",
+                            message="cancelled",
+                        )
+                    elif job_type == "summarize":
+                        update_video_summary(
                             video_id,
                             status="cancelled",
                             message="cancelled",
@@ -166,6 +185,15 @@ class JobWorker:
                     set_video_status(video_id, "error")
                 elif job_type == "index":
                     update_video_index(
+                        video_id,
+                        status="failed",
+                        progress=0.0,
+                        message="failed",
+                        error_code="E_JOB_FAILED",
+                        error_message=detail[:2000],
+                    )
+                elif job_type == "summarize":
+                    update_video_summary(
                         video_id,
                         status="failed",
                         progress=0.0,
@@ -592,4 +620,218 @@ class JobWorker:
             transcript_hash=transcript_hash,
             chunk_count=len(ids),
             indexed_count=len(ids),
+        )
+
+    def _run_summarize(
+        self,
+        job: Dict[str, Any],
+        claimed_started_at: str,
+    ) -> None:
+        job_id = job["id"]
+        video_id = job["video_id"]
+
+        video = get_video(video_id)
+        if not video:
+            raise RuntimeError(f"video not found: {video_id}")
+
+        params: Dict[str, Any] = {}
+        try:
+            params = json.loads(job.get("params_json") or "{}")
+        except Exception:
+            params = {}
+
+        if not transcript_exists(video_id):
+            raise RuntimeError("TRANSCRIPT_NOT_FOUND")
+        segs = load_segments(video_id)
+        if not segs:
+            raise RuntimeError("TRANSCRIPT_NOT_FOUND")
+
+        stored = get_default_llm_preferences()
+        provider_name = str(stored.get("provider") or "fake").strip() or "fake"
+        if provider_name == "none":
+            raise RuntimeError("LLM_PROVIDER_NONE")
+        provider = get_provider(provider_name)
+        if provider is None:
+            raise RuntimeError("LLM_PROVIDER_NOT_FOUND")
+        if bool(getattr(provider, "requires_confirm_send", False)):
+            raise RuntimeError("CONFIRM_SEND_REQUIRED")
+
+        prefs = LLMPreferences(
+            provider=provider_name,
+            model=str(stored.get("model") or "") or None,
+            temperature=float(stored.get("temperature") or 0.2),
+            max_tokens=int(stored.get("max_tokens") or 512),
+        )
+
+        transcript_hash = get_transcript_hash(video_id)
+        from_scratch = bool(params.get("from_scratch"))
+        if from_scratch:
+            delete_video_summary(video_id)
+
+        chunk_params = {
+            "target_window_seconds": float(
+                params.get("target_window_seconds") or 120.0
+            ),
+            "max_window_seconds": float(
+                params.get("max_window_seconds") or 180.0
+            ),
+            "min_window_seconds": float(
+                params.get("min_window_seconds") or 60.0
+            ),
+            "overlap_seconds": float(
+                params.get("overlap_seconds") or 10.0
+            ),
+        }
+        chunks = segments_to_time_chunks(segs, **chunk_params)
+        if not chunks:
+            raise RuntimeError("NO_TEXT")
+
+        params_json = json.dumps(params, ensure_ascii=False)
+        upsert_video_summary(
+            video_id=video_id,
+            status="running",
+            progress=0.0,
+            message="starting",
+            transcript_hash=transcript_hash,
+            params_json=params_json,
+            segment_summaries_json=None,
+            summary_markdown=None,
+            outline_json=None,
+        )
+
+        segment_summaries: list[Dict[str, Any]] = []
+        n = len(chunks)
+        for i, ch in enumerate(chunks):
+            if self._stop:
+                raise RuntimeError("worker stopped")
+
+            self._ensure_same_run(job_id, claimed_started_at)
+
+            start_time = float(ch.get("start_time") or 0.0)
+            end_time = float(ch.get("end_time") or 0.0)
+            text = str(ch.get("text") or "").strip()
+            if not text:
+                continue
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "You summarize transcript segments. "
+                        "Be concise and keep key facts."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Time range: "
+                        + f"{start_time:.2f}-{end_time:.2f} seconds\n\n"
+                        "Transcript:\n"
+                        f"{text[:12000]}\n\n"
+                        "Task: write a short bullet-point summary."
+                    ),
+                },
+            ]
+            part = provider.generate(
+                messages=messages,
+                prefs=prefs,
+                confirm_send=False,
+            )
+            segment_summaries.append(
+                {
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "summary": (part or "").strip(),
+                }
+            )
+
+            progress = 0.05 + 0.7 * (float(i + 1) / float(max(1, n)))
+            update_job(job_id, progress=progress, message="summarizing")
+            update_video_summary(
+                video_id,
+                status="running",
+                progress=progress,
+                message="summarizing",
+                segment_summaries_json=json.dumps(
+                    segment_summaries,
+                    ensure_ascii=False,
+                ),
+                transcript_hash=transcript_hash,
+                params_json=params_json,
+            )
+
+        self._ensure_same_run(job_id, claimed_started_at)
+        update_job(job_id, progress=0.8, message="reducing")
+        update_video_summary(
+            video_id,
+            status="running",
+            progress=0.8,
+            message="reducing",
+        )
+
+        reduce_input = json.dumps(segment_summaries, ensure_ascii=False)
+        messages_reduce = [
+            {
+                "role": "system",
+                "content": "You write a structured video summary.",
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Given segment summaries with timestamps (JSON), "
+                    "write a Markdown summary with key timestamps.\n\n"
+                    f"Input JSON:\n{reduce_input[:18000]}"
+                ),
+            },
+        ]
+        summary_md = provider.generate(
+            messages=messages_reduce,
+            prefs=prefs,
+            confirm_send=False,
+        )
+
+        self._ensure_same_run(job_id, claimed_started_at)
+        update_job(job_id, progress=0.9, message="outline")
+        messages_outline = [
+            {
+                "role": "system",
+                "content": "You produce JSON only.",
+            },
+            {
+                "role": "user",
+                "content": (
+                    "From the segment summaries JSON, generate an outline "
+                    "as a JSON array. Each item: title, start_time, end_time, "
+                    "bullets (array of strings). Output JSON only.\n\n"
+                    f"Input JSON:\n{reduce_input[:18000]}"
+                ),
+            },
+        ]
+        outline_raw = provider.generate(
+            messages=messages_outline,
+            prefs=prefs,
+            confirm_send=False,
+        )
+        outline_obj: Any = []
+        try:
+            outline_obj = json.loads(outline_raw or "[]")
+        except Exception:
+            outline_obj = {"raw": str(outline_raw or "")}
+        outline_json = json.dumps(outline_obj, ensure_ascii=False)
+
+        self._ensure_same_run(job_id, claimed_started_at)
+        update_job(job_id, progress=0.99, message="finalizing")
+        update_video_summary(
+            video_id,
+            status="completed",
+            progress=1.0,
+            message="completed",
+            transcript_hash=transcript_hash,
+            params_json=params_json,
+            segment_summaries_json=json.dumps(
+                segment_summaries,
+                ensure_ascii=False,
+            ),
+            summary_markdown=str(summary_md or ""),
+            outline_json=outline_json,
         )
