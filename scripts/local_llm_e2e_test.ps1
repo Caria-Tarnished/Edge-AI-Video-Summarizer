@@ -8,8 +8,8 @@ param(
     [string]$Model = "llama",
     [double]$Temperature = 0.2,
     [int]$MaxTokens = 128,
-    [string]$QueryNonStream = "请用三句话总结这段视频的核心内容，并给出关键时间点。",
-    [string]$QueryStream = "把视频内容整理成要点清单，并附时间段引用。",
+    [string]$QueryNonStream = "",
+    [string]$QueryStream = "",
     [int]$TopK = 5,
     [int]$PollIntervalMs = 500,
     [int]$TimeoutSeconds = 1800,
@@ -18,6 +18,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+
+if (-not $QueryNonStream) {
+    $QueryNonStream = "Summarize the video in 3 sentences and include key timestamps."
+}
+if (-not $QueryStream) {
+    $QueryStream = "Create a bullet-point outline and include referenced time ranges."
+}
 
 $BaseUrl = $BaseUrl.TrimEnd('/')
 $LocalLLMBaseUrl = $LocalLLMBaseUrl.TrimEnd('/')
@@ -152,7 +159,31 @@ if (-not $VideoId) {
     if (-not (Test-Path -LiteralPath $VideoPath)) {
         throw "VideoPath not found: $VideoPath"
     }
-    $resolvedVideoPath = (Resolve-Path -LiteralPath $VideoPath).Path
+
+    $resolvedVideoPath = ""
+    if (Test-Path -LiteralPath $VideoPath -PathType Leaf) {
+        $resolvedVideoPath = (Resolve-Path -LiteralPath $VideoPath).Path
+    } elseif (Test-Path -LiteralPath $VideoPath -PathType Container) {
+        $resolvedDir = (Resolve-Path -LiteralPath $VideoPath).Path
+        $candidate = Get-ChildItem -LiteralPath $resolvedDir -File -Recurse -ErrorAction Stop |
+            Where-Object {
+                $ext = [string]$_.Extension
+                if (-not $ext) {
+                    $ext = ""
+                }
+                $ext = $ext.ToLowerInvariant()
+                $ext -in @(".mp4", ".mkv", ".webm", ".avi", ".mov", ".m4v")
+            } |
+            Select-Object -First 1
+
+        if (-not $candidate) {
+            throw "VideoPath is a directory but no supported video file was found inside: $resolvedDir"
+        }
+        $resolvedVideoPath = $candidate.FullName
+    } else {
+        throw "VideoPath must be a file or directory: $VideoPath"
+    }
+
     Write-Host "Importing video: $resolvedVideoPath"
 
     $import = Invoke-WebJson -Method Post -Uri "$BaseUrl/videos/import" -Body @{ file_path = $resolvedVideoPath }

@@ -1,6 +1,6 @@
 param(
-    [string]$LlamaServerExe = "",
-    [string]$ModelPath = "",
+    [string]$LlamaServerExe = "F:\LLAMA\bin\llama-server.exe",
+    [string]$ModelPath = "F:\LLAMA\models\Qwen2.5-7B-Instruct\qwen2.5-7b-instruct-q4_k_m.gguf",
     [Alias("Host")]
     [string]$ListenHost = "127.0.0.1",
     [int]$Port = 8080,
@@ -20,7 +20,7 @@ $ProgressPreference = "SilentlyContinue"
 $root = Split-Path -Parent $PSScriptRoot
 
 if (-not $ApiBaseUrl) {
-    $ApiBaseUrl = "http://$ListenHost:$Port/v1"
+    $ApiBaseUrl = "http://${ListenHost}:$Port/v1"
 }
 $ApiBaseUrl = $ApiBaseUrl.TrimEnd('/')
 
@@ -107,6 +107,9 @@ if ($Foreground) {
 
 $p = Start-Process -FilePath $LlamaServerExe -ArgumentList $argsList -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
 
+$pidPath = Join-Path $OutDir "llama_server.pid"
+"$($p.Id)" | Set-Content -Encoding ascii -Path $pidPath
+
 Write-Host "llama-server pid: $($p.Id)"
 Write-Host "stdout: $stdoutPath"
 Write-Host "stderr: $stderrPath"
@@ -118,3 +121,12 @@ $modelsRaw | Set-Content -Encoding utf8 -Path $modelsPath
 Write-Host "llama-server ready: $ApiBaseUrl"
 Write-Host "models saved: $modelsPath"
 Write-Host "OK"
+
+return [PSCustomObject]@{
+    pid = [int]$p.Id
+    api_base_url = $ApiBaseUrl
+    stdout_path = $stdoutPath
+    stderr_path = $stderrPath
+    models_path = $modelsPath
+    pid_path = $pidPath
+}

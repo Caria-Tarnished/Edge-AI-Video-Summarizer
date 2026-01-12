@@ -126,7 +126,8 @@ curl.exe http://127.0.0.1:8001/health
 - `scripts/index_search_chat_test.ps1`：回归验证 `/index`、`/search`、`/chat`（含 200/202 竞态容忍与 job_id 复用断言）
 - `scripts/local_llm_e2e_test.ps1`：端到端验证本地 LLM（llama-server）+ 设置默认 LLM 偏好 + index + `/chat` 非流式与 SSE
 - `scripts/run_llama_server.ps1`：一键启动本地 `llama-server`（含 `/v1/models` 健康检查与日志落盘）
-- `scripts/run_local_stack.ps1`：一键启动 llama-server + backend，并可选自动运行 `local_llm_e2e_test.ps1`
+- `scripts/run_local_stack.ps1`：一键启动 llama-server + backend，并可选自动运行 `local_llm_e2e_test.ps1`（支持 `-ForceReindex`，并尽量复用已运行服务）
+- `scripts/stop_local_stack.ps1`：停止 `run_local_stack.ps1` 启动的进程（读取 `artifacts/*.pid` 与 `artifacts/local_stack_pids.json`）
 - `scripts/restart_recovery_test.ps1`：验证重启恢复
 - `scripts/cancel_retry_test.ps1`：验证取消/重试
 - `scripts/run_quality_checks.ps1`：一键运行 flake8/mypy/pyright/pytest
