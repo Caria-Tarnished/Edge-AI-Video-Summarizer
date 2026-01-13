@@ -208,6 +208,12 @@ def recover_incomplete_state() -> None:
             "WHERE status='running'"
         )
         conn.execute(
+            "UPDATE video_keyframe_indexes SET "
+            "status='pending', message='recovered' "
+            ", updated_at=strftime('%Y-%m-%d %H:%M:%f','now') "
+            "WHERE status='running'"
+        )
+        conn.execute(
             "UPDATE videos SET status='pending' "
             ", updated_at=strftime('%Y-%m-%d %H:%M:%f','now') "
             "WHERE status='processing'"
@@ -421,6 +427,236 @@ def delete_video_summary(video_id: str) -> None:
     with connect() as conn:
         conn.execute(
             "DELETE FROM video_summaries WHERE video_id=?",
+            (video_id,),
+        )
+
+
+def upsert_video_keyframe_index(
+    *,
+    video_id: str,
+    status: str,
+    progress: float = 0.0,
+    message: str = "",
+    params_json: Optional[str] = None,
+    frame_count: int = 0,
+    error_code: Optional[str] = None,
+    error_message: Optional[str] = None,
+) -> None:
+    with connect() as conn:
+        conn.execute(
+            (
+                "INSERT INTO video_keyframe_indexes ("
+                "video_id, status, progress, message, params_json, "
+                "frame_count, "
+                "error_code, error_message"
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(video_id) DO UPDATE SET "
+                "status=excluded.status, "
+                "progress=excluded.progress, "
+                "message=excluded.message, "
+                "params_json=excluded.params_json, "
+                "frame_count=excluded.frame_count, "
+                "error_code=excluded.error_code, "
+                "error_message=excluded.error_message, "
+                "updated_at=strftime('%Y-%m-%d %H:%M:%f','now')"
+            ),
+            (
+                video_id,
+                status,
+                float(progress),
+                message,
+                params_json,
+                int(frame_count),
+                error_code,
+                error_message,
+            ),
+        )
+
+
+def get_video_keyframe_index(video_id: str) -> Optional[Dict[str, Any]]:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM video_keyframe_indexes WHERE video_id=?",
+            (video_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def update_video_keyframe_index(
+    video_id: str,
+    *,
+    status: Optional[str] = None,
+    progress: Optional[float] = None,
+    message: Optional[str] = None,
+    params_json: Optional[str] = None,
+    frame_count: Optional[int] = None,
+    error_code: Optional[str] = None,
+    error_message: Optional[str] = None,
+) -> None:
+    fields: list[str] = []
+    values: list[Any] = []
+
+    if status is not None:
+        fields.append("status=?")
+        values.append(status)
+    if progress is not None:
+        fields.append("progress=?")
+        values.append(float(progress))
+    if message is not None:
+        fields.append("message=?")
+        values.append(message)
+    if params_json is not None:
+        fields.append("params_json=?")
+        values.append(params_json)
+    if frame_count is not None:
+        fields.append("frame_count=?")
+        values.append(int(frame_count))
+    if error_code is not None:
+        fields.append("error_code=?")
+        values.append(error_code)
+    if error_message is not None:
+        fields.append("error_message=?")
+        values.append(error_message)
+
+    if not fields:
+        return
+
+    fields.append("updated_at=strftime('%Y-%m-%d %H:%M:%f','now')")
+    sql = (
+        "UPDATE video_keyframe_indexes SET "
+        + ", ".join(fields)
+        + " WHERE video_id=?"
+    )
+    values.append(video_id)
+    with connect() as conn:
+        conn.execute(sql, tuple(values))
+
+
+def delete_video_keyframe_index(video_id: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            "DELETE FROM video_keyframe_indexes WHERE video_id=?",
+            (video_id,),
+        )
+
+
+def insert_video_keyframe(
+    *,
+    id: str,
+    video_id: str,
+    timestamp_ms: int,
+    image_relpath: str,
+    method: str,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+    score: Optional[float] = None,
+    metadata_json: Optional[str] = None,
+) -> None:
+    with connect() as conn:
+        conn.execute(
+            (
+                "INSERT INTO video_keyframes ("
+                "id, video_id, timestamp_ms, image_relpath, method, "
+                "width, height, score, metadata_json"
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            ),
+            (
+                id,
+                video_id,
+                int(timestamp_ms),
+                image_relpath,
+                method,
+                int(width) if width is not None else None,
+                int(height) if height is not None else None,
+                float(score) if score is not None else None,
+                metadata_json,
+            ),
+        )
+
+
+def get_video_keyframe(keyframe_id: str) -> Optional[Dict[str, Any]]:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM video_keyframes WHERE id=?",
+            (keyframe_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_nearest_video_keyframe(
+    *,
+    video_id: str,
+    timestamp_ms: int,
+    method: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    where = "WHERE video_id=?"
+    params: list[Any] = [video_id]
+    if method:
+        where += " AND method=?"
+        params.append(str(method))
+
+    ts = int(timestamp_ms)
+    with connect() as conn:
+        row_before = conn.execute(
+            (
+                f"SELECT * FROM video_keyframes {where} "
+                "AND timestamp_ms<=? ORDER BY timestamp_ms DESC LIMIT 1"
+            ),
+            tuple(params + [ts]),
+        ).fetchone()
+        row_after = conn.execute(
+            (
+                f"SELECT * FROM video_keyframes {where} "
+                "AND timestamp_ms>=? ORDER BY timestamp_ms ASC LIMIT 1"
+            ),
+            tuple(params + [ts]),
+        ).fetchone()
+
+    a = dict(row_before) if row_before else None
+    b = dict(row_after) if row_after else None
+    if a and b:
+        da = abs(int(a.get("timestamp_ms") or 0) - ts)
+        db = abs(int(b.get("timestamp_ms") or 0) - ts)
+        return a if da <= db else b
+    return a or b
+
+
+def list_video_keyframes(
+    *,
+    video_id: str,
+    method: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    where = "WHERE video_id=?"
+    params: list[Any] = [video_id]
+    if method:
+        where += " AND method=?"
+        params.append(str(method))
+
+    limit = max(1, min(int(limit), 500))
+    offset = max(0, int(offset))
+
+    with connect() as conn:
+        total = conn.execute(
+            f"SELECT COUNT(1) AS c FROM video_keyframes {where}",
+            tuple(params),
+        ).fetchone()["c"]
+        rows = conn.execute(
+            (
+                f"SELECT * FROM video_keyframes {where} "
+                "ORDER BY timestamp_ms ASC LIMIT ? OFFSET ?"
+            ),
+            tuple(params + [limit, offset]),
+        ).fetchall()
+
+    return {"total": int(total), "items": [dict(r) for r in rows]}
+
+
+def delete_video_keyframes_for_video(video_id: str) -> None:
+    with connect() as conn:
+        conn.execute(
+            "DELETE FROM video_keyframes WHERE video_id=?",
             (video_id,),
         )
 

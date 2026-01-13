@@ -3,8 +3,9 @@ import os
 import tempfile
 import time
 import traceback
+import uuid
 from dataclasses import replace
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from .asr import ASR
 from .chunking_v2 import (
@@ -12,11 +13,19 @@ from .chunking_v2 import (
     sha256_text,
 )
 from .embeddings import embed_texts
-from .ffmpeg_util import extract_audio_wav
+from .ffmpeg_util import (
+    detect_scene_changes,
+    extract_audio_wav,
+    extract_video_frame_jpg,
+    get_jpg_dimensions,
+)
 from .llm_provider import LLMPreferences, get_provider
+from .paths import keyframe_jpg_abspath, keyframe_jpg_relpath, keyframes_dir
 from .repo import (
     claim_pending_job,
     delete_chunks_for_video,
+    delete_video_keyframe_index,
+    delete_video_keyframes_for_video,
     delete_video_summary,
     fetch_next_pending_job,
     get_default_llm_preferences,
@@ -24,10 +33,13 @@ from .repo import (
     get_video,
     get_job_status,
     insert_chunk,
+    insert_video_keyframe,
     set_video_status,
+    update_video_keyframe_index,
     update_video_index,
     update_video_summary,
     upsert_video_index,
+    upsert_video_keyframe_index,
     upsert_video_summary,
     update_job,
 )
@@ -116,6 +128,8 @@ class JobWorker:
                     self._run_transcribe(job, claimed_started_at)
                 elif job_type == "index":
                     self._run_index(job, claimed_started_at)
+                elif job_type == "keyframes":
+                    self._run_keyframes(job, claimed_started_at)
                 elif job_type == "summarize":
                     self._run_summarize(job, claimed_started_at)
                 else:
@@ -144,6 +158,12 @@ class JobWorker:
                         status="cancelled",
                         message="cancelled",
                     )
+                elif job_type == "keyframes":
+                    update_video_keyframe_index(
+                        video_id,
+                        status="cancelled",
+                        message="cancelled",
+                    )
                 elif job_type == "summarize":
                     update_video_summary(
                         video_id,
@@ -156,6 +176,12 @@ class JobWorker:
                         set_video_status(video_id, "pending")
                     elif job_type == "index":
                         update_video_index(
+                            video_id,
+                            status="cancelled",
+                            message="cancelled",
+                        )
+                    elif job_type == "keyframes":
+                        update_video_keyframe_index(
                             video_id,
                             status="cancelled",
                             message="cancelled",
@@ -193,6 +219,15 @@ class JobWorker:
                         error_code="E_JOB_FAILED",
                         error_message=detail[:2000],
                     )
+                elif job_type == "keyframes":
+                    update_video_keyframe_index(
+                        video_id,
+                        status="failed",
+                        progress=0.0,
+                        message="failed",
+                        error_code="E_JOB_FAILED",
+                        error_message=detail[:2000],
+                    )
                 elif job_type == "summarize":
                     update_video_summary(
                         video_id,
@@ -202,6 +237,173 @@ class JobWorker:
                         error_code="E_JOB_FAILED",
                         error_message=detail[:2000],
                     )
+
+    def _run_keyframes(
+        self,
+        job: Dict[str, Any],
+        claimed_started_at: str,
+    ) -> None:
+        job_id = job["id"]
+        video_id = job["video_id"]
+
+        video = get_video(video_id)
+        if not video:
+            raise RuntimeError(f"video not found: {video_id}")
+
+        media_path = str(video.get("file_path") or "")
+        duration = float(video.get("duration") or 0.0)
+
+        params: Dict[str, Any] = {}
+        try:
+            params = json.loads(job.get("params_json") or "{}")
+        except Exception:
+            params = {}
+
+        mode = str(params.get("mode") or "interval").strip() or "interval"
+        if mode not in ("interval", "scene"):
+            raise RuntimeError("UNSUPPORTED_KEYFRAMES_MODE")
+
+        interval_s = float(params.get("interval_seconds") or 10.0)
+        if interval_s <= 0:
+            interval_s = 10.0
+
+        scene_threshold = float(params.get("scene_threshold") or 0.3)
+        if scene_threshold <= 0:
+            scene_threshold = 0.3
+        if scene_threshold > 1.0:
+            scene_threshold = 1.0
+
+        min_gap_s = float(params.get("min_gap_seconds") or 2.0)
+        if min_gap_s < 0:
+            min_gap_s = 0.0
+
+        max_frames = int(params.get("max_frames") or 200)
+        max_frames = max(1, min(max_frames, 500))
+
+        target_width: Any = params.get("target_width")
+        target_width_i = int(target_width) if target_width is not None else None
+        if target_width_i is not None and target_width_i <= 0:
+            target_width_i = None
+
+        if bool(params.get("from_scratch")):
+            delete_video_keyframes_for_video(video_id)
+            delete_video_keyframe_index(video_id)
+
+            d = keyframes_dir(video_id)
+            if os.path.isdir(d):
+                for name in os.listdir(d):
+                    if not str(name).lower().endswith(".jpg"):
+                        continue
+                    try:
+                        os.remove(os.path.join(d, name))
+                    except Exception:
+                        pass
+
+        params_json = json.dumps(params, ensure_ascii=False)
+        upsert_video_keyframe_index(
+            video_id=video_id,
+            status="running",
+            progress=0.0,
+            message="starting",
+            params_json=params_json,
+            frame_count=0,
+        )
+        update_job(job_id, progress=0.0, message="starting")
+
+        if duration <= 0:
+            raise RuntimeError("E_VIDEO_DURATION_INVALID")
+
+        times: list[tuple[float, Optional[float]]] = []
+        if mode == "interval":
+            t = 0.0
+            while t < duration and len(times) < max_frames:
+                times.append((float(t), None))
+                t += interval_s
+        else:
+            cands = detect_scene_changes(
+                media_path,
+                scene_threshold=scene_threshold,
+            )
+            ranked = sorted(cands, key=lambda x: float(x[1]), reverse=True)
+            picked: list[tuple[float, float]] = []
+            for ts, sc in ranked:
+                if len(picked) >= max_frames:
+                    break
+                if ts < 0 or ts > duration:
+                    continue
+                if min_gap_s > 0:
+                    too_close = any(abs(ts - p[0]) < min_gap_s for p in picked)
+                    if too_close:
+                        continue
+                picked.append((float(ts), float(sc)))
+            picked.sort(key=lambda x: float(x[0]))
+            times = [(float(ts), float(sc)) for ts, sc in picked]
+
+        if not times:
+            times = [(0.0, None)]
+
+        n = len(times)
+        for i, (ts, score) in enumerate(times, start=1):
+            if self._stop:
+                raise RuntimeError("worker stopped")
+            self._ensure_same_run(job_id, claimed_started_at)
+
+            p = min(0.99, float(i - 1) / max(n, 1))
+            if mode == "scene" and score is not None:
+                msg = f"frame {i}/{n} score={float(score):.3f}"
+            else:
+                msg = f"frame {i}/{n}"
+            update_job(job_id, progress=p, message=msg)
+            update_video_keyframe_index(
+                video_id,
+                status="running",
+                progress=p,
+                message=msg,
+                params_json=params_json,
+                frame_count=i - 1,
+            )
+
+            keyframe_id = str(uuid.uuid4())
+            jpg_relpath = keyframe_jpg_relpath(video_id, keyframe_id)
+            jpg_abspath = keyframe_jpg_abspath(video_id, keyframe_id)
+            extract_video_frame_jpg(
+                media_path,
+                jpg_abspath,
+                timestamp_seconds=float(ts),
+                target_width=target_width_i,
+            )
+
+            width_i: Any = None
+            height_i: Any = None
+            try:
+                w, h = get_jpg_dimensions(jpg_abspath)
+                width_i = int(w)
+                height_i = int(h)
+            except Exception:
+                width_i = None
+                height_i = None
+
+            insert_video_keyframe(
+                id=keyframe_id,
+                video_id=video_id,
+                timestamp_ms=int(round(float(ts) * 1000.0)),
+                image_relpath=jpg_relpath,
+                method=mode,
+                width=width_i,
+                height=height_i,
+                score=float(score) if score is not None else None,
+            )
+
+        self._ensure_same_run(job_id, claimed_started_at)
+        update_job(job_id, progress=0.99, message="finalizing")
+        update_video_keyframe_index(
+            video_id,
+            status="completed",
+            progress=1.0,
+            message="completed",
+            params_json=params_json,
+            frame_count=n,
+        )
 
     def _run_transcribe(
         self,

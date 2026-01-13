@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, HTTPException, Request, Response, WebSocket
 from fastapi import WebSocketDisconnect
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from .cloud_summary import summarize
@@ -24,6 +24,8 @@ from .repo import (
     create_job,
     create_or_get_video,
     delete_chunks_for_video,
+    delete_video_keyframe_index,
+    delete_video_keyframes_for_video,
     delete_video_summary,
     delete_video_index,
     get_default_llm_preferences,
@@ -31,8 +33,12 @@ from .repo import (
     get_job,
     get_video,
     get_video_index,
+    get_video_keyframe,
+    get_video_keyframe_index,
+    get_nearest_video_keyframe,
     get_video_summary,
     list_chunks,
+    list_video_keyframes,
     list_jobs,
     list_videos,
     recover_incomplete_state,
@@ -40,6 +46,7 @@ from .repo import (
     set_default_llm_preferences,
     set_video_status,
 )
+from .paths import keyframes_dir
 from .settings import settings
 from .subtitle import segments_to_srt, segments_to_vtt
 from .transcript_store import (
@@ -90,6 +97,16 @@ class CreateSummarizeJobRequest(BaseModel):
     max_window_seconds: Optional[float] = None
     min_window_seconds: Optional[float] = None
     overlap_seconds: Optional[float] = None
+
+
+class CreateKeyframesJobRequest(BaseModel):
+    from_scratch: bool = False
+    mode: str = "interval"
+    interval_seconds: Optional[float] = None
+    scene_threshold: Optional[float] = None
+    min_gap_seconds: Optional[float] = None
+    max_frames: Optional[int] = None
+    target_width: Optional[int] = None
 
 
 class ChatRequest(BaseModel):
@@ -495,6 +512,375 @@ def export_summary_markdown(video_id: str) -> Response:
         raise HTTPException(status_code=404, detail="SUMMARY_EMPTY")
 
     return Response(content=body, media_type="text/markdown; charset=utf-8")
+
+
+@app.post("/videos/{video_id}/keyframes")
+def create_keyframes_job(
+    video_id: str,
+    req: CreateKeyframesJobRequest,
+) -> Response:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
+
+    existing = get_active_job_for_video(
+        video_id=video_id,
+        job_type="keyframes",
+    )
+    if existing:
+        return UTF8JSONResponse(
+            status_code=202,
+            content={
+                "detail": "KEYFRAMES_IN_PROGRESS",
+                "job_id": existing["id"],
+                "video_id": video_id,
+            },
+        )
+
+    if bool(req.from_scratch):
+        delete_video_keyframes_for_video(video_id)
+        delete_video_keyframe_index(video_id)
+        d = keyframes_dir(video_id)
+        if os.path.isdir(d):
+            for name in os.listdir(d):
+                if not str(name).lower().endswith(".jpg"):
+                    continue
+                try:
+                    os.remove(os.path.join(d, name))
+                except Exception:
+                    pass
+
+    def _normalize_keyframes_params(obj: Dict[str, Any]) -> Dict[str, Any]:
+        out: Dict[str, Any] = {}
+        out["mode"] = str(obj.get("mode") or "interval").strip() or "interval"
+
+        if out["mode"] == "scene":
+            if obj.get("scene_threshold") is not None:
+                out["scene_threshold"] = float(obj.get("scene_threshold"))
+            if obj.get("min_gap_seconds") is not None:
+                out["min_gap_seconds"] = float(obj.get("min_gap_seconds"))
+        else:
+            if obj.get("interval_seconds") is not None:
+                out["interval_seconds"] = float(obj.get("interval_seconds"))
+
+        if obj.get("max_frames") is not None:
+            out["max_frames"] = int(obj.get("max_frames"))
+        if obj.get("target_width") is not None:
+            out["target_width"] = int(obj.get("target_width"))
+        return out
+
+    params: Dict[str, Any] = {
+        "mode": str(req.mode or "interval").strip() or "interval",
+    }
+    if req.interval_seconds is not None:
+        params["interval_seconds"] = float(req.interval_seconds)
+    if req.scene_threshold is not None:
+        params["scene_threshold"] = float(req.scene_threshold)
+    if req.min_gap_seconds is not None:
+        params["min_gap_seconds"] = float(req.min_gap_seconds)
+    if req.max_frames is not None:
+        params["max_frames"] = int(req.max_frames)
+    if req.target_width is not None:
+        params["target_width"] = int(req.target_width)
+    if bool(req.from_scratch):
+        params["from_scratch"] = True
+
+    idx = get_video_keyframe_index(video_id)
+    if (
+        idx
+        and str(idx.get("status") or "") == "completed"
+        and not bool(req.from_scratch)
+    ):
+        stored_params: Dict[str, Any] = {}
+        try:
+            stored_obj = json.loads(str(idx.get("params_json") or "{}"))
+            stored_params = stored_obj if isinstance(stored_obj, dict) else {}
+        except Exception:
+            stored_params = {}
+
+        if (
+            _normalize_keyframes_params(stored_params)
+            == _normalize_keyframes_params(params)
+        ):
+            return UTF8JSONResponse(
+                status_code=200,
+                content={
+                    "detail": "KEYFRAMES_ALREADY_COMPLETED",
+                    "video_id": video_id,
+                    "index": idx,
+                },
+            )
+
+    job = create_job(video_id, "keyframes", params)
+    return UTF8JSONResponse(
+        status_code=202,
+        content={
+            "detail": "KEYFRAMES_STARTED",
+            "job_id": job["id"],
+            "video_id": video_id,
+        },
+    )
+
+
+@app.get("/videos/{video_id}/keyframes/index")
+def get_keyframes_index_api(video_id: str) -> Dict[str, Any]:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
+
+    idx = get_video_keyframe_index(video_id)
+    if not idx:
+        return {
+            "video_id": video_id,
+            "status": "not_indexed",
+            "progress": 0.0,
+            "message": "",
+        }
+    return dict(idx)
+
+
+@app.get("/videos/{video_id}/keyframes")
+def list_keyframes_api(
+    video_id: str,
+    method: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
+
+    m = str(method or "").strip() or None
+    res = list_video_keyframes(
+        video_id=video_id,
+        method=m,
+        limit=limit,
+        offset=offset,
+    )
+    items = res.get("items") or []
+    for it in items:
+        kid = str(it.get("id") or "")
+        it["image_url"] = f"/videos/{video_id}/keyframes/{kid}/image"
+    return {"total": res.get("total") or 0, "items": items}
+
+
+@app.get("/videos/{video_id}/keyframes/nearest")
+def nearest_keyframe_api(
+    video_id: str,
+    timestamp_ms: int,
+    method: str = "interval",
+) -> Dict[str, Any]:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
+
+    method = str(method or "").strip() or "interval"
+    row = get_nearest_video_keyframe(
+        video_id=video_id,
+        timestamp_ms=int(timestamp_ms),
+        method=method,
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="KEYFRAME_NOT_FOUND")
+
+    kid = str(row.get("id") or "")
+    out = dict(row)
+    out["image_url"] = f"/videos/{video_id}/keyframes/{kid}/image"
+    return out
+
+
+@app.get("/videos/{video_id}/keyframes/{keyframe_id}/image")
+def get_keyframe_image_api(video_id: str, keyframe_id: str) -> Response:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
+
+    row = get_video_keyframe(keyframe_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="KEYFRAME_NOT_FOUND")
+    if str(row.get("video_id") or "") != str(video_id):
+        raise HTTPException(status_code=404, detail="KEYFRAME_NOT_FOUND")
+
+    rel = str(row.get("image_relpath") or "")
+    if not rel:
+        raise HTTPException(status_code=404, detail="KEYFRAME_IMAGE_NOT_FOUND")
+    abspath = os.path.join(settings.data_dir, rel)
+    if not os.path.exists(abspath):
+        raise HTTPException(status_code=404, detail="KEYFRAME_IMAGE_NOT_FOUND")
+    return FileResponse(path=abspath, media_type="image/jpeg")
+
+
+@app.get("/videos/{video_id}/keyframes/aligned")
+def aligned_keyframes_api(
+    video_id: str,
+    method: str = "interval",
+    per_section: int = 2,
+    min_gap_seconds: float = 2.0,
+    fallback: str = "none",
+) -> Dict[str, Any]:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
+
+    per_section = max(1, min(int(per_section), 10))
+    method = str(method or "interval").strip() or "interval"
+    if method not in ("interval", "scene"):
+        raise HTTPException(
+            status_code=400,
+            detail="UNSUPPORTED_KEYFRAMES_METHOD",
+        )
+
+    fallback = str(fallback or "none").strip() or "none"
+    if fallback not in ("none", "nearest"):
+        raise HTTPException(status_code=400, detail="UNSUPPORTED_FALLBACK")
+
+    min_gap_ms = int(round(max(0.0, float(min_gap_seconds)) * 1000.0))
+
+    summary = get_video_summary(video_id)
+    if not summary:
+        raise HTTPException(status_code=404, detail="SUMMARY_NOT_FOUND")
+
+    try:
+        outline = json.loads(str(summary.get("outline_json") or "[]"))
+    except Exception:
+        outline = []
+
+    frames_res = list_video_keyframes(
+        video_id=video_id,
+        method=method,
+        limit=500,
+        offset=0,
+    )
+    frames = frames_res.get("items") or []
+
+    all_frames: list[Dict[str, Any]] = []
+    if method == "scene" and fallback == "nearest":
+        all_frames_res = list_video_keyframes(
+            video_id=video_id,
+            method=None,
+            limit=2000,
+            offset=0,
+        )
+        all_frames = all_frames_res.get("items") or []
+
+    out_items = []
+    for sec in outline if isinstance(outline, list) else []:
+        sec_obj = sec if isinstance(sec, dict) else {}
+        st = float(sec_obj.get("start_time") or 0.0)
+        et = float(sec_obj.get("end_time") or 0.0)
+        st_ms = int(round(st * 1000.0))
+        et_ms = int(round(et * 1000.0))
+        if et_ms < st_ms:
+            st_ms, et_ms = et_ms, st_ms
+
+        in_range = [
+            f
+            for f in frames
+            if st_ms <= int(f.get("timestamp_ms") or 0) <= et_ms
+        ]
+
+        picked = []
+        if in_range:
+            if method == "scene":
+                ranked = sorted(
+                    in_range,
+                    key=lambda f: float(f.get("score") or 0.0),
+                    reverse=True,
+                )
+                sel = []
+                for f in ranked:
+                    if len(sel) >= per_section:
+                        break
+                    ts0 = int(f.get("timestamp_ms") or 0)
+                    if min_gap_ms > 0:
+                        too_close = any(
+                            abs(ts0 - int(x.get("timestamp_ms") or 0))
+                            < min_gap_ms
+                            for x in sel
+                        )
+                        if too_close:
+                            continue
+                    sel.append(f)
+                picked = sorted(
+                    sel,
+                    key=lambda f: int(f.get("timestamp_ms") or 0),
+                )
+            else:
+                if len(in_range) <= per_section:
+                    picked = in_range
+                else:
+                    for j in range(per_section):
+                        idx = int(
+                            round(
+                                j
+                                * (len(in_range) - 1)
+                                / max(per_section - 1, 1)
+                            )
+                        )
+                        picked.append(in_range[idx])
+
+        if (
+            method == "scene"
+            and fallback == "nearest"
+            and len(picked) < per_section
+            and all_frames
+        ):
+            mid_ms = int(round((st_ms + et_ms) / 2.0))
+            pool = [
+                f
+                for f in all_frames
+                if f.get("id") is not None
+            ]
+            pool.sort(
+                key=lambda f: abs(
+                    int(f.get("timestamp_ms") or 0) - mid_ms
+                )
+            )
+            sel2 = list(picked)
+            for f in pool:
+                if len(sel2) >= per_section:
+                    break
+                fid = str(f.get("id") or "")
+                if any(str(x.get("id") or "") == fid for x in sel2):
+                    continue
+                ts0 = int(f.get("timestamp_ms") or 0)
+                if min_gap_ms > 0:
+                    too_close = any(
+                        abs(ts0 - int(x.get("timestamp_ms") or 0))
+                        < min_gap_ms
+                        for x in sel2
+                    )
+                    if too_close:
+                        continue
+                sel2.append(f)
+            picked = sorted(
+                sel2,
+                key=lambda f: int(f.get("timestamp_ms") or 0),
+            )
+
+        kfs = []
+        for f in picked:
+            kid = str(f.get("id") or "")
+            sc: Any = f.get("score")
+            kfs.append(
+                {
+                    "id": kid,
+                    "timestamp_ms": int(f.get("timestamp_ms") or 0),
+                    "image_url": f"/videos/{video_id}/keyframes/{kid}/image",
+                    "score": float(sc) if sc is not None else None,
+                }
+            )
+
+        out_items.append(
+            {
+                "title": sec_obj.get("title"),
+                "start_time": st,
+                "end_time": et,
+                "keyframes": kfs,
+            }
+        )
+
+    return {"video_id": video_id, "items": out_items}
 
 
 @app.get("/videos/{video_id}/chunks")
@@ -1117,6 +1503,18 @@ def retry_job_api(
                 pass
         elif str(job.get("job_type") or "") == "summarize":
             delete_video_summary(job["video_id"])
+        elif str(job.get("job_type") or "") == "keyframes":
+            delete_video_keyframes_for_video(job["video_id"])
+            delete_video_keyframe_index(job["video_id"])
+            d = keyframes_dir(job["video_id"])
+            if os.path.isdir(d):
+                for name in os.listdir(d):
+                    if not str(name).lower().endswith(".jpg"):
+                        continue
+                    try:
+                        os.remove(os.path.join(d, name))
+                    except Exception:
+                        pass
 
     ok = reset_job(job_id)
     if not ok:
