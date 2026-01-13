@@ -112,7 +112,8 @@ async function createWindow(): Promise<void> {
         if (existsSync(js)) return js
         if (existsSync(mjs)) return mjs
         return js
-      })()
+      })(),
+      webSecurity: app.isPackaged
     }
   })
 

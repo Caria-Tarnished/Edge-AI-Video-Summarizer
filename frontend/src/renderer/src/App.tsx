@@ -12,8 +12,8 @@ export default function App() {
     }
     return (
       <div className="card">
-        <h2>库</h2>
-        <div className="muted">下一步将实现视频库与视频详情页。</div>
+        <h2>{'\u5e93'}</h2>
+        <div className="muted">{'\u4e0b\u4e00\u6b65\u5c06\u5b9e\u73b0\u89c6\u9891\u5e93\u4e0e\u89c6\u9891\u8be6\u60c5\u9875\u3002'}</div>
       </div>
     )
   }, [route])
@@ -27,13 +27,13 @@ export default function App() {
             className={route === 'settings' ? 'tab active' : 'tab'}
             onClick={() => setRoute('settings')}
           >
-            设置
+            {'\u8bbe\u7f6e'}
           </button>
           <button
             className={route === 'library' ? 'tab active' : 'tab'}
             onClick={() => setRoute('library')}
           >
-            库
+            {'\u5e93'}
           </button>
         </div>
       </div>

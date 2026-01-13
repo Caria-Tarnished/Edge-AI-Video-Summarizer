@@ -118,7 +118,7 @@ export default function SettingsPage() {
       }
       const res = await api.setRuntimeProfile(payload)
       setRuntime(res)
-      setInfo('运行时配置已保存')
+      setInfo('\u8fd0\u884c\u65f6\u914d\u7f6e\u5df2\u4fdd\u5b58')
     } catch (e: any) {
       setError(String(e?.message || e))
     } finally {
@@ -138,7 +138,7 @@ export default function SettingsPage() {
         max_tokens: Number(llmDraft.max_tokens ?? 512)
       }
       await api.setDefaultLlmPreferences(payload)
-      setInfo('默认 LLM 偏好已保存')
+      setInfo('\u9ed8\u8ba4 LLM \u504f\u597d\u5df2\u4fdd\u5b58')
     } catch (e: any) {
       setError(String(e?.message || e))
     } finally {
@@ -162,7 +162,7 @@ export default function SettingsPage() {
 
   const saveDevConfig = useCallback(async () => {
     if (!window.electronAPI?.setDevConfig) {
-      setError('当前不是 Electron 环境，无法保存本地启动配置')
+      setError('\u5f53\u524d\u4e0d\u662f Electron \u73af\u5883\uff0c\u65e0\u6cd5\u4fdd\u5b58\u672c\u5730\u542f\u52a8\u914d\u7f6e')
       return
     }
     setError(null)
@@ -192,7 +192,7 @@ export default function SettingsPage() {
         local_llm_base_url: String(cfg.local_llm_base_url || '')
       })
 
-      setInfo('本地 llama-server 启动配置已保存')
+      setInfo('\u672c\u5730 llama-server \u542f\u52a8\u914d\u7f6e\u5df2\u4fdd\u5b58')
     } catch (e: any) {
       setError(String(e?.message || e))
     } finally {
@@ -234,19 +234,19 @@ export default function SettingsPage() {
   return (
     <div className="stack">
       <div className="card">
-        <h2>设置</h2>
-        <div className="muted">后端：请先启动 backend（默认 http://127.0.0.1:8001）</div>
+        <h2>{'\u8bbe\u7f6e'}</h2>
+        <div className="muted">{'\u540e\u7aef\uff1a\u8bf7\u5148\u542f\u52a8 backend\uff08\u9ed8\u8ba4 http://127.0.0.1:8001\uff09'}</div>
         {error ? <div className="alert alert-error">{error}</div> : null}
         {info ? <div className="alert alert-info">{info}</div> : null}
         <div className="row">
           <button className="btn" onClick={loadAll} disabled={!!busy}>
-            刷新全部
+            {'\u5237\u65b0\u5168\u90e8'}
           </button>
         </div>
       </div>
 
       <div className="card">
-        <h3>运行时配置（Runtime Profile）</h3>
+        <h3>{'\u8fd0\u884c\u65f6\u914d\u7f6e\uff08Runtime Profile\uff09'}</h3>
         <div className="grid">
           <label className="field">
             <div className="label">profile</div>
@@ -333,7 +333,7 @@ export default function SettingsPage() {
 
         <div className="row">
           <button className="btn primary" onClick={saveRuntime} disabled={!!busy}>
-            保存运行时配置
+            {'\u4fdd\u5b58\u8fd0\u884c\u65f6\u914d\u7f6e'}
           </button>
         </div>
 
@@ -346,7 +346,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="card">
-        <h3>默认 LLM 偏好</h3>
+        <h3>{'\u9ed8\u8ba4 LLM \u504f\u597d'}</h3>
         <div className="grid">
           <label className="field">
             <div className="label">provider</div>
@@ -378,7 +378,7 @@ export default function SettingsPage() {
                 const v = String(e.target.value || '').trim()
                 setLlmDraft((d) => ({ ...d, model: v ? v : null }))
               }}
-              placeholder="例如：Qwen2.5-7B-Instruct"
+              placeholder="e.g. Qwen2.5-7B-Instruct"
             />
           </label>
 
@@ -414,16 +414,16 @@ export default function SettingsPage() {
 
         <div className="row">
           <button className="btn primary" onClick={saveLlm} disabled={!!busy}>
-            保存默认 LLM 偏好
+            {'\u4fdd\u5b58\u9ed8\u8ba4 LLM \u504f\u597d'}
           </button>
         </div>
       </div>
 
       <div className="card">
-        <h3>本地 llama-server 状态</h3>
+        <h3>{'\u672c\u5730 llama-server \u72b6\u6001'}</h3>
         <div className="row">
           <button className="btn" onClick={refreshLocalStatus} disabled={!!busy}>
-            刷新状态
+            {'\u5237\u65b0\u72b6\u6001'}
           </button>
         </div>
 
@@ -452,16 +452,16 @@ export default function SettingsPage() {
             ) : null}
           </div>
         ) : (
-          <div className="muted">尚未获取状态（点击“刷新状态”）</div>
+          <div className="muted">{'\u5c1a\u672a\u83b7\u53d6\u72b6\u6001\uff08\u70b9\u51fb\u201c\u5237\u65b0\u72b6\u6001\u201d\uff09'}</div>
         )}
       </div>
 
       <div className="card">
-        <h3>本地 llama-server 启动配置</h3>
+        <h3>{'\u672c\u5730 llama-server \u542f\u52a8\u914d\u7f6e'}</h3>
         <div className="muted">
-          该配置用于一键启动（写入 artifacts/dev_config.json）；随后执行 <code>start_dev.cmd -StartLlama</code> 会自动读取。
+          {'\u8be5\u914d\u7f6e\u7528\u4e8e\u4e00\u952e\u542f\u52a8\uff08\u5199\u5165 artifacts/dev_config.json\uff09\uff1b\u968f\u540e\u6267\u884c '}<code>start_dev.cmd -StartLlama</code>{' \u4f1a\u81ea\u52a8\u8bfb\u53d6\u3002'}
         </div>
-        {devConfigPath ? <div className="muted">配置文件：{devConfigPath}</div> : null}
+        {devConfigPath ? <div className="muted">{'\u914d\u7f6e\u6587\u4ef6\uff1a'}{devConfigPath}</div> : null}
 
         {window.electronAPI?.setDevConfig ? (
           <>
@@ -474,14 +474,14 @@ export default function SettingsPage() {
                   onChange={(e: ChangeEvent<HTMLInputElement>) =>
                     setDevConfigDraft((d) => ({ ...d, llama_server_exe: e.target.value }))
                   }
-                  placeholder="例如：F:\\LLAMA\\bin\\llama-server.exe"
+                  placeholder="e.g. F:\\LLAMA\\bin\\llama-server.exe"
                 />
               </label>
 
               <div className="field">
-                <div className="label">选择 llama-server.exe</div>
+                <div className="label">{'\u9009\u62e9 llama-server.exe'}</div>
                 <button className="btn" onClick={pickLlamaExe} disabled={!!busy}>
-                  选择文件
+                  {'\u9009\u62e9\u6587\u4ef6'}
                 </button>
               </div>
 
@@ -493,14 +493,14 @@ export default function SettingsPage() {
                   onChange={(e: ChangeEvent<HTMLInputElement>) =>
                     setDevConfigDraft((d) => ({ ...d, llama_model_path: e.target.value }))
                   }
-                  placeholder="例如：F:\\LLAMA\\models\\...\\xxx.gguf"
+                  placeholder="e.g. F:\\LLAMA\\models\\...\\xxx.gguf"
                 />
               </label>
 
               <div className="field">
-                <div className="label">选择 GGUF 模型</div>
+                <div className="label">{'\u9009\u62e9 GGUF \u6a21\u578b'}</div>
                 <button className="btn" onClick={pickLlamaModel} disabled={!!busy}>
-                  选择文件
+                  {'\u9009\u62e9\u6587\u4ef6'}
                 </button>
               </div>
 
@@ -532,12 +532,12 @@ export default function SettingsPage() {
 
             <div className="row">
               <button className="btn primary" onClick={saveDevConfig} disabled={!!busy}>
-                保存本地启动配置
+                {'\u4fdd\u5b58\u672c\u5730\u542f\u52a8\u914d\u7f6e'}
               </button>
             </div>
           </>
         ) : (
-          <div className="muted">当前不是 Electron 环境（或 preload 未启用），此处无法保存启动配置。</div>
+          <div className="muted">{'\u5f53\u524d\u4e0d\u662f Electron \u73af\u5883\uff08\u6216 preload \u672a\u542f\u7528\uff09\uff0c\u6b64\u5904\u65e0\u6cd5\u4fdd\u5b58\u542f\u52a8\u914d\u7f6e\u3002'}</div>
         )}
       </div>
     </div>
