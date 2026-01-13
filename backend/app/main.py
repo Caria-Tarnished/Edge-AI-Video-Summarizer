@@ -9,6 +9,7 @@ from urllib.request import Request as UrlRequest, urlopen
 
 from fastapi import FastAPI, HTTPException, Request, Response, WebSocket
 from fastapi import WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -198,6 +199,20 @@ app = FastAPI(
     title="Edge Video Agent Backend",
     default_response_class=UTF8JSONResponse,
 )
+
+_cors_raw = str(os.getenv("EDGE_VIDEO_AGENT_CORS_ORIGINS", "") or "").strip()
+if _cors_raw:
+    _cors_origins = [
+        s.strip() for s in _cors_raw.split(",") if str(s or "").strip()
+    ]
+    if _cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=_cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
 _worker: Optional[JobWorker] = None
 _worker_thread: Optional[threading.Thread] = None
