@@ -70,8 +70,10 @@
 ## 目录结构
 
 - `backend/`：FastAPI 后端源码、测试与开发工具配置
+- `frontend/`：Electron + Vite + React 桌面端（开发中）
 - `scripts/`：PowerShell 自动化验证/质量检查脚本
 - `artifacts/`：脚本输出与导出文件（默认忽略）
+- `start_dev.cmd`：桌面端开发一键启动（llama-server + backend + Electron 前端）
 - `Architecture_Design.md`：架构与里程碑规划
 - `PROJECT_STATUS.md`：项目进度、测试备忘、变更记录
 
@@ -121,6 +123,25 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```powershell
 ./scripts/run_backend_dev.ps1
 ```
+
+### 2.5) 启动桌面端（Electron / 前后端联调）
+
+推荐方式：在仓库根目录直接双击：`start_dev.cmd`
+
+- 默认行为：自动启动 `llama-server` + 后端 + Electron 前端
+- 可选：你也可以在 PowerShell 中运行（便于看日志/传参）：
+
+```powershell
+./start_dev.cmd
+```
+
+停止桌面端：
+
+```powershell
+./scripts/stop_dev.ps1 -ForceStop
+```
+
+> 说明：llama-server 的状态由后端探测 `LLM_LOCAL_BASE_URL + /models`。如果 Settings 里显示无法连接，优先确认 `http://127.0.0.1:8080/v1/models` 是否可访问，以及查看 `artifacts/logs/llama_server_*.stderr.log`。
 
 ### 3) 健康检查
 
@@ -190,8 +211,17 @@ curl.exe http://127.0.0.1:8001/health
 - `LLM_LOCAL_BASE_URL`：本地 llama-server 的 OpenAI API base url（默认 `http://127.0.0.1:8080/v1`）
 - `LLM_LOCAL_MODEL`：本地 llama-server 的默认 model id（默认 `llama`）
 - `LLM_REQUEST_TIMEOUT_SECONDS`：后端调用 LLM 的 HTTP 超时（秒），用于非流式请求（默认 `600`）
+- `VITE_BACKEND_BASE_URL`：桌面端前端调用后端的 base url（开发期由脚本注入，默认 `http://127.0.0.1:8001`）
 
 更多配置项请参考：`backend/app/settings.py`。
+
+---
+
+## 下一步（建议顺序）
+
+- 桌面端：视频库（Library）页（列表 + 导入入口）
+- 桌面端：视频详情页（转写/索引/摘要/关键帧）与进度展示（SSE/WS）
+- 桌面端：Chat 页（streaming + citations）
 
 ---
 

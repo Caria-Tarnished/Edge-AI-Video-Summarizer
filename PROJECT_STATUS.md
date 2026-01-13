@@ -99,6 +99,19 @@
 - `scripts/run_local_stack.ps1`：一键启动 llama-server + backend，并可选自动运行 `local_llm_e2e_test.ps1`（支持 `-ForceReindex`，并尽量复用已运行服务）
 - `scripts/stop_local_stack.ps1`：停止 `run_local_stack.ps1` 启动的进程（读取 `artifacts/*.pid` 与 `artifacts/local_stack_pids.json`）
 
+### 桌面端（Electron/React）开发环境（已跑通）
+
+- 一键启动：双击 `start_dev.cmd`（默认启动 llama-server + backend + Electron 前端）
+- 启动脚本：
+  - `scripts/run_dev.ps1`：后端健康检查（避免重复启动）、前端注入 `VITE_BACKEND_BASE_URL`、可选/默认启动 llama-server
+  - `scripts/stop_dev.ps1`：按 `artifacts/dev_pids.json` 停止前端/llama-server，并通过端口兜底释放 backend 端口
+- Electron-Vite：显式配置 main/preload/renderer entry 与 build 输出，renderer dev server 绑定 `127.0.0.1`
+- Electron main：
+  - dev 模式等待 renderer dev server ready 后再加载
+  - preload 输出兼容 `.js` / `.mjs`
+  - dev 模式关闭 `webSecurity`（仅开发期）以规避 CORS 阻断导致的 `Failed to fetch`
+- Renderer：Settings 页已联通后端 API（runtime profile / LLM preferences / llama-server status），并将中文 UI 文案替换为 Unicode escape，避免源码文件被 GBK/GB2312 编码保存时出现乱码
+
 ## API 一览（MVP-1 + MVP-2 + MVP-3 + MVP-4）
 
 - `GET /health`
@@ -153,24 +166,11 @@
 	  - Embedding：替换默认 `hash` fallback（或至少将其降级为 fallback，仅在真实 embedding 不可用时启用）
 	  - 最小 pytest 覆盖与稳定性回归：覆盖 `/summarize`、`/keyframes`（interval/scene/aligned）关键分支与错误码
 	  - 自动化脚本补齐（可选）：新增 keyframes 端到端验证脚本（类比 `index_search_chat_test.ps1`）
-	- 桌面端（Electron/React）接入：视频列表/任务进度（SSE/WS）/断线重连/状态恢复
-	  - LLM 设置页（本地优先）：为非技术用户提供“档位选择 + 模型路径配置 + 一键启用”
-	    - 档位（Runtime Profile）：CPU 友好 / 均衡（默认）/ GPU 推荐（高级选项）
-	    - 模型文件：选择本地 `.gguf` 路径（例如 Qwen2.5-7B-Instruct Q4_K_M）
-	    - llama-server：可选由 Electron 启停并显示状态（端口、启动参数、日志片段）
-	    - 后端联动：
-	      - 读取 provider 列表：`GET /llm/providers`
-	      - 设置默认偏好：`PUT /llm/preferences/default`（provider=`openai_local`，model/temperature/max_tokens）
-	      - 读取默认偏好：`GET /llm/preferences/default`
-	    - 可选增强：探测本地 llama-server 可用性（例如 `GET {LLM_LOCAL_BASE_URL}/v1/models`）并在 UI 显示“已连接/未启动”
-	  - LLM 设置页流程：
-	    1. 读取 provider 列表（`GET /llm/providers`）
-	    2. 选择 provider（例如 `openai_local`）
-	    3. 配置模型路径（`.gguf` 文件）
-	    4. 启动 llama-server（可选）
-	    5. 设置默认偏好（`PUT /llm/preferences/default`）
-	    6. 读取默认偏好（`GET /llm/preferences/default`）
-	    7. 显示 llama-server 状态（可选）
+	- 桌面端（Electron/React）：开发联调与基础功能（下一步）
+	  - 视频库（Library）：视频列表 + 导入入口（Electron 文件选择器）
+	  - 视频详情：转写/索引/摘要/关键帧的触发与结果展示（含进度）
+	  - 任务进度：SSE/WS 实时订阅 + 断线重连 + 状态恢复
+	  - Chat：streaming 输出 + citations 展示
 	- 打包与分发：PyInstaller + Electron Builder；模型下载/导入向导；数据目录迁移/备份
 
 ## 备忘 / 待验证事项（重要）
@@ -222,6 +222,8 @@ $aligned | ConvertTo-Json -Depth 50
 ```powershell
 ./scripts/run_local_stack.ps1
 ```
+
+- 桌面端开发（推荐，启动 llama-server + backend + Electron 前端）：双击仓库根目录 `start_dev.cmd`
 
 - 手动启动 backend（仅后端，不包含 llama-server）：在项目 `backend` 目录下：
 
@@ -458,3 +460,4 @@ powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\
 - 2026-01-11：新增 GitHub Actions CI（`.github/workflows/quality.yml`：flake8/mypy/pyright/pytest）；初始化并推送 GitHub 仓库；根目录 `.gitignore` 忽略 `demo/`、`artifacts/`、`backend/.venv/`。
 - 2026-01-13：MVP-3：新增 `summarize` job + summary/outline/export API；增强 JSON 大纲解析与修复逻辑；提高 reduce/outline 阶段 `max_tokens` 默认值，避免导出 Markdown/大纲被截断；端到端验证通过（outline 为结构化数组，export/markdown 成功落盘）。
 - 2026-01-13：MVP-4：新增 `keyframes` job 与 SQLite 落盘（interval/scene）；scene 模式写入 `score`；aligned 支持 scene 优先高分并可返回 `score`，可选 `fallback=nearest`。
+- 2026-01-13：桌面端开发环境跑通：一键启动/停止脚本完善（含默认启动 llama-server）；修复 Electron-Vite entry/host 与 dev server 等待逻辑；dev 模式 CORS 绕过；前端中文 UI 文案改为 Unicode escape，避免 GBK/GB2312 编码导致乱码。
