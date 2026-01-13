@@ -8,7 +8,7 @@ param(
 
     [switch]$StartLlama,
     [string]$LlamaServerExe = "F:\\LLAMA\\bin\\llama-server.exe",
-    [string]$LlamaModelPath = "F:\\LLAMA\\models\\Qwen2.5-7B-Instruct\\qwen2.5-7b-instruct-q4_k_m.gguf",
+    [string]$LlamaModelPath = "F:\\LLAMA\\models\\Qwen2.5-7B-Instruct\\Qwen2.5-7B-Instruct-Q4_K_M.gguf",
     [string]$LocalLLMBaseUrl = "http://127.0.0.1:8080/v1",
     [int]$LlamaPort = 8080,
 
@@ -78,7 +78,22 @@ try {
     $backendHealthUrl = ($backendBase + "/health")
     $backendAlreadyRunning = (Try-HttpOk $backendHealthUrl 2)
 
+    $env:LLM_LOCAL_BASE_URL = $LocalLLMBaseUrl.TrimEnd('/')
+
     if ($StartLlama) {
+        if (-not (Test-Path -LiteralPath $LlamaModelPath -PathType Leaf)) {
+            try {
+                $modelDir = Split-Path -Parent $LlamaModelPath
+                if ($modelDir -and (Test-Path -LiteralPath $modelDir -PathType Container)) {
+                    $gguf = Get-ChildItem -Path $modelDir -Filter "*.gguf" -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($gguf -and $gguf.FullName) {
+                        $LlamaModelPath = [string]$gguf.FullName
+                    }
+                }
+            } catch {
+            }
+        }
+
         $modelsUrl = ($LocalLLMBaseUrl.TrimEnd('/') + "/models")
         if (Try-HttpOk $modelsUrl 2) {
             Write-Host "llama-server already running: $LocalLLMBaseUrl"
@@ -102,8 +117,6 @@ try {
         }
 
         }
-
-        $env:LLM_LOCAL_BASE_URL = $LocalLLMBaseUrl.TrimEnd('/')
     }
 
     if (-not $NoFrontend) {
