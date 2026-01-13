@@ -46,6 +46,87 @@ export type TranscriptResponse = {
   segments: TranscriptSegment[]
 }
 
+export type VideoIndexStatus = {
+  video_id: string
+  status: string
+  progress?: number
+  message?: string
+  embed_model?: string | null
+  embed_dim?: number | null
+  chunk_params_json?: string | null
+  transcript_hash?: string | null
+  current_transcript_hash?: string | null
+  chunk_count?: number
+  indexed_count?: number
+  error_code?: string | null
+  error_message?: string | null
+  created_at?: string
+  updated_at?: string
+  is_stale?: boolean
+  [k: string]: any
+}
+
+export type VideoSummaryStatus = {
+  video_id: string
+  status: string
+  progress?: number
+  message?: string
+  transcript_hash?: string | null
+  current_transcript_hash?: string | null
+  params_json?: string | null
+  segment_summaries?: any
+  summary_markdown?: string | null
+  outline_json?: string | null
+  error_code?: string | null
+  error_message?: string | null
+  created_at?: string
+  updated_at?: string
+  is_stale?: boolean
+  [k: string]: any
+}
+
+export type OutlineResponse = {
+  video_id: string
+  status: string
+  progress: number
+  message: string
+  outline: any
+}
+
+export type KeyframesIndexStatus = {
+  video_id: string
+  status: string
+  progress?: number
+  message?: string
+  frame_count?: number
+  params_json?: string | null
+  error_code?: string | null
+  error_message?: string | null
+  created_at?: string
+  updated_at?: string
+  [k: string]: any
+}
+
+export type KeyframeItem = {
+  id: string
+  video_id: string
+  timestamp_ms: number
+  image_relpath?: string
+  method?: string
+  width?: number | null
+  height?: number | null
+  score?: number | null
+  metadata_json?: string | null
+  created_at?: string
+  image_url?: string
+  [k: string]: any
+}
+
+export type ListKeyframesResponse = {
+  total: number
+  items: KeyframeItem[]
+}
+
 export type CreateVideoJobResult = {
   status: number
   detail: string
@@ -158,6 +239,19 @@ export const api = {
     fetchJson<TranscriptResponse>(
       `/videos/${encodeURIComponent(video_id)}/transcript${toQuery({
         limit: typeof params?.limit === 'number' ? params?.limit : null
+      })}`
+    ),
+  getVideoIndex: (video_id: string) => fetchJson<VideoIndexStatus>(`/videos/${encodeURIComponent(video_id)}/index`),
+  getVideoSummary: (video_id: string) => fetchJson<VideoSummaryStatus>(`/videos/${encodeURIComponent(video_id)}/summary`),
+  getVideoOutline: (video_id: string) => fetchJson<OutlineResponse>(`/videos/${encodeURIComponent(video_id)}/outline`),
+  getKeyframesIndex: (video_id: string) =>
+    fetchJson<KeyframesIndexStatus>(`/videos/${encodeURIComponent(video_id)}/keyframes/index`),
+  listKeyframes: (video_id: string, params?: { method?: string; limit?: number; offset?: number }) =>
+    fetchJson<ListKeyframesResponse>(
+      `/videos/${encodeURIComponent(video_id)}/keyframes${toQuery({
+        method: params?.method || null,
+        limit: params?.limit ?? 50,
+        offset: params?.offset ?? 0
       })}`
     ),
   createTranscribeJob: (payload: {
