@@ -4,6 +4,9 @@ import os
 import threading
 from typing import Any, Dict, Optional
 
+from urllib.error import HTTPError, URLError
+from urllib.request import Request as UrlRequest, urlopen
+
 from fastapi import FastAPI, HTTPException, Request, Response, WebSocket
 from fastapi import WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -29,6 +32,7 @@ from .repo import (
     delete_video_summary,
     delete_video_index,
     get_default_llm_preferences,
+    get_default_runtime_preferences,
     get_active_job_for_video,
     get_job,
     get_video,
@@ -44,9 +48,16 @@ from .repo import (
     recover_incomplete_state,
     reset_job,
     set_default_llm_preferences,
+    set_default_runtime_preferences,
     set_video_status,
 )
 from .paths import keyframes_dir
+from .runtime import (
+    apply_runtime_preferences,
+    get_effective_runtime_preferences,
+    limit_llm,
+    refresh_runtime_preferences,
+)
 from .settings import settings
 from .subtitle import segments_to_srt, segments_to_vtt
 from .transcript_store import (
@@ -68,6 +79,46 @@ from .worker import JobWorker
 
 class UTF8JSONResponse(JSONResponse):
     media_type = "application/json; charset=utf-8"
+
+
+def _probe_openai_models(base_url: str) -> Dict[str, Any]:
+    url = str(base_url or "").rstrip("/") + "/models"
+    req = UrlRequest(url, method="GET")
+    try:
+        with urlopen(req, timeout=2.5) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+        obj = json.loads(raw or "{}")
+        items = obj.get("data") or []
+        models = []
+        if isinstance(items, list):
+            for it in items:
+                if isinstance(it, dict) and it.get("id") is not None:
+                    models.append(str(it.get("id")))
+        return {
+            "ok": True,
+            "models": models,
+        }
+    except HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")
+        return {
+            "ok": False,
+            "error": f"HTTP_{e.code}:{detail[:500]}",
+        }
+    except TimeoutError:
+        return {
+            "ok": False,
+            "error": "TIMEOUT",
+        }
+    except URLError as e:
+        return {
+            "ok": False,
+            "error": f"URL_ERROR:{e}",
+        }
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": f"ERROR:{type(e).__name__}:{e}",
+        }
 
 
 class ImportVideoRequest(BaseModel):
@@ -130,6 +181,15 @@ class LLMDefaultPreferencesRequest(BaseModel):
     max_tokens: int = 512
 
 
+class RuntimeProfileRequest(BaseModel):
+    profile: Optional[str] = None
+    asr_concurrency: Optional[int] = None
+    llm_concurrency: Optional[int] = None
+    llm_timeout_seconds: Optional[int] = None
+    asr_device: Optional[str] = None
+    asr_compute_type: Optional[str] = None
+
+
 class RetryJobRequest(BaseModel):
     from_scratch: bool = False
 
@@ -150,6 +210,7 @@ def _startup() -> None:
 
     init_db()
     recover_incomplete_state()
+    refresh_runtime_preferences()
 
     if os.getenv("EDGE_VIDEO_AGENT_DISABLE_WORKER", "0") in (
         "1",
@@ -193,6 +254,18 @@ def list_llm_providers_api() -> Dict[str, Any]:
     }
 
 
+@app.get("/llm/local/status")
+def llm_local_status_api() -> Dict[str, Any]:
+    base_url = str(settings.llm_local_base_url or "").rstrip("/")
+    res = _probe_openai_models(base_url)
+    return {
+        "provider": "openai_local",
+        "base_url": base_url,
+        "default_model": str(settings.llm_local_model or ""),
+        **res,
+    }
+
+
 @app.put("/llm/preferences/default")
 def set_llm_default_preferences_api(
     req: LLMDefaultPreferencesRequest,
@@ -205,6 +278,39 @@ def set_llm_default_preferences_api(
     }
     return {
         "preferences": set_default_llm_preferences(prefs),
+    }
+
+
+@app.get("/runtime/profile")
+def get_runtime_profile_api() -> Dict[str, Any]:
+    prefs = get_default_runtime_preferences()
+    return {
+        "preferences": prefs,
+        "effective": get_effective_runtime_preferences(prefs),
+    }
+
+
+@app.put("/runtime/profile")
+def set_runtime_profile_api(req: RuntimeProfileRequest) -> Dict[str, Any]:
+    prefs: Dict[str, Any] = dict(get_default_runtime_preferences())
+    if req.profile is not None:
+        prefs["profile"] = str(req.profile or "balanced").strip().lower()
+    if req.asr_concurrency is not None:
+        prefs["asr_concurrency"] = int(req.asr_concurrency)
+    if req.llm_concurrency is not None:
+        prefs["llm_concurrency"] = int(req.llm_concurrency)
+    if req.llm_timeout_seconds is not None:
+        prefs["llm_timeout_seconds"] = int(req.llm_timeout_seconds)
+    if req.asr_device is not None:
+        prefs["asr_device"] = str(req.asr_device or "").strip()
+    if req.asr_compute_type is not None:
+        prefs["asr_compute_type"] = str(req.asr_compute_type or "").strip()
+
+    stored = set_default_runtime_preferences(prefs)
+    effective = apply_runtime_preferences(stored)
+    return {
+        "preferences": stored,
+        "effective": effective,
     }
 
 
@@ -1282,13 +1388,14 @@ def chat_api(req: ChatRequest) -> Response:
         def gen():
             parts: list[str] = []
             try:
-                for part in provider.stream_generate(
-                    messages=messages,
-                    prefs=prefs,
-                    confirm_send=bool(req.confirm_send),
-                ):
-                    parts.append(part)
-                    yield _sse_event("token", {"delta": part})
+                with limit_llm():
+                    for part in provider.stream_generate(
+                        messages=messages,
+                        prefs=prefs,
+                        confirm_send=bool(req.confirm_send),
+                    ):
+                        parts.append(part)
+                        yield _sse_event("token", {"delta": part})
 
                 answer = "".join(parts)
                 yield _sse_event(
@@ -1307,11 +1414,12 @@ def chat_api(req: ChatRequest) -> Response:
         return StreamingResponse(gen(), media_type="text/event-stream")
 
     try:
-        answer = provider.generate(
-            messages=messages,
-            prefs=prefs,
-            confirm_send=bool(req.confirm_send),
-        )
+        with limit_llm():
+            answer = provider.generate(
+                messages=messages,
+                prefs=prefs,
+                confirm_send=bool(req.confirm_send),
+            )
     except Exception as e:
         raise HTTPException(
             status_code=502,

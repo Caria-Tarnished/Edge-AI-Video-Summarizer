@@ -116,32 +116,96 @@ def fetch_next_pending_job(
     job_type: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     with connect() as conn:
+        asr_limit, llm_limit = _get_job_type_concurrency_limits()
         if job_type:
-            row = conn.execute(
+            jt = str(job_type or "")
+            sql = (
                 "SELECT * FROM jobs WHERE status='pending' AND job_type=? "
-                "ORDER BY created_at LIMIT 1",
-                (job_type,),
-            ).fetchone()
+            )
+            params: list[Any] = [jt]
+            if jt == "transcribe":
+                sql += (
+                    "AND (SELECT COUNT(*) FROM jobs "
+                    "WHERE status='running' AND job_type='transcribe') < ? "
+                )
+                params.append(int(asr_limit))
+            elif jt == "summarize":
+                sql += (
+                    "AND (SELECT COUNT(*) FROM jobs "
+                    "WHERE status='running' AND job_type='summarize') < ? "
+                )
+                params.append(int(llm_limit))
+            sql += "ORDER BY created_at LIMIT 1"
+            row = conn.execute(sql, tuple(params)).fetchone()
         else:
-            row = conn.execute(
+            sql = (
                 "SELECT * FROM jobs WHERE status='pending' "
+                "AND (job_type!='transcribe' OR "
+                "(SELECT COUNT(*) FROM jobs "
+                "WHERE status='running' "
+                "AND job_type='transcribe') < ?) "
+                "AND (job_type!='summarize' OR "
+                "(SELECT COUNT(*) FROM jobs "
+                "WHERE status='running' "
+                "AND job_type='summarize') < ?) "
                 "ORDER BY created_at LIMIT 1"
+            )
+            row = conn.execute(
+                sql,
+                (int(asr_limit), int(llm_limit)),
             ).fetchone()
         return dict(row) if row else None
 
 
-def claim_pending_job(job_id: str) -> bool:
+def claim_pending_job(job_id: str, job_type: Optional[str] = None) -> bool:
     with connect() as conn:
+        jt = str(job_type or "")
+        if not jt:
+            row = conn.execute(
+                "SELECT job_type FROM jobs WHERE id=?",
+                (job_id,),
+            ).fetchone()
+            jt = str(row["job_type"] or "") if row else ""
+
+        asr_limit, llm_limit = _get_job_type_concurrency_limits()
+        sql = (
+            "UPDATE jobs SET status='running', "
+            "started_at=datetime('now') "
+            ", updated_at=strftime('%Y-%m-%d %H:%M:%f','now') "
+            "WHERE id=? AND status='pending' "
+        )
+        params: list[Any] = [job_id]
+        if jt == "transcribe":
+            sql += (
+                "AND (SELECT COUNT(*) FROM jobs "
+                "WHERE status='running' AND job_type='transcribe') < ? "
+            )
+            params.append(int(asr_limit))
+        elif jt == "summarize":
+            sql += (
+                "AND (SELECT COUNT(*) FROM jobs "
+                "WHERE status='running' AND job_type='summarize') < ? "
+            )
+            params.append(int(llm_limit))
+
         cur = conn.execute(
-            (
-                "UPDATE jobs SET status='running', "
-                "started_at=datetime('now') "
-                ", updated_at=strftime('%Y-%m-%d %H:%M:%f','now') "
-                "WHERE id=? AND status='pending'"
-            ),
-            (job_id,),
+            sql,
+            tuple(params),
         )
         return bool(cur.rowcount)
+
+
+def _get_job_type_concurrency_limits() -> tuple[int, int]:
+    try:
+        from .runtime import get_effective_runtime_preferences
+
+        prefs = get_default_runtime_preferences()
+        eff = get_effective_runtime_preferences(prefs)
+        asr_limit = int(eff.get("asr_concurrency") or 0)
+        llm_limit = int(eff.get("llm_concurrency") or 0)
+        return max(0, asr_limit), max(0, llm_limit)
+    except Exception:
+        return 1, 1
 
 
 def get_job_status(job_id: str) -> Optional[str]:
@@ -247,6 +311,35 @@ def set_default_llm_preferences(prefs: Dict[str, Any]) -> Dict[str, Any]:
             (prefs_json,),
         )
     return get_default_llm_preferences()
+
+
+def get_default_runtime_preferences() -> Dict[str, Any]:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT prefs_json FROM runtime_preferences WHERE id=1",
+        ).fetchone()
+        prefs_json = str(row["prefs_json"] or "{}") if row else "{}"
+
+    try:
+        obj = json.loads(prefs_json)
+        return obj if isinstance(obj, dict) else {}
+    except Exception:
+        return {}
+
+
+def set_default_runtime_preferences(prefs: Dict[str, Any]) -> Dict[str, Any]:
+    payload = prefs if isinstance(prefs, dict) else {}
+    prefs_json = json.dumps(payload, ensure_ascii=False)
+    with connect() as conn:
+        conn.execute(
+            (
+                "UPDATE runtime_preferences SET prefs_json=? "
+                ", updated_at=strftime('%Y-%m-%d %H:%M:%f','now') "
+                "WHERE id=1"
+            ),
+            (prefs_json,),
+        )
+    return get_default_runtime_preferences()
 
 
 def update_job(

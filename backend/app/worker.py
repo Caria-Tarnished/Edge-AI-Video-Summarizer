@@ -43,6 +43,7 @@ from .repo import (
     upsert_video_summary,
     update_job,
 )
+from .runtime import limit_asr, limit_llm
 from .settings import settings
 from .transcript_store import (
     append_segments,
@@ -97,7 +98,7 @@ class JobWorker:
             video_id = job["video_id"]
             job_type = str(job.get("job_type") or "")
 
-            if not claim_pending_job(job_id):
+            if not claim_pending_job(job_id, job_type):
                 continue
 
             claimed = get_job(job_id) or {}
@@ -479,7 +480,8 @@ class JobWorker:
 
                 self._ensure_same_run(job_id, claimed_started_at)
 
-                segments, info = self._asr.transcribe_wav(wav_path)
+                with limit_asr():
+                    segments, info = self._asr.transcribe_wav(wav_path)
 
                 self._ensure_same_run(job_id, claimed_started_at)
 
@@ -993,11 +995,12 @@ class JobWorker:
                     ),
                 },
             ]
-            part = provider.generate(
-                messages=messages,
-                prefs=prefs,
-                confirm_send=False,
-            )
+            with limit_llm():
+                part = provider.generate(
+                    messages=messages,
+                    prefs=prefs,
+                    confirm_send=False,
+                )
             segment_summaries.append(
                 {
                     "start_time": start_time,
@@ -1045,11 +1048,12 @@ class JobWorker:
                 ),
             },
         ]
-        summary_md = provider.generate(
-            messages=messages_reduce,
-            prefs=reduce_prefs,
-            confirm_send=False,
-        )
+        with limit_llm():
+            summary_md = provider.generate(
+                messages=messages_reduce,
+                prefs=reduce_prefs,
+                confirm_send=False,
+            )
 
         self._ensure_same_run(job_id, claimed_started_at)
         update_job(job_id, progress=0.9, message="outline")
@@ -1068,11 +1072,12 @@ class JobWorker:
                 ),
             },
         ]
-        outline_raw = provider.generate(
-            messages=messages_outline,
-            prefs=outline_prefs,
-            confirm_send=False,
-        )
+        with limit_llm():
+            outline_raw = provider.generate(
+                messages=messages_outline,
+                prefs=outline_prefs,
+                confirm_send=False,
+            )
 
         outline_obj = _parse_jsonish(outline_raw)
         if isinstance(outline_obj, dict) and "raw" in outline_obj:
@@ -1091,11 +1096,12 @@ class JobWorker:
                     ),
                 },
             ]
-            fixed_raw = provider.generate(
-                messages=messages_fix,
-                prefs=outline_prefs,
-                confirm_send=False,
-            )
+            with limit_llm():
+                fixed_raw = provider.generate(
+                    messages=messages_fix,
+                    prefs=outline_prefs,
+                    confirm_send=False,
+                )
             fixed_obj = _parse_jsonish(fixed_raw)
             if not (isinstance(fixed_obj, dict) and "raw" in fixed_obj):
                 outline_obj = fixed_obj

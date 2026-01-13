@@ -167,6 +167,18 @@ def init_db() -> None:
                     1,
                     '{"provider":"fake","temperature":0.2,"max_tokens":512}'
                 );
+
+            CREATE TABLE IF NOT EXISTS runtime_preferences (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                prefs_json TEXT NOT NULL,
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+
+            INSERT OR IGNORE INTO runtime_preferences (id, prefs_json)
+                VALUES (
+                    1,
+                    '{"profile":"balanced"}'
+                );
             """
         )
         _migrate(conn)
