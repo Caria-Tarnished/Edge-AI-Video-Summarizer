@@ -118,7 +118,7 @@ export default function SettingsPage() {
       }
       const res = await api.setRuntimeProfile(payload)
       setRuntime(res)
-      setInfo('ÔËĞĞÊ±ÅäÖÃÒÑ±£´æ')
+      setInfo('è¿è¡Œæ—¶é…ç½®å·²ä¿å­˜')
     } catch (e: any) {
       setError(String(e?.message || e))
     } finally {
@@ -138,7 +138,7 @@ export default function SettingsPage() {
         max_tokens: Number(llmDraft.max_tokens ?? 512)
       }
       await api.setDefaultLlmPreferences(payload)
-      setInfo('Ä¬ÈÏ LLM Æ«ºÃÒÑ±£´æ')
+      setInfo('é»˜è®¤ LLM åå¥½å·²ä¿å­˜')
     } catch (e: any) {
       setError(String(e?.message || e))
     } finally {
@@ -162,7 +162,7 @@ export default function SettingsPage() {
 
   const saveDevConfig = useCallback(async () => {
     if (!window.electronAPI?.setDevConfig) {
-      setError('µ±Ç°²»ÊÇ Electron »·¾³£¬ÎŞ·¨±£´æ±¾µØÆô¶¯ÅäÖÃ')
+      setError('å½“å‰ä¸æ˜¯ Electron ç¯å¢ƒï¼Œæ— æ³•ä¿å­˜æœ¬åœ°å¯åŠ¨é…ç½®')
       return
     }
     setError(null)
@@ -192,7 +192,7 @@ export default function SettingsPage() {
         local_llm_base_url: String(cfg.local_llm_base_url || '')
       })
 
-      setInfo('±¾µØ llama-server Æô¶¯ÅäÖÃÒÑ±£´æ')
+      setInfo('æœ¬åœ° llama-server å¯åŠ¨é…ç½®å·²ä¿å­˜')
     } catch (e: any) {
       setError(String(e?.message || e))
     } finally {
@@ -234,19 +234,19 @@ export default function SettingsPage() {
   return (
     <div className="stack">
       <div className="card">
-        <h2>ÉèÖÃ</h2>
-        <div className="muted">ºó¶Ë£ºÇëÏÈÆô¶¯ backend£¨Ä¬ÈÏ http://127.0.0.1:8001£©</div>
+        <h2>è®¾ç½®</h2>
+        <div className="muted">åç«¯ï¼šè¯·å…ˆå¯åŠ¨ backendï¼ˆé»˜è®¤ http://127.0.0.1:8001ï¼‰</div>
         {error ? <div className="alert alert-error">{error}</div> : null}
         {info ? <div className="alert alert-info">{info}</div> : null}
         <div className="row">
           <button className="btn" onClick={loadAll} disabled={!!busy}>
-            Ë¢ĞÂÈ«²¿
+            åˆ·æ–°å…¨éƒ¨
           </button>
         </div>
       </div>
 
       <div className="card">
-        <h3>ÔËĞĞÊ±ÅäÖÃ£¨Runtime Profile£©</h3>
+        <h3>è¿è¡Œæ—¶é…ç½®ï¼ˆRuntime Profileï¼‰</h3>
         <div className="grid">
           <label className="field">
             <div className="label">profile</div>
@@ -333,7 +333,7 @@ export default function SettingsPage() {
 
         <div className="row">
           <button className="btn primary" onClick={saveRuntime} disabled={!!busy}>
-            ±£´æÔËĞĞÊ±ÅäÖÃ
+            ä¿å­˜è¿è¡Œæ—¶é…ç½®
           </button>
         </div>
 
@@ -346,7 +346,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="card">
-        <h3>Ä¬ÈÏ LLM Æ«ºÃ</h3>
+        <h3>é»˜è®¤ LLM åå¥½</h3>
         <div className="grid">
           <label className="field">
             <div className="label">provider</div>
@@ -378,7 +378,7 @@ export default function SettingsPage() {
                 const v = String(e.target.value || '').trim()
                 setLlmDraft((d) => ({ ...d, model: v ? v : null }))
               }}
-              placeholder="ÀıÈç£ºQwen2.5-7B-Instruct"
+              placeholder="ä¾‹å¦‚ï¼šQwen2.5-7B-Instruct"
             />
           </label>
 
@@ -414,16 +414,16 @@ export default function SettingsPage() {
 
         <div className="row">
           <button className="btn primary" onClick={saveLlm} disabled={!!busy}>
-            ±£´æÄ¬ÈÏ LLM Æ«ºÃ
+            ä¿å­˜é»˜è®¤ LLM åå¥½
           </button>
         </div>
       </div>
 
       <div className="card">
-        <h3>±¾µØ llama-server ×´Ì¬</h3>
+        <h3>æœ¬åœ° llama-server çŠ¶æ€</h3>
         <div className="row">
           <button className="btn" onClick={refreshLocalStatus} disabled={!!busy}>
-            Ë¢ĞÂ×´Ì¬
+            åˆ·æ–°çŠ¶æ€
           </button>
         </div>
 
@@ -452,16 +452,16 @@ export default function SettingsPage() {
             ) : null}
           </div>
         ) : (
-          <div className="muted">ÉĞÎ´»ñÈ¡×´Ì¬£¨µã»÷¡°Ë¢ĞÂ×´Ì¬¡±£©</div>
+          <div className="muted">å°šæœªè·å–çŠ¶æ€ï¼ˆç‚¹å‡»â€œåˆ·æ–°çŠ¶æ€â€ï¼‰</div>
         )}
       </div>
 
       <div className="card">
-        <h3>±¾µØ llama-server Æô¶¯ÅäÖÃ</h3>
+        <h3>æœ¬åœ° llama-server å¯åŠ¨é…ç½®</h3>
         <div className="muted">
-          ¸ÃÅäÖÃÓÃÓÚÒ»¼üÆô¶¯£¨Ğ´Èë artifacts/dev_config.json£©£»ËæºóÖ´ĞĞ <code>start_dev.cmd -StartLlama</code> »á×Ô¶¯¶ÁÈ¡¡£
+          è¯¥é…ç½®ç”¨äºä¸€é”®å¯åŠ¨ï¼ˆå†™å…¥ artifacts/dev_config.jsonï¼‰ï¼›éšåæ‰§è¡Œ <code>start_dev.cmd -StartLlama</code> ä¼šè‡ªåŠ¨è¯»å–ã€‚
         </div>
-        {devConfigPath ? <div className="muted">ÅäÖÃÎÄ¼ş£º{devConfigPath}</div> : null}
+        {devConfigPath ? <div className="muted">é…ç½®æ–‡ä»¶ï¼š{devConfigPath}</div> : null}
 
         {window.electronAPI?.setDevConfig ? (
           <>
@@ -474,14 +474,14 @@ export default function SettingsPage() {
                   onChange={(e: ChangeEvent<HTMLInputElement>) =>
                     setDevConfigDraft((d) => ({ ...d, llama_server_exe: e.target.value }))
                   }
-                  placeholder="ÀıÈç£ºF:\\LLAMA\\bin\\llama-server.exe"
+                  placeholder="ä¾‹å¦‚ï¼šF:\\LLAMA\\bin\\llama-server.exe"
                 />
               </label>
 
               <div className="field">
-                <div className="label">Ñ¡Ôñ llama-server.exe</div>
+                <div className="label">é€‰æ‹© llama-server.exe</div>
                 <button className="btn" onClick={pickLlamaExe} disabled={!!busy}>
-                  Ñ¡ÔñÎÄ¼ş
+                  é€‰æ‹©æ–‡ä»¶
                 </button>
               </div>
 
@@ -493,14 +493,14 @@ export default function SettingsPage() {
                   onChange={(e: ChangeEvent<HTMLInputElement>) =>
                     setDevConfigDraft((d) => ({ ...d, llama_model_path: e.target.value }))
                   }
-                  placeholder="ÀıÈç£ºF:\\LLAMA\\models\\...\\xxx.gguf"
+                  placeholder="ä¾‹å¦‚ï¼šF:\\LLAMA\\models\\...\\xxx.gguf"
                 />
               </label>
 
               <div className="field">
-                <div className="label">Ñ¡Ôñ GGUF Ä£ĞÍ</div>
+                <div className="label">é€‰æ‹© GGUF æ¨¡å‹</div>
                 <button className="btn" onClick={pickLlamaModel} disabled={!!busy}>
-                  Ñ¡ÔñÎÄ¼ş
+                  é€‰æ‹©æ–‡ä»¶
                 </button>
               </div>
 
@@ -532,12 +532,12 @@ export default function SettingsPage() {
 
             <div className="row">
               <button className="btn primary" onClick={saveDevConfig} disabled={!!busy}>
-                ±£´æ±¾µØÆô¶¯ÅäÖÃ
+                ä¿å­˜æœ¬åœ°å¯åŠ¨é…ç½®
               </button>
             </div>
           </>
         ) : (
-          <div className="muted">µ±Ç°²»ÊÇ Electron »·¾³£¨»ò preload Î´ÆôÓÃ£©£¬´Ë´¦ÎŞ·¨±£´æÆô¶¯ÅäÖÃ¡£</div>
+          <div className="muted">å½“å‰ä¸æ˜¯ Electron ç¯å¢ƒï¼ˆæˆ– preload æœªå¯ç”¨ï¼‰ï¼Œæ­¤å¤„æ— æ³•ä¿å­˜å¯åŠ¨é…ç½®ã€‚</div>
         )}
       </div>
     </div>

@@ -1,8 +1,10 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import * as http from 'node:http'
+import * as https from 'node:https'
 import { dirname, join } from 'path'
 
-const isDev = !!process.env.VITE_DEV_SERVER_URL
+const rawDevServerUrl = String(process.env.VITE_DEV_SERVER_URL || process.env.ELECTRON_RENDERER_URL || '').trim()
 
 let mainWindow: BrowserWindow | null = null
 
@@ -41,20 +43,108 @@ function writeDevConfig(config: Record<string, unknown>): { path: string; config
   return { path: p, config: readDevConfig() }
 }
 
+function normalizeDevUrl(u: string): string {
+  const s = String(u || '').trim()
+  if (!s) return s
+  return s.replace('http://localhost:', 'http://127.0.0.1:').replace('https://localhost:', 'https://127.0.0.1:')
+}
+
+function escapeHtml(s: string): string {
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function probeUrl(u: string, timeoutMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(u)
+      const mod = url.protocol === 'https:' ? https : http
+      const port = url.port ? parseInt(url.port, 10) : url.protocol === 'https:' ? 443 : 80
+      const req = mod.request(
+        {
+          method: 'GET',
+          host: url.hostname,
+          port,
+          path: url.pathname || '/',
+          timeout: timeoutMs
+        },
+        (res) => {
+          res.resume()
+          resolve()
+        }
+      )
+      req.on('error', reject)
+      req.on('timeout', () => req.destroy(new Error('timeout')))
+      req.end()
+    } catch (e) {
+      reject(e)
+    }
+  })
+}
+
+async function waitForUrl(u: string, timeoutMs: number): Promise<void> {
+  const start = Date.now()
+  while (true) {
+    try {
+      await probeUrl(u, 1200)
+      return
+    } catch {
+    }
+    if (Date.now() - start > timeoutMs) {
+      throw new Error(`Dev server not reachable: ${u}`)
+    }
+    await new Promise((r) => setTimeout(r, 200))
+  }
+}
+
 async function createWindow(): Promise<void> {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 820,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js')
+      preload: (() => {
+        const js = join(__dirname, '../preload/index.js')
+        const mjs = join(__dirname, '../preload/index.mjs')
+        if (existsSync(js)) return js
+        if (existsSync(mjs)) return mjs
+        return js
+      })()
     }
   })
 
-  if (isDev && process.env.VITE_DEV_SERVER_URL) {
-    await mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
-    mainWindow.webContents.openDevTools({ mode: 'detach' })
+  if (!app.isPackaged) {
+    const u = normalizeDevUrl(rawDevServerUrl) || 'http://127.0.0.1:5173/'
+    try {
+      await waitForUrl(u, 15000)
+      await mainWindow.loadURL(u)
+      mainWindow.webContents.openDevTools({ mode: 'detach' })
+      return
+    } catch (e: any) {
+      const msg = e && e.message ? String(e.message) : String(e)
+      await mainWindow.loadURL(
+        'data:text/html;charset=utf-8,' +
+          encodeURIComponent(
+            `<html><body style="font-family: ui-sans-serif, system-ui; padding: 24px;">
+              <h2>Dev server not reachable</h2>
+              <div><b>URL:</b> ${escapeHtml(u)}</div>
+              <pre style="white-space: pre-wrap;">${escapeHtml(msg)}</pre>
+              <div>Make sure the renderer dev server is running.</div>
+            </body></html>`
+          )
+      )
+      return
+    }
   } else {
-    await mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    const rendererHtml = join(__dirname, '../renderer/index.html')
+    if (!existsSync(rendererHtml)) {
+      await mainWindow.loadURL('http://127.0.0.1:5173/')
+    } else {
+      await mainWindow.loadFile(rendererHtml)
+    }
   }
 }
 

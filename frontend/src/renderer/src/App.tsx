@@ -12,8 +12,8 @@ export default function App() {
     }
     return (
       <div className="card">
-        <h2>¿â</h2>
-        <div className="muted">ÏÂÒ»²½½«ÊµÏÖÊÓÆµ¿âÓëÊÓÆµÏêÇéÒ³¡£</div>
+        <h2>åº“</h2>
+        <div className="muted">ä¸‹ä¸€æ­¥å°†å®žçŽ°è§†é¢‘åº“ä¸Žè§†é¢‘è¯¦æƒ…é¡µã€‚</div>
       </div>
     )
   }, [route])
@@ -27,13 +27,13 @@ export default function App() {
             className={route === 'settings' ? 'tab active' : 'tab'}
             onClick={() => setRoute('settings')}
           >
-            ÉèÖÃ
+            è®¾ç½®
           </button>
           <button
             className={route === 'library' ? 'tab active' : 'tab'}
             onClick={() => setRoute('library')}
           >
-            ¿â
+            åº“
           </button>
         </div>
       </div>
