@@ -28,37 +28,36 @@ function Write-Json($obj, $path) {
 
 $devPidPath = Join-Path $absOutDir "dev_pids.json"
 $devConfigPath = Join-Path $absOutDir "dev_config.json"
+$devErrorPath = Join-Path $absOutDir "dev_last_error.txt"
 $frontendProc = $null
 $llamaPid = $null
 $llamaStartedByScript = $false
 
 try {
+    try {
+        if (Test-Path -LiteralPath $devErrorPath -PathType Leaf) {
+            Remove-Item -LiteralPath $devErrorPath -Force -ErrorAction SilentlyContinue
+        }
+    } catch {
+    }
+
+    Write-Host "Repo root: $root"
+    Write-Host "Artifacts dir: $absOutDir"
+
     if (Test-Path -LiteralPath $devConfigPath -PathType Leaf) {
         try {
             $cfg = (Get-Content -LiteralPath $devConfigPath | ConvertFrom-Json)
 
-            if (
-                (-not $PSBoundParameters.ContainsKey('LlamaServerExe'))
-                -and $cfg.llama_server_exe
-            ) {
+            if (-not $PSBoundParameters.ContainsKey('LlamaServerExe') -and $cfg.llama_server_exe) {
                 $LlamaServerExe = [string]$cfg.llama_server_exe
             }
-            if (
-                (-not $PSBoundParameters.ContainsKey('LlamaModelPath'))
-                -and $cfg.llama_model_path
-            ) {
+            if (-not $PSBoundParameters.ContainsKey('LlamaModelPath') -and $cfg.llama_model_path) {
                 $LlamaModelPath = [string]$cfg.llama_model_path
             }
-            if (
-                (-not $PSBoundParameters.ContainsKey('LlamaPort'))
-                -and $cfg.llama_port
-            ) {
+            if (-not $PSBoundParameters.ContainsKey('LlamaPort') -and $cfg.llama_port) {
                 $LlamaPort = [int]$cfg.llama_port
             }
-            if (
-                (-not $PSBoundParameters.ContainsKey('LocalLLMBaseUrl'))
-                -and $cfg.local_llm_base_url
-            ) {
+            if (-not $PSBoundParameters.ContainsKey('LocalLLMBaseUrl') -and $cfg.local_llm_base_url) {
                 $LocalLLMBaseUrl = [string]$cfg.local_llm_base_url
             }
         } catch {
@@ -74,6 +73,10 @@ try {
             return $false
         }
     }
+
+    $backendBase = "http://${BackendHost}:${BackendPort}".TrimEnd('/')
+    $backendHealthUrl = ($backendBase + "/health")
+    $backendAlreadyRunning = (Try-HttpOk $backendHealthUrl 2)
 
     if ($StartLlama) {
         $modelsUrl = ($LocalLLMBaseUrl.TrimEnd('/') + "/models")
@@ -113,8 +116,7 @@ try {
             } else {
             $env:EDGE_VIDEO_AGENT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
             $env:EDGE_VIDEO_AGENT_REPO_ROOT = $root
-            $backendBase = "http://${BackendHost}:${BackendPort}".TrimEnd('/')
-            $cmd = "$env:VITE_BACKEND_BASE_URL='$backendBase'; npm run dev"
+            $cmd = "`$env:VITE_BACKEND_BASE_URL = '$backendBase'; npm run dev"
             $frontendProc = Start-Process -FilePath "powershell.exe" -ArgumentList @(
                 "-NoProfile",
                 "-NoExit",
@@ -144,6 +146,14 @@ try {
     Write-Json $pids $devPidPath
 
     Write-Host "Dev PIDs saved: $devPidPath"
+    if ($backendAlreadyRunning) {
+        Write-Host "Backend already running: $backendBase"
+        Write-Host "Keeping launcher alive. Press Ctrl+C to stop frontend/llama (backend will not be stopped)."
+        while ($true) {
+            Start-Sleep -Seconds 1
+        }
+    }
+
     Write-Host "Starting backend dev server... (Ctrl+C to stop)"
 
     $runBackend = Join-Path $PSScriptRoot "run_backend_dev.ps1"
@@ -152,6 +162,20 @@ try {
     }
 
     & $runBackend -Port $BackendPort -ListenHost $BackendHost
+}
+catch {
+    $msg = ($_ | Out-String)
+    try {
+        $lines = @()
+        $lines += "timestamp: $((Get-Date).ToString('o'))"
+        $lines += "message: $($_.Exception.Message)"
+        $lines += "full:"
+        $lines += $msg
+        $lines -join "`r`n" | Set-Content -Encoding utf8 -Path $devErrorPath
+        Write-Host "Error saved: $devErrorPath"
+    } catch {
+    }
+    throw
 }
 finally {
     if ($frontendProc) {

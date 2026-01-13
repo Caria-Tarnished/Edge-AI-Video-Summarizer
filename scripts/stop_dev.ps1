@@ -23,20 +23,46 @@ function Read-Json([string]$path) {
     }
 }
 
-function Find-ListeningPid([int]$port) {
+function Find-ListeningPids([int]$port) {
     if (-not $port -or $port -le 0) {
-        return $null
+        return @()
     }
     try {
         $conns = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop
         $pids = $conns | Select-Object -ExpandProperty OwningProcess -Unique
-        if ($pids -and $pids.Count -ge 1) {
-            return [int]$pids[0]
+        if ($pids) {
+            return @($pids | ForEach-Object { [int]$_ })
         }
     } catch {
-        return $null
+        return @()
     }
-    return $null
+    return @()
+}
+
+function Find-ListeningPidsNetstat([int]$port) {
+    if (-not $port -or $port -le 0) {
+        return @()
+    }
+    try {
+        $raw = & cmd.exe /c "netstat -ano -p tcp | findstr :$port" 2>$null
+        if (-not $raw) {
+            return @()
+        }
+        $lines = @($raw)
+        $hits = @()
+        foreach ($line in $lines) {
+            $m = [regex]::Match([string]$line, "\s(LISTENING|\u4fa6\u542c)\s+(\d+)\s*$")
+            if ($m.Success) {
+                try { $hits += [int]$m.Groups[2].Value } catch { }
+            }
+        }
+        if ($hits -and $hits.Count -gt 0) {
+            return @($hits | Select-Object -Unique)
+        }
+    } catch {
+        return @()
+    }
+    return @()
 }
 
 function Force-KillPidTree([int]$TargetPid) {
@@ -48,28 +74,95 @@ function Force-KillPidTree([int]$TargetPid) {
     } catch {
     }
     try {
-        & taskkill.exe /PID $TargetPid /F /T | Out-Null
+        & taskkill.exe /PID $TargetPid /F /T 2>$null | Out-Null
     } catch {
     }
 }
 
-function Stop-Pid([string]$name, [int]$pid, [bool]$allowStop, [int]$port = 0) {
-    if (-not $pid -and $port) {
-        $pid = Find-ListeningPid $port
+function Stop-Pid([string]$name, [Alias('pid')][int]$TargetPid, [bool]$allowStop, [int]$port = 0) {
+    $targets = @()
+    if ($TargetPid -and $TargetPid -gt 0) {
+        $targets = @([int]$TargetPid)
+    } elseif ($port) {
+        $targets = Find-ListeningPids $port
     }
-    if (-not $pid) {
+    if (-not $targets -or $targets.Count -eq 0) {
         Write-Host "${name}: no pid"
         return
     }
 
     if (-not $allowStop) {
-        Write-Host "${name}: skip stop (not started by script). pid=$pid"
+        Write-Host "${name}: skip stop (not started by script). pids=$($targets -join ',')"
         return
     }
 
-    Write-Host "Stopping ${name} pid=$pid ..."
-    Force-KillPidTree $pid
+    foreach ($p in $targets) {
+        Write-Host "Stopping ${name} pid=$p ..."
+
+        if ($name -eq "backend") {
+            try {
+                $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$p" -ErrorAction SilentlyContinue
+                $parentPid = $null
+                try { $parentPid = [int]$proc.ParentProcessId } catch { $parentPid = $null }
+                if ($parentPid -and $parentPid -gt 0 -and $parentPid -ne $p) {
+                    $parent = Get-CimInstance Win32_Process -Filter "ProcessId=$parentPid" -ErrorAction SilentlyContinue
+                    $cmd = ""
+                    try { $cmd = [string]$parent.CommandLine } catch { $cmd = "" }
+                    $pname = ""
+                    try { $pname = [string]$parent.Name } catch { $pname = "" }
+                    if ($pname -match "python" -and ($cmd -match "uvicorn" -or $cmd -match "app\.main:app")) {
+                        Write-Host "Stopping backend parent pid=$parentPid ..."
+                        Force-KillPidTree $parentPid
+                    }
+                }
+            } catch {
+            }
+        }
+
+        Force-KillPidTree $p
+    }
     Write-Host "${name}: stopped"
+
+    if ($name -eq "backend" -and $port -and $port -gt 0) {
+        $tries = 0
+        while ($tries -lt 6) {
+            $tries += 1
+            $left = @()
+            try {
+                $left = @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
+            } catch {
+                $left = @()
+            }
+            if (-not $left -or $left.Count -eq 0) {
+                return
+            }
+
+            foreach ($lp in $left) {
+                try { Force-KillPidTree ([int]$lp) } catch { }
+            }
+
+            # Fallback: uvicorn --reload may keep a reloader python process alive.
+            try {
+                $uvicorn = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Name -match "python" -and $_.CommandLine -and ($_.CommandLine -match "uvicorn") -and ($_.CommandLine -match "app\.main:app") })
+                foreach ($u in $uvicorn) {
+                    try { Force-KillPidTree ([int]$u.ProcessId) } catch { }
+                }
+            } catch {
+            }
+
+            # Fallback: if CIM/command line is unavailable, use netstat PID list.
+            try {
+                $netPids = Find-ListeningPidsNetstat $port
+                foreach ($np in $netPids) {
+                    try { Force-KillPidTree ([int]$np) } catch { }
+                }
+            } catch {
+            }
+
+            Start-Sleep -Milliseconds 500
+        }
+    }
 }
 
 $record = Read-Json $devPidPath
