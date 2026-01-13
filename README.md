@@ -51,6 +51,15 @@
 - 输出结构化大纲（JSON）与导出 Markdown
 - 相关接口：`/videos/{video_id}/summarize`、`/videos/{video_id}/summary`、`/videos/{video_id}/outline`、`/videos/{video_id}/export/markdown`
 
+### MVP-4：关键帧提取（interval / scene）
+
+- 新增 `keyframes` job
+- Stage 1（固定间隔抽帧）：`ffmpeg` 抽帧输出 JPG，支持 `target_width`，并写入 SQLite（含 `timestamp_ms`、`width/height`）
+- Stage 2（场景切换检测）：`ffmpeg select=gt(scene,thr)` 检测候选帧并写入 `score`
+- 与大纲对齐：`/videos/{video_id}/keyframes/aligned`
+  - `method=scene`：优先高分帧并支持 `min_gap_seconds` 去重
+  - 可选兜底：`fallback=nearest`（章节内不足时按章节中点最近补齐；默认关闭）
+
 ### 实时进度推送
 
 - SSE：`GET /jobs/{job_id}/events`
@@ -138,6 +147,12 @@ curl.exe http://127.0.0.1:8001/health
 - `GET /videos/{video_id}/summary`
 - `GET /videos/{video_id}/outline`
 - `GET /videos/{video_id}/export/markdown`
+- `POST /videos/{video_id}/keyframes`
+- `GET /videos/{video_id}/keyframes/index`
+- `GET /videos/{video_id}/keyframes`
+- `GET /videos/{video_id}/keyframes/nearest`
+- `GET /videos/{video_id}/keyframes/aligned`
+- `GET /videos/{video_id}/keyframes/{keyframe_id}/image`
 
 更完整 API 与 PowerShell 示例见：`PROJECT_STATUS.md`。
 

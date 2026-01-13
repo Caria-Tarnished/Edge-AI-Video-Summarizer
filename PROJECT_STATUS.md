@@ -63,6 +63,19 @@
   - `outline` 输出为结构化 JSON 数组（不再是 `{ "raw": ... }`）
   - `export/markdown` 返回完整 Markdown（不再出现明显截断）
 
+### MVP-4：关键帧提取（已完成并验证）
+
+- 新增 Job 类型：`keyframes`
+- Stage 1（固定间隔抽帧）：
+  - `ffmpeg` 抽帧输出 JPG（支持 `target_width`）
+  - SQLite 落盘：`video_keyframe_indexes` / `video_keyframes`
+  - keyframe metadata：`timestamp_ms`、`width/height`
+- Stage 2（场景切换检测）：
+  - `ffmpeg select=gt(scene,thr)` 检测候选帧
+  - `score` 落库（`video_keyframes.score`）
+  - 与大纲对齐时优先高分帧，并支持 `min_gap` 去重
+  - 可选章节兜底：`fallback=nearest`（章节内不足时按章节中点最近补齐；默认关闭）
+
 ### 实时进度推送（已新增接口）
 
 - SSE：`GET /jobs/{job_id}/events`
@@ -86,7 +99,7 @@
 - `scripts/run_local_stack.ps1`：一键启动 llama-server + backend，并可选自动运行 `local_llm_e2e_test.ps1`（支持 `-ForceReindex`，并尽量复用已运行服务）
 - `scripts/stop_local_stack.ps1`：停止 `run_local_stack.ps1` 启动的进程（读取 `artifacts/*.pid` 与 `artifacts/local_stack_pids.json`）
 
-## API 一览（MVP-1 + MVP-2 + MVP-3）
+## API 一览（MVP-1 + MVP-2 + MVP-3 + MVP-4）
 
 - `GET /health`
 - `POST /videos/import`
@@ -109,6 +122,12 @@
 - `GET /videos/{video_id}/summary`
 - `GET /videos/{video_id}/outline`
 - `GET /videos/{video_id}/export/markdown`
+- `POST /videos/{video_id}/keyframes`
+- `GET /videos/{video_id}/keyframes/index`
+- `GET /videos/{video_id}/keyframes`
+- `GET /videos/{video_id}/keyframes/nearest`
+- `GET /videos/{video_id}/keyframes/aligned`
+- `GET /videos/{video_id}/keyframes/{keyframe_id}/image`
 
 ## 待办（下一步任务）
 
@@ -127,7 +146,13 @@
 	    - 将本地 LLM 配置（base url / model / max_tokens / timeout）做成可视化设置（桌面端优先）
 	    - 运行档位（Runtime Profile）落地：CPU 友好 / 均衡 / GPU 推荐（后端 + UI）
   	- MVP-3：层级摘要（Map-Reduce）与大纲结构 + 导出（已完成并验证）
-	- MVP-4：关键帧提取（固定间隔/场景切换）+ 索引存储（SQLite）+ 与章节/时间戳对齐
+	- MVP-4：关键帧提取（已完成并验证）：固定间隔/场景切换（含 score）+ SQLite 落盘 + aligned（优先高分 + min_gap 去重 + 可选 fallback）
+	- 质量与性能（下一步，建议优先）：
+	  - Runtime Profiles（CPU 友好 / 均衡 / GPU 推荐）后端落地（settings + API + worker 读取）
+	  - 并发控制：默认限制为 `1 ASR + 1 LLM`（避免同时跑多个重任务导致卡顿/超时）
+	  - Embedding：替换默认 `hash` fallback（或至少将其降级为 fallback，仅在真实 embedding 不可用时启用）
+	  - 最小 pytest 覆盖与稳定性回归：覆盖 `/summarize`、`/keyframes`（interval/scene/aligned）关键分支与错误码
+	  - 自动化脚本补齐（可选）：新增 keyframes 端到端验证脚本（类比 `index_search_chat_test.ps1`）
 	- 桌面端（Electron/React）接入：视频列表/任务进度（SSE/WS）/断线重连/状态恢复
 	  - LLM 设置页（本地优先）：为非技术用户提供“档位选择 + 模型路径配置 + 一键启用”
 	    - 档位（Runtime Profile）：CPU 友好 / 均衡（默认）/ GPU 推荐（高级选项）
@@ -156,6 +181,35 @@
   - 建议显式使用 `curl.exe`，或使用 `Invoke-RestMethod (irm)`。
 - SSE/WS 相关：
   - SSE 建议用浏览器或 `curl.exe -N` 验证；WS 建议用 Node/Python 客户端脚本验证。
+
+### MVP-4：scene_threshold 调参备忘（场景切换抽帧）
+
+- `scene_threshold` 的含义：`ffmpeg` 的 `scene` 检测是一个 0~1 的“镜头切换强度”评分，过滤条件是 `scene_score > scene_threshold`。
+  - 阈值 **越低**：候选帧 **越多**（更敏感，可能引入噪声）
+  - 阈值 **越高**：候选帧 **越少**（更保守，可能某些章节没有帧）
+- 建议的调参流程（先保证“有帧”，再控制“质量/密度”）：
+  - 第一次建议从 `0.3` 开始（默认推荐值）。
+  - 若 `GET /videos/{id}/keyframes?method=scene` 返回数量过少：逐步降低阈值，例如 `0.3 -> 0.2 -> 0.15 -> 0.1`。
+  - 若候选过多/太密：提高阈值，例如 `0.3 -> 0.4 -> 0.5`，并配合增大 `min_gap_seconds`。
+- 搭配参数（优先级建议）：
+  - **`min_gap_seconds`**：用于去重/控密度。想要“每章 2 张但不要太近”，优先调它（常用 `2~5` 秒）。
+  - **`max_frames`**：上限保护，避免过多抽帧导致 CPU/IO 时间过长（常用 `20~60`）。
+  - **`target_width`**：降低图片宽度可显著减少存储与 IO（例如 `640`）。
+- 快速观察与决策（PowerShell）：
+
+```powershell
+$BaseUrl = "http://127.0.0.1:8001"
+$VideoId = "<VIDEO_ID>"
+
+# 观察 scene 抽帧数量与 score 分布
+$scene = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes?method=scene&limit=200"
+($scene.items | Measure-Object).Count
+$scene.items | Select-Object -First 5 id,timestamp_ms,score
+
+# 若章节内不足 per_section，可开启兜底（不改阈值也能先产出“每章都有图”）
+$aligned = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes/aligned?method=scene&per_section=2&min_gap_seconds=2.0&fallback=nearest"
+$aligned | ConvertTo-Json -Depth 50
+```
 
 ## 详细测试步骤（PowerShell）
 
@@ -285,6 +339,81 @@ $body = @{ video_id = "<VIDEO_ID>"; query = "这段视频主要讲了什么？"; top_k = 5 
 curl.exe -X POST http://127.0.0.1:8001/chat -H "Content-Type: application/json" -d $body
 ```
 
+### 10. 摘要与大纲（MVP-3）
+
+```powershell
+$BaseUrl = "http://127.0.0.1:8001"
+$VideoId = "<VIDEO_ID>"
+
+# 创建/复用 summarize 任务
+$resp = Invoke-RestMethod -Method Post -Uri "$BaseUrl/videos/$VideoId/summarize" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body (@{ from_scratch = $false } | ConvertTo-Json)
+
+$JobId = $resp.job_id
+while ($true) {
+  $j = Invoke-RestMethod -Method Get -Uri "$BaseUrl/jobs/$JobId"
+  Write-Host ("status={0} progress={1} message={2}" -f $j.status, $j.progress, $j.message)
+  if ($j.status -in @("completed","failed","cancelled")) { break }
+  Start-Sleep -Milliseconds 800
+}
+
+# 获取 summary / outline / export
+Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/summary" | ConvertTo-Json -Depth 20
+Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/outline" | ConvertTo-Json -Depth 50
+Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/export/markdown"
+```
+
+### 11. 关键帧（MVP-4）
+
+```powershell
+$BaseUrl = "http://127.0.0.1:8001"
+$VideoId = "<VIDEO_ID>"
+
+# A) 固定间隔抽帧（interval）
+$req = @{ from_scratch = $true; mode = "interval"; interval_seconds = 10; max_frames = 60; target_width = 640 }
+$resp = Invoke-RestMethod -Method Post -Uri "$BaseUrl/videos/$VideoId/keyframes" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body ($req | ConvertTo-Json)
+
+$JobId = $resp.job_id
+while ($true) {
+  $j = Invoke-RestMethod -Method Get -Uri "$BaseUrl/jobs/$JobId"
+  Write-Host ("status={0} progress={1} message={2}" -f $j.status, $j.progress, $j.message)
+  if ($j.status -in @("completed","failed","cancelled")) { break }
+  Start-Sleep -Milliseconds 800
+}
+
+# 列表与二进制图片
+$list = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes?method=interval&limit=5"
+$list | ConvertTo-Json -Depth 30
+
+# B) 场景切换抽帧（scene + score）
+$req = @{ from_scratch = $true; mode = "scene"; scene_threshold = 0.3; min_gap_seconds = 2.0; max_frames = 30; target_width = 640 }
+$resp = Invoke-RestMethod -Method Post -Uri "$BaseUrl/videos/$VideoId/keyframes" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body ($req | ConvertTo-Json)
+
+$JobId = $resp.job_id
+while ($true) {
+  $j = Invoke-RestMethod -Method Get -Uri "$BaseUrl/jobs/$JobId"
+  Write-Host ("status={0} progress={1} message={2}" -f $j.status, $j.progress, $j.message)
+  if ($j.status -in @("completed","failed","cancelled")) { break }
+  Start-Sleep -Milliseconds 800
+}
+
+$scene = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes?method=scene&limit=10"
+$scene | ConvertTo-Json -Depth 30
+
+# aligned：章节内优先高分 + min_gap 去重（返回 score）
+$aligned = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes/aligned?method=scene&per_section=2&min_gap_seconds=2.0"
+$aligned | ConvertTo-Json -Depth 50
+
+# 可选章节兜底（默认关闭）：章节内不足 per_section 时按章节中点最近补齐
+$aligned2 = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes/aligned?method=scene&per_section=2&min_gap_seconds=2.0&fallback=nearest"
+$aligned2 | ConvertTo-Json -Depth 50
+```
+
 ## 开发质量工具（本地）
 
 - 一键：
@@ -328,3 +457,4 @@ powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\
 - 2026-01-11：新增 `/index`、`/search`、`/chat` 回归脚本（竞态容忍 200/202 且严格断言索引 job 去重复用）；完善 `scripts/run_backend_dev.ps1` 以强制使用 `backend/.venv` Python 并修复参数名冲突；统一 ChromaDB 异常包装为 `VectorStoreUnavailable`；引入并跑通 mypy/pyright，新增 `backend/pyrightconfig.json`、`backend/requirements-dev.txt`、`backend/.flake8`。
 - 2026-01-11：新增 GitHub Actions CI（`.github/workflows/quality.yml`：flake8/mypy/pyright/pytest）；初始化并推送 GitHub 仓库；根目录 `.gitignore` 忽略 `demo/`、`artifacts/`、`backend/.venv/`。
 - 2026-01-13：MVP-3：新增 `summarize` job + summary/outline/export API；增强 JSON 大纲解析与修复逻辑；提高 reduce/outline 阶段 `max_tokens` 默认值，避免导出 Markdown/大纲被截断；端到端验证通过（outline 为结构化数组，export/markdown 成功落盘）。
+- 2026-01-13：MVP-4：新增 `keyframes` job 与 SQLite 落盘（interval/scene）；scene 模式写入 `score`；aligned 支持 scene 优先高分并可返回 `score`，可选 `fallback=nearest`。
