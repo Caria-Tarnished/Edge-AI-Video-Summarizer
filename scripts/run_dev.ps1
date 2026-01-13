@@ -27,11 +27,44 @@ function Write-Json($obj, $path) {
 }
 
 $devPidPath = Join-Path $absOutDir "dev_pids.json"
+$devConfigPath = Join-Path $absOutDir "dev_config.json"
 $frontendProc = $null
 $llamaPid = $null
 $llamaStartedByScript = $false
 
 try {
+    if (Test-Path -LiteralPath $devConfigPath -PathType Leaf) {
+        try {
+            $cfg = (Get-Content -LiteralPath $devConfigPath | ConvertFrom-Json)
+
+            if (
+                (-not $PSBoundParameters.ContainsKey('LlamaServerExe'))
+                -and $cfg.llama_server_exe
+            ) {
+                $LlamaServerExe = [string]$cfg.llama_server_exe
+            }
+            if (
+                (-not $PSBoundParameters.ContainsKey('LlamaModelPath'))
+                -and $cfg.llama_model_path
+            ) {
+                $LlamaModelPath = [string]$cfg.llama_model_path
+            }
+            if (
+                (-not $PSBoundParameters.ContainsKey('LlamaPort'))
+                -and $cfg.llama_port
+            ) {
+                $LlamaPort = [int]$cfg.llama_port
+            }
+            if (
+                (-not $PSBoundParameters.ContainsKey('LocalLLMBaseUrl'))
+                -and $cfg.local_llm_base_url
+            ) {
+                $LocalLLMBaseUrl = [string]$cfg.local_llm_base_url
+            }
+        } catch {
+        }
+    }
+
     function Try-HttpOk([string]$url, [int]$timeoutSeconds) {
         try {
             $args = @{ Uri = $url; Method = "Get"; TimeoutSec = $timeoutSeconds }
@@ -74,7 +107,12 @@ try {
         $frontendPath = Join-Path $root $FrontendDir
         $pkg = Join-Path $frontendPath "package.json"
         if (Test-Path -LiteralPath $pkg -PathType Leaf) {
+            $nodeModules = Join-Path $frontendPath "node_modules"
+            if (-not (Test-Path -LiteralPath $nodeModules -PathType Container)) {
+                Write-Host "Frontend dependencies not installed. Please run: npm install (in $frontendPath)"
+            } else {
             $env:EDGE_VIDEO_AGENT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+            $env:EDGE_VIDEO_AGENT_REPO_ROOT = $root
             $backendBase = "http://${BackendHost}:${BackendPort}".TrimEnd('/')
             $cmd = "$env:VITE_BACKEND_BASE_URL='$backendBase'; npm run dev"
             $frontendProc = Start-Process -FilePath "powershell.exe" -ArgumentList @(
@@ -85,6 +123,7 @@ try {
                 "-Command",
                 $cmd
             ) -WorkingDirectory $frontendPath -PassThru
+            }
         } else {
             Write-Host "Frontend not found at: $frontendPath (missing package.json). Skipping frontend start."
         }
@@ -94,7 +133,7 @@ try {
         started_at = (Get-Date).ToString('o')
         backend_host = $BackendHost
         backend_port = [int]$BackendPort
-        start_frontend = [bool](-not $NoFrontend)
+        start_frontend = [bool]($frontendProc -ne $null)
         frontend_dir = $FrontendDir
         frontend_pid = if ($frontendProc) { [int]$frontendProc.Id } else { $null }
         start_llama = [bool]$StartLlama
@@ -120,11 +159,19 @@ finally {
             Stop-Process -Id $frontendProc.Id -Force -ErrorAction SilentlyContinue
         } catch {
         }
+        try {
+            & taskkill.exe /PID $frontendProc.Id /F /T | Out-Null
+        } catch {
+        }
     }
 
     if ($StartLlama -and $llamaStartedByScript -and $llamaPid) {
         try {
             Stop-Process -Id $llamaPid -Force -ErrorAction SilentlyContinue
+        } catch {
+        }
+        try {
+            & taskkill.exe /PID $llamaPid /F /T | Out-Null
         } catch {
         }
     }
