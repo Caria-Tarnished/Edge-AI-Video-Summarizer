@@ -3,6 +3,7 @@ import os
 import tempfile
 import time
 import traceback
+from dataclasses import replace
 from typing import Any, Dict
 
 from .asr import ASR
@@ -627,6 +628,49 @@ class JobWorker:
         job: Dict[str, Any],
         claimed_started_at: str,
     ) -> None:
+        def _extract_json_text(s: str) -> str:
+            s = str(s or "").strip()
+            if not s:
+                return ""
+
+            if "```" in s:
+                parts = s.split("```")
+                if len(parts) >= 3:
+                    s2 = parts[1]
+                    s2 = s2.lstrip()
+                    if s2.lower().startswith("json"):
+                        s2 = s2[4:]
+                    return s2.strip()
+
+            lbr = s.find("[")
+            rbr = s.rfind("]")
+            if lbr != -1 and rbr != -1 and rbr > lbr:
+                return s[lbr:rbr + 1].strip()
+
+            lcb = s.find("{")
+            rcb = s.rfind("}")
+            if lcb != -1 and rcb != -1 and rcb > lcb:
+                return s[lcb:rcb + 1].strip()
+
+            return s
+
+        def _parse_jsonish(s: str) -> Any:
+            s = _extract_json_text(s)
+            if not s:
+                return []
+            try:
+                obj = json.loads(s)
+            except Exception:
+                return {"raw": str(s)}
+
+            if isinstance(obj, str):
+                s2 = obj.strip()
+                try:
+                    return json.loads(s2)
+                except Exception:
+                    return {"raw": str(obj)}
+            return obj
+
         job_id = job["id"]
         video_id = job["video_id"]
 
@@ -661,6 +705,21 @@ class JobWorker:
             model=str(stored.get("model") or "") or None,
             temperature=float(stored.get("temperature") or 0.2),
             max_tokens=int(stored.get("max_tokens") or 512),
+        )
+
+        reduce_prefs = replace(
+            prefs,
+            max_tokens=max(
+                prefs.max_tokens,
+                int(params.get("reduce_max_tokens") or 2048),
+            ),
+        )
+        outline_prefs = replace(
+            prefs,
+            max_tokens=max(
+                prefs.max_tokens,
+                int(params.get("outline_max_tokens") or 2048),
+            ),
         )
 
         transcript_hash = get_transcript_hash(video_id)
@@ -786,7 +845,7 @@ class JobWorker:
         ]
         summary_md = provider.generate(
             messages=messages_reduce,
-            prefs=prefs,
+            prefs=reduce_prefs,
             confirm_send=False,
         )
 
@@ -809,14 +868,35 @@ class JobWorker:
         ]
         outline_raw = provider.generate(
             messages=messages_outline,
-            prefs=prefs,
+            prefs=outline_prefs,
             confirm_send=False,
         )
-        outline_obj: Any = []
-        try:
-            outline_obj = json.loads(outline_raw or "[]")
-        except Exception:
-            outline_obj = {"raw": str(outline_raw or "")}
+
+        outline_obj = _parse_jsonish(outline_raw)
+        if isinstance(outline_obj, dict) and "raw" in outline_obj:
+            raw_text = str(outline_obj.get("raw") or "")
+            messages_fix = [
+                {
+                    "role": "system",
+                    "content": "You output valid JSON only.",
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Fix the following into a valid JSON array outline. "
+                        "Output JSON only.\n\n"
+                        + raw_text[:12000]
+                    ),
+                },
+            ]
+            fixed_raw = provider.generate(
+                messages=messages_fix,
+                prefs=outline_prefs,
+                confirm_send=False,
+            )
+            fixed_obj = _parse_jsonish(fixed_raw)
+            if not (isinstance(fixed_obj, dict) and "raw" in fixed_obj):
+                outline_obj = fixed_obj
         outline_json = json.dumps(outline_obj, ensure_ascii=False)
 
         self._ensure_same_run(job_id, claimed_started_at)

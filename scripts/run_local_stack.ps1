@@ -36,6 +36,22 @@ try {
     $iwrHasBasic = $false
 }
 
+function Find-ListeningPid([int]$port) {
+    if (-not $port -or $port -le 0) {
+        return $null
+    }
+    try {
+        $conns = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop
+        $pids = $conns | Select-Object -ExpandProperty OwningProcess -Unique
+        if ($pids -and $pids.Count -ge 1) {
+            return [int]$pids[0]
+        }
+    } catch {
+        return $null
+    }
+    return $null
+}
+
 function Try-HttpOk([string]$url, [int]$timeoutSeconds) {
     try {
         Wait-HttpOk $url $timeoutSeconds | Out-Null
@@ -115,6 +131,11 @@ Write-Host "1) Starting llama-server (if paths provided)..."
 $llamaModelsUrl = "$LocalLLMBaseUrl/models"
 if (Try-HttpOk $llamaModelsUrl 2) {
     Write-Host "llama-server already running: $LocalLLMBaseUrl"
+    $portPid = Find-ListeningPid $LlamaPort
+    if ($portPid) {
+        $llamaPid = [int]$portPid
+        "$llamaPid" | Set-Content -Encoding ascii -Path $llamaPidPath
+    }
 } elseif ($LlamaServerExe -and $ModelPath) {
     $startLlama = Join-Path $PSScriptRoot "run_llama_server.ps1"
     if (-not (Test-Path -LiteralPath $startLlama)) {
@@ -151,21 +172,35 @@ $env:LLM_LOCAL_BASE_URL = $LocalLLMBaseUrl
 $env:LLM_LOCAL_MODEL = $LLMModelId
 $env:LLM_REQUEST_TIMEOUT_SECONDS = "$LLMTimeoutSeconds"
 
-$runBackend = Join-Path $PSScriptRoot "run_backend_dev.ps1"
-if (-not (Test-Path -LiteralPath $runBackend)) {
-    throw "Missing script: $runBackend"
+$env:KMP_DUPLICATE_LIB_OK = "TRUE"
+$backendDir = Join-Path $PSScriptRoot "..\backend"
+$pythonExe = Join-Path $backendDir ".venv\Scripts\python.exe"
+if (-not (Test-Path -LiteralPath $pythonExe)) {
+    $pythonExe = "python"
 }
 
 $ts = (Get-Date).ToString("yyyyMMdd_HHmmss")
 $backendStdout = Join-Path $logDir "backend_${ts}.stdout.log"
 $backendStderr = Join-Path $logDir "backend_${ts}.stderr.log"
 
-$backendArgs = @("-Port", "$BackendPort", "-ListenHost", "127.0.0.1")
 $backendHealthUrl = "$BackendBaseUrl/health"
 if (Try-HttpOk $backendHealthUrl 2) {
     Write-Host "backend already running: $BackendBaseUrl"
+    $portPid = Find-ListeningPid $BackendPort
+    if ($portPid) {
+        $backendPid = [int]$portPid
+        "$backendPid" | Set-Content -Encoding ascii -Path $backendPidPath
+    }
 } else {
-    $backendProc = Start-Process -FilePath "powershell" -ArgumentList (@("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $runBackend) + $backendArgs) -PassThru -RedirectStandardOutput $backendStdout -RedirectStandardError $backendStderr
+    $backendProc = Start-Process -FilePath $pythonExe -ArgumentList @(
+        "-m",
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "$BackendPort"
+    ) -WorkingDirectory $backendDir -PassThru -RedirectStandardOutput $backendStdout -RedirectStandardError $backendStderr
 
     $backendPid = [int]$backendProc.Id
     $backendStarted = $true
@@ -178,6 +213,19 @@ if (Try-HttpOk $backendHealthUrl 2) {
 
 Wait-HttpOk $backendHealthUrl 60 | Out-Null
 Write-Host "backend ready: $BackendBaseUrl"
+
+$portPid = Find-ListeningPid $BackendPort
+if ($portPid) {
+    $startedPid = $backendPid
+    $backendPid = [int]$portPid
+    "$backendPid" | Set-Content -Encoding ascii -Path $backendPidPath
+
+    if ($startedPid -and $backendPid -ne $startedPid) {
+        Write-Host "backend listening pid: $backendPid (started pid was $startedPid)"
+    } else {
+        Write-Host "backend listening pid: $backendPid"
+    }
+}
 
 Write-Host "3) Setting backend LLM preferences..."
 $prefs = @{ provider = "openai_local"; model = $LLMModelId; temperature = 0.2; max_tokens = $LLMMaxTokens }
