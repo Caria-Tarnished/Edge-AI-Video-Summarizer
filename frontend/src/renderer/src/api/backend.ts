@@ -34,6 +34,18 @@ export type JobItem = {
   completed_at?: string | null
 }
 
+export type TranscriptSegment = {
+  start?: number
+  end?: number
+  text?: string
+  [k: string]: any
+}
+
+export type TranscriptResponse = {
+  video_id: string
+  segments: TranscriptSegment[]
+}
+
 export type CreateVideoJobResult = {
   status: number
   detail: string
@@ -142,6 +154,12 @@ export const api = {
       body: JSON.stringify({ file_path })
     }),
   getVideo: (video_id: string) => fetchJson<VideoItem>(`/videos/${encodeURIComponent(video_id)}`),
+  getTranscript: (video_id: string, params?: { limit?: number }) =>
+    fetchJson<TranscriptResponse>(
+      `/videos/${encodeURIComponent(video_id)}/transcript${toQuery({
+        limit: typeof params?.limit === 'number' ? params?.limit : null
+      })}`
+    ),
   createTranscribeJob: (payload: {
     video_id: string
     segment_seconds?: number
