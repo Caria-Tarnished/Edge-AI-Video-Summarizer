@@ -54,6 +54,15 @@
   - 索引完成后 RAG 正常返回 `answer + citations`
   - 非流式超时风险已缓解：可通过 `LLM_REQUEST_TIMEOUT_SECONDS` 调整
 
+### MVP-3：层级摘要（Map-Reduce）与大纲结构 + 导出（已验证）
+
+- 新增 Job 类型：`summarize`
+- Map-Reduce：按时间窗聚合 transcript segments → 分段摘要（map）→ 汇总摘要（reduce）→ 生成结构化大纲
+- 结果持久化：`video_summaries`（summary/outline/segment_summaries/params/transcript_hash）
+- 已验证：
+  - `outline` 输出为结构化 JSON 数组（不再是 `{ "raw": ... }`）
+  - `export/markdown` 返回完整 Markdown（不再出现明显截断）
+
 ### 实时进度推送（已新增接口）
 
 - SSE：`GET /jobs/{job_id}/events`
@@ -77,7 +86,7 @@
 - `scripts/run_local_stack.ps1`：一键启动 llama-server + backend，并可选自动运行 `local_llm_e2e_test.ps1`（支持 `-ForceReindex`，并尽量复用已运行服务）
 - `scripts/stop_local_stack.ps1`：停止 `run_local_stack.ps1` 启动的进程（读取 `artifacts/*.pid` 与 `artifacts/local_stack_pids.json`）
 
-## API 一览（MVP-1 + MVP-2）
+## API 一览（MVP-1 + MVP-2 + MVP-3）
 
 - `GET /health`
 - `POST /videos/import`
@@ -96,6 +105,10 @@
 - `GET /search`
 - `POST /chat`
 - `POST /summaries/cloud`（可选，默认关闭）
+- `POST /videos/{video_id}/summarize`
+- `GET /videos/{video_id}/summary`
+- `GET /videos/{video_id}/outline`
+- `GET /videos/{video_id}/export/markdown`
 
 ## 待办（下一步任务）
 
@@ -113,7 +126,7 @@
 	    - 将本地 LLM 相关步骤固化为脚本：`scripts/local_llm_e2e_test.ps1`（已新增）
 	    - 将本地 LLM 配置（base url / model / max_tokens / timeout）做成可视化设置（桌面端优先）
 	    - 运行档位（Runtime Profile）落地：CPU 友好 / 均衡 / GPU 推荐（后端 + UI）
-  	- MVP-3：层级摘要（Map-Reduce）与大纲结构 + 导出
+  	- MVP-3：层级摘要（Map-Reduce）与大纲结构 + 导出（已完成并验证）
 	- MVP-4：关键帧提取（固定间隔/场景切换）+ 索引存储（SQLite）+ 与章节/时间戳对齐
 	- 桌面端（Electron/React）接入：视频列表/任务进度（SSE/WS）/断线重连/状态恢复
 	  - LLM 设置页（本地优先）：为非技术用户提供“档位选择 + 模型路径配置 + 一键启用”
@@ -150,17 +163,23 @@
 
 ### 0. 启动服务
 
-- 在项目 `backend` 目录下：
+- 推荐（本地栈一键启动 llama-server + backend）：在仓库根目录：
+
+```powershell
+./scripts/run_local_stack.ps1
+```
+
+- 手动启动 backend（仅后端，不包含 llama-server）：在项目 `backend` 目录下：
 
 ```powershell
 # 建议先创建并激活虚拟环境（可选）
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+\.\.venv\Scripts\Activate.ps1
 
 pip install -r requirements.txt
 
 # 启动 FastAPI
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```
 
 ### 1. 健康检查
@@ -308,3 +327,4 @@ powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\
 - 2026-01-10：MVP-2 索引/检索/问答接口落地（`/videos/{video_id}/index`、`/videos/{video_id}/chunks`、`/search`、`/chat`）；修复 Windows PowerShell 中文 JSON 乱码（强制 `charset=utf-8`）。
 - 2026-01-11：新增 `/index`、`/search`、`/chat` 回归脚本（竞态容忍 200/202 且严格断言索引 job 去重复用）；完善 `scripts/run_backend_dev.ps1` 以强制使用 `backend/.venv` Python 并修复参数名冲突；统一 ChromaDB 异常包装为 `VectorStoreUnavailable`；引入并跑通 mypy/pyright，新增 `backend/pyrightconfig.json`、`backend/requirements-dev.txt`、`backend/.flake8`。
 - 2026-01-11：新增 GitHub Actions CI（`.github/workflows/quality.yml`：flake8/mypy/pyright/pytest）；初始化并推送 GitHub 仓库；根目录 `.gitignore` 忽略 `demo/`、`artifacts/`、`backend/.venv/`。
+- 2026-01-13：MVP-3：新增 `summarize` job + summary/outline/export API；增强 JSON 大纲解析与修复逻辑；提高 reduce/outline 阶段 `max_tokens` 默认值，避免导出 Markdown/大纲被截断；端到端验证通过（outline 为结构化数组，export/markdown 成功落盘）。

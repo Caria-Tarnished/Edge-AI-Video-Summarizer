@@ -45,6 +45,12 @@
 - 后端通过 provider `openai_local` 调用本地 LLM
 - 支持非流式与 SSE 流式输出
 
+### MVP-3：层级摘要（Map-Reduce）与大纲结构 + 导出
+
+- 新增 `summarize` job：Map-Reduce 生成分段摘要与最终摘要
+- 输出结构化大纲（JSON）与导出 Markdown
+- 相关接口：`/videos/{video_id}/summarize`、`/videos/{video_id}/summary`、`/videos/{video_id}/outline`、`/videos/{video_id}/export/markdown`
+
 ### 实时进度推送
 
 - SSE：`GET /jobs/{job_id}/events`
@@ -83,6 +89,12 @@ pip install -r requirements-dev.txt
 
 ### 2) 启动后端
 
+方式 0（推荐，启动本地栈）：一键启动 llama-server + backend
+
+```powershell
+./scripts/run_local_stack.ps1
+```
+
 方式 A：直接用 uvicorn
 
 ```powershell
@@ -116,6 +128,10 @@ curl.exe http://127.0.0.1:8001/health
 - `GET /llm/providers`
 - `GET /llm/preferences/default`
 - `PUT /llm/preferences/default`
+- `POST /videos/{video_id}/summarize`
+- `GET /videos/{video_id}/summary`
+- `GET /videos/{video_id}/outline`
+- `GET /videos/{video_id}/export/markdown`
 
 更完整 API 与 PowerShell 示例见：`PROJECT_STATUS.md`。
 
