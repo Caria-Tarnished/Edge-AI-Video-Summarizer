@@ -174,7 +174,7 @@
 ```powershell
 # 建议先创建并激活虚拟环境（可选）
 python -m venv .venv
-\.\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 
 pip install -r requirements.txt
 

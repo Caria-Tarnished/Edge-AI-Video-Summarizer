@@ -95,10 +95,16 @@ pip install -r requirements-dev.txt
 ./scripts/run_local_stack.ps1
 ```
 
+停止本地栈：
+
+```powershell
+./scripts/stop_local_stack.ps1 -ForceStop
+```
+
 方式 A：直接用 uvicorn
 
 ```powershell
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```
 
 方式 B：使用脚本（会强制使用 `backend/.venv` 的 python）
