@@ -1,0 +1,183 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, type VideoItem } from "../api/backend";
+
+type Props = {
+  onOpenVideo: (videoId: string) => void
+}
+
+function fmtBytes(n: number | null | undefined): string {
+  const v = typeof n === "number" && isFinite(n) ? n : 0;
+  if (v < 1024) return `${v} B`;
+  if (v < 1024 * 1024) return `${(v / 1024).toFixed(1)} KB`;
+  if (v < 1024 * 1024 * 1024) return `${(v / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(v / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function fmtDuration(seconds: number | null | undefined): string {
+  const v = typeof seconds === "number" && isFinite(seconds) ? seconds : 0;
+  const s = Math.max(0, Math.floor(v));
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  if (hh > 0)
+    return `${hh}:${String(mm).padStart(2, "0")}:${String(ss).padStart(
+      2,
+      "0"
+    )}`;
+  return `${mm}:${String(ss).padStart(2, "0")}`;
+}
+
+export default function LibraryPage({ onOpenVideo }: Props) {
+  const [items, setItems] = useState<VideoItem[]>([]);
+  const [total, setTotal] = useState<number>(0);
+  const [busy, setBusy] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const canPickFile = !!window.electronAPI?.openVideoFile;
+
+  const load = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api.listVideos({ limit: 50, offset: 0 });
+      setItems(Array.isArray(res.items) ? res.items : []);
+      setTotal(typeof res.total === "number" ? res.total : 0);
+    } catch (e: any) {
+      const msg = e && e.message ? String(e.message) : String(e);
+      setError(msg);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const onImport = useCallback(async () => {
+    setInfo(null);
+    setError(null);
+    if (!window.electronAPI?.openVideoFile) {
+      setError("Electron API not available");
+      return;
+    }
+
+    const p = await window.electronAPI.openVideoFile();
+    if (!p) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const v = await api.importVideo(p);
+      const title = v && (v as any).title ? String((v as any).title) : "";
+      setInfo(title ? `Imported: ${title}` : "Imported");
+      await load();
+    } catch (e: any) {
+      const msg = e && e.message ? String(e.message) : String(e);
+      setError(msg);
+    } finally {
+      setBusy(false);
+    }
+  }, [load]);
+
+  const summaryText = useMemo(() => {
+    const n = items.length;
+    return `Total: ${total} | Loaded: ${n}`;
+  }, [items.length, total]);
+
+  return (
+    <div className="stack">
+      <div className="card">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <h2 style={{ margin: 0 }}>{"\u89c6\u9891\u5e93"}</h2>
+          <div className="row" style={{ marginTop: 0 }}>
+            <button className="btn" onClick={load} disabled={busy}>
+              {"\u5237\u65b0"}
+            </button>
+            <button
+              className="btn primary"
+              onClick={onImport}
+              disabled={busy || !canPickFile}
+            >
+              {"\u5bfc\u5165\u89c6\u9891"}
+            </button>
+          </div>
+        </div>
+
+        <div className="muted" style={{ marginTop: 8 }}>
+          {summaryText}
+        </div>
+
+        {!canPickFile ? (
+          <div className="alert alert-error">
+            {
+              "\u5f53\u524d\u4e0d\u662f Electron \u73af\u5883\uff0c\u65e0\u6cd5\u4f7f\u7528\u6587\u4ef6\u9009\u62e9\u5bf9\u8bdd\u6846\u3002"
+            }
+          </div>
+        ) : null}
+
+        {error ? <div className="alert alert-error">{error}</div> : null}
+        {info ? <div className="alert alert-info">{info}</div> : null}
+      </div>
+
+      {items.length === 0 ? (
+        <div className="card">
+          <div className="muted">
+            {
+              "\u6682\u65e0\u89c6\u9891\u3002\u53ef\u70b9\u51fb\u300c\u5bfc\u5165\u89c6\u9891\u300d\u6dfb\u52a0\u4e00\u4e2a\u672c\u5730\u89c6\u9891\u6587\u4ef6\u3002"
+            }
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          {items.map((v) => (
+            <div key={v.id} className="subcard">
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ fontWeight: 700, minWidth: 0, flex: 1 }}>{String(v.title || v.id)}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className={String(v.status) === 'completed' ? 'v ok' : 'v'}>{String(v.status)}</div>
+                  <button className="btn" onClick={() => onOpenVideo(String(v.id))} disabled={busy}>
+                    {'\u8be6\u60c5'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="kv">
+                <div className="k">id</div>
+                <div className="v">{String(v.id)}</div>
+              </div>
+              <div className="kv">
+                <div className="k">duration</div>
+                <div className="v">{fmtDuration(Number(v.duration))}</div>
+              </div>
+              <div className="kv">
+                <div className="k">size</div>
+                <div className="v">{fmtBytes(Number(v.file_size))}</div>
+              </div>
+              <div className="kv">
+                <div className="k">created_at</div>
+                <div className="v">{String(v.created_at || "")}</div>
+              </div>
+
+              <div
+                className="muted"
+                style={{ marginTop: 8, wordBreak: "break-all" }}
+              >
+                {String(v.file_path || "")}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,22 +1,23 @@
 import { useMemo, useState } from 'react'
+import LibraryPage from './pages/LibraryPage'
 import SettingsPage from './pages/SettingsPage'
+import VideoDetailPage from './pages/VideoDetailPage'
 
 type Route = 'settings' | 'library'
 
 export default function App() {
   const [route, setRoute] = useState<Route>('settings')
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
 
   const content = useMemo(() => {
     if (route === 'settings') {
       return <SettingsPage />
     }
-    return (
-      <div className="card">
-        <h2>{'\u5e93'}</h2>
-        <div className="muted">{'\u4e0b\u4e00\u6b65\u5c06\u5b9e\u73b0\u89c6\u9891\u5e93\u4e0e\u89c6\u9891\u8be6\u60c5\u9875\u3002'}</div>
-      </div>
-    )
-  }, [route])
+    if (selectedVideoId) {
+      return <VideoDetailPage videoId={selectedVideoId} onBack={() => setSelectedVideoId(null)} />
+    }
+    return <LibraryPage onOpenVideo={(id) => setSelectedVideoId(id)} />
+  }, [route, selectedVideoId])
 
   return (
     <div className="app">
@@ -31,7 +32,10 @@ export default function App() {
           </button>
           <button
             className={route === 'library' ? 'tab active' : 'tab'}
-            onClick={() => setRoute('library')}
+            onClick={() => {
+              setRoute('library')
+              setSelectedVideoId(null)
+            }}
           >
             {'\u5e93'}
           </button>

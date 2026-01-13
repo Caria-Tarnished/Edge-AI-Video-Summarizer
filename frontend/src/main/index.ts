@@ -8,6 +8,32 @@ const rawDevServerUrl = String(process.env.VITE_DEV_SERVER_URL || process.env.EL
 
 let mainWindow: BrowserWindow | null = null
 
+function resolvePreloadPath(): string | null {
+  const candidates: string[] = []
+
+  candidates.push(join(__dirname, '../preload/index.js'))
+
+  const appPath = String(app.getAppPath() || '').trim()
+  if (appPath) {
+    candidates.push(join(appPath, 'out/preload/index.js'))
+    candidates.push(join(appPath, 'dist/preload/index.js'))
+  }
+
+  const cwd = String(process.cwd() || '').trim()
+  if (cwd) {
+    candidates.push(join(cwd, 'out/preload/index.js'))
+    candidates.push(join(cwd, 'dist/preload/index.js'))
+  }
+
+  for (const p of candidates) {
+    try {
+      if (p && existsSync(p)) return p
+    } catch {
+    }
+  }
+  return null
+}
+
 function getDevConfigPath(): string {
   const repoRoot = String(process.env.EDGE_VIDEO_AGENT_REPO_ROOT || '').trim()
   if (repoRoot) {
@@ -102,20 +128,41 @@ async function waitForUrl(u: string, timeoutMs: number): Promise<void> {
 }
 
 async function createWindow(): Promise<void> {
+  const preloadPath = resolvePreloadPath()
+  console.log('[main] preload:', preloadPath || '(not found)')
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 820,
     webPreferences: {
-      preload: (() => {
-        const js = join(__dirname, '../preload/index.js')
-        const mjs = join(__dirname, '../preload/index.mjs')
-        if (existsSync(js)) return js
-        if (existsSync(mjs)) return mjs
-        return js
-      })(),
+      preload: preloadPath || join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
       webSecurity: app.isPackaged
     }
   })
+
+  mainWindow.webContents.on('preload-error', (_event, path, error) => {
+    console.error('[main] preload-error:', path, error)
+  })
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    void mainWindow?.webContents
+      .executeJavaScript('typeof window.electronAPI')
+      .then((v) => console.log('[main] window.electronAPI:', v))
+      .catch((e) => console.error('[main] window.electronAPI probe failed:', e))
+  })
+
+  if (!preloadPath) {
+    try {
+      await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        message: 'Preload script not found',
+        detail:
+          'The Electron preload script could not be located. This will disable file dialogs (window.electronAPI is missing).\n\nTry restarting the dev server or re-running the frontend build/dev command.'
+      })
+    } catch {
+    }
+  }
 
   if (!app.isPackaged) {
     const u = normalizeDevUrl(rawDevServerUrl) || 'http://127.0.0.1:5173/'
