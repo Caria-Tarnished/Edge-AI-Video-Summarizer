@@ -44,6 +44,7 @@
 - 支持 `llama.cpp` 的 `llama-server`（OpenAI-compatible `/v1/chat/completions`）
 - 后端通过 provider `openai_local` 调用本地 LLM
 - 支持非流式与 SSE 流式输出
+- 默认 LLM 偏好支持 `output_language`（`zh/en/auto`），用于控制 Chat/摘要/大纲/云摘要输出语言
 
 ### MVP-3：层级摘要（Map-Reduce）与大纲结构 + 导出
 
@@ -163,6 +164,9 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
     - SSE streaming 输出、取消、confirm_send 确认提示、索引未就绪自动等待并重试
     - 回答支持轻量 markdown 渲染；引用列表更清晰并支持“一键跳转”到视频时间戳
     - 快捷键：Ctrl/Cmd + Enter 发送；支持清空结果
+- Settings：
+  - 全局 UI 语言切换（中文/English，localStorage 持久化）
+  - 默认 LLM 偏好新增 `output_language`（`zh/en/auto`）并持久化到 `/llm/preferences/default`
 
 ### 3) 健康检查
 
@@ -236,12 +240,15 @@ curl.exe http://127.0.0.1:8001/health
 
 更多配置项请参考：`backend/app/settings.py`。
 
+> 补充：LLM 的默认偏好通过 `GET/PUT /llm/preferences/default` 管理（provider/model/temperature/max_tokens/output_language）。
+
 ---
 
 ## 下一步（建议顺序）
 
 - 完成：桌面端视频库（Library）页（列表 + 导入入口）
 - 完成：桌面端视频详情页（转写/索引/摘要/关键帧）与进度展示（SSE）+ 结果预览
+- 完成：全局 UI 语言切换（中文/English）与 LLM 输出语言 `output_language`（`zh/en/auto`）全链路生效
 - 下一步（按 `Architecture_Design.md` 的 UI 目标）：
   - 打包与分发：PyInstaller + Electron Builder；模型下载/导入向导；数据目录迁移/备份
   - 播放器增强（可选）：键盘快捷键、章节导航、画中画/全屏体验优化

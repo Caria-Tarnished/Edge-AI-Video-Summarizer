@@ -48,6 +48,7 @@
 - 本地 `llama.cpp` 的 `llama-server`（OpenAI-compatible `/v1/chat/completions`）
 - 后端 provider：`openai_local`
 - 默认偏好持久化：`PUT /llm/preferences/default`
+- 新增：默认偏好支持 `output_language`（`zh/en/auto`），用于控制 Chat/摘要/大纲/云摘要输出语言
 - 已验证：
   - `/chat` 非流式 `200` 返回真实 LLM 输出
   - `/chat` SSE 流式 `event: token` + `event: done`
@@ -112,6 +113,7 @@
   - dev 模式关闭 `webSecurity`（仅开发期）以规避 CORS 阻断导致的 `Failed to fetch`
 - Renderer：
   - Settings 页已联通后端 API（runtime profile / LLM preferences / llama-server status），并将中文 UI 文案替换为 Unicode escape，避免源码文件被 GBK/GB2312 编码保存时出现乱码
+  - 新增：全局 UI 语言切换（中文/English，localStorage 持久化）；默认 LLM 偏好新增 `output_language`（`zh/en/auto`）并持久化到 `/llm/preferences/default`，用于控制 Chat/摘要/大纲/云摘要输出语言
   - Library（视频库）：
     - `GET /videos` 视频列表 + 刷新
     - Electron 文件选择器导入视频（`POST /videos/import`），导入后自动刷新列表
@@ -178,29 +180,15 @@
     - 完成：引入并跑通静态检查（mypy/pyright），补齐 `backend/pyrightconfig.json`，并新增 `backend/requirements-dev.txt`、`backend/.flake8`
     - 完成：将质量检查纳入 CI（GitHub Actions：flake8 + mypy + pyright + pytest）
     - 完成：补最小 pytest 回归（`TestClient`）覆盖 `/health`、`/index`、`/search`、`/chat` 关键分支与错误码
-	- MVP-2：本地 LLM 推理引擎接入（RAG）
-	  - 完成：`llama-server` + `openai_local` provider + `/chat` 非流式与 SSE 已跑通
-	  - 下一步：
-	    - 将本地 LLM 相关步骤固化为脚本：`scripts/local_llm_e2e_test.ps1`（已新增）
-	    - 将本地 LLM 配置（base url / model / max_tokens / timeout）做成可视化设置（桌面端优先）
-	    - 运行档位（Runtime Profile）落地：CPU 友好 / 均衡 / GPU 推荐（后端 + UI）
-  	- MVP-3：层级摘要（Map-Reduce）与大纲结构 + 导出（已完成并验证）
-	- MVP-4：关键帧提取（已完成并验证）：固定间隔/场景切换（含 score）+ SQLite 落盘 + aligned（优先高分 + min_gap 去重 + 可选 fallback）
-	- 质量与性能（下一步，建议优先）：
-	  - Runtime Profiles（CPU 友好 / 均衡 / GPU 推荐）后端落地（settings + API + worker 读取）
-	  - 并发控制：默认限制为 `1 ASR + 1 LLM`（避免同时跑多个重任务导致卡顿/超时）
-	  - Embedding：替换默认 `hash` fallback（或至少将其降级为 fallback，仅在真实 embedding 不可用时启用）
-	  - 最小 pytest 覆盖与稳定性回归：覆盖 `/summarize`、`/keyframes`（interval/scene/aligned）关键分支与错误码
-	  - 自动化脚本补齐（可选）：新增 keyframes 端到端验证脚本（类比 `index_search_chat_test.ps1`）
-	- 桌面端（Electron/React）：开发联调与基础功能（下一步）
-	  - 完成：视频库（Library）：视频列表 + 导入入口（Electron 文件选择器）
-	  - 完成：视频详情：转写/索引/摘要/关键帧的触发与结果展示（含 SSE 进度与预览）
-	  - 下一步（体验优先，按 Architecture_Design）：
-	    - 播放器：在详情页集成视频播放（含 seek），并支持从 transcript/outline/citations 点击时间戳跳转
-	    - Chat：streaming 输出 + citations 展示（对接 `/chat` SSE），并支持点击引用跳转到视频时间戳
-	    - 章节侧栏：摘要/大纲 tab + 关键帧对齐展示（优先对接 `/videos/{id}/keyframes/aligned`）
-	    - 任务中心（可选）：全局 jobs 列表 + 取消/重试 + 进度订阅
-	- 打包与分发：PyInstaller + Electron Builder；模型下载/导入向导；数据目录迁移/备份
+  - 质量与性能（下一步，建议优先）：
+    - Runtime Profiles（CPU 友好 / 均衡 / GPU 推荐）后端落地（settings + API + worker 读取）
+    - 并发控制：默认限制为 `1 ASR + 1 LLM`（避免同时跑多个重任务导致卡顿/超时）
+    - Embedding：替换默认 `hash` fallback（或至少将其降级为 fallback，仅在真实 embedding 不可用时启用）
+    - 最小 pytest 覆盖与稳定性回归：覆盖 `/summarize`、`/keyframes`（interval/scene/aligned）关键分支与错误码
+    - 自动化脚本补齐（可选）：新增 keyframes 端到端验证脚本（类比 `index_search_chat_test.ps1`）
+  - 桌面端（可选增强）：
+    - 任务中心（全局 jobs 列表 + 取消/重试 + 进度订阅）
+  - 打包与分发：PyInstaller + Electron Builder；模型下载/导入向导；数据目录迁移/备份
 
 ## 备忘 / 待验证事项（重要）
 
@@ -492,3 +480,4 @@ powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\
 - 2026-01-13：桌面端开发环境跑通：一键启动/停止脚本完善（含默认启动 llama-server）；修复 Electron-Vite entry/host 与 dev server 等待逻辑；dev 模式 CORS 绕过；前端中文 UI 文案改为 Unicode escape，避免 GBK/GB2312 编码导致乱码。
 - 2026-01-14：桌面端联调：完成 Library/Video Detail 页面（导入/列表/导航）；转写参数面板 + SSE 进度 + transcript 预览；索引/摘要/关键帧 SSE 进度订阅与结果预览；修复预览区重复请求风暴导致的后端日志刷屏与偶发 “Failed to fetch”。
 - 2026-01-14：桌面端体验增强（Video Detail）：Notes/Chat 侧栏 Tab 落地并优化阅读体验（摘要 markdown 渲染、大纲可折叠与自动展开开关、aligned keyframes 缩略图与去重）；Chat 支持答案 markdown、引用跳转与快捷键；播放器增加 `-15s/+15s`、倍速、复制时间戳与自动字幕开关，并优化转录高亮与自动滚动。
+- 2026-01-14：国际化与输出语言：新增全局 UI 语言切换（中文/English，localStorage 持久化）；Settings 新增 LLM 输出语言 `output_language`（`zh/en/auto`），并在 Chat/摘要/大纲/云摘要全链路生效；修复 `SettingsPage.tsx` 文件编码为 UTF-8 以便继续迭代 UI 文案。
