@@ -26,10 +26,19 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   const [info, setInfo] = useState<string | null>(null)
 
   const videoElRef = useRef<HTMLVideoElement | null>(null)
+  const generatedSubTrackRef = useRef<HTMLTrackElement | null>(null)
   const pendingSeekRef = useRef<{ seconds: number; play: boolean } | null>(null)
+  const [playerTimeSeconds, setPlayerTimeSeconds] = useState<number>(0)
+  const [playerDurationSeconds, setPlayerDurationSeconds] = useState<number>(0)
+  const [playerPlaybackRate, setPlayerPlaybackRate] = useState<number>(1)
+  const [generatedSubtitlesEnabled, setGeneratedSubtitlesEnabled] = useState<boolean>(true)
+
+  const [transcriptAutoScroll, setTranscriptAutoScroll] = useState<boolean>(true)
   const [activeTranscriptIndex, setActiveTranscriptIndex] = useState<number>(-1)
   const activeTranscriptIndexRef = useRef<number>(-1)
   const activeTranscriptElRef = useRef<HTMLDivElement | null>(null)
+  const transcriptListElRef = useRef<HTMLDivElement | null>(null)
+  const playerTimeLastSetAtRef = useRef<number>(0)
 
   const [lastTranscribeJob, setLastTranscribeJob] = useState<JobItem | null>(null)
   const [transcribeJobId, setTranscribeJobId] = useState<string | null>(null)
@@ -102,6 +111,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   const [chatDetail, setChatDetail] = useState<string | null>(null)
   const [chatAnswer, setChatAnswer] = useState<string>('')
   const [chatCitations, setChatCitations] = useState<ChatCitationItem[]>([])
+  const [chatShowAllCitations, setChatShowAllCitations] = useState<boolean>(false)
   const [chatConfirmSend, setChatConfirmSend] = useState<boolean>(false)
   const [chatNeedsConfirm, setChatNeedsConfirm] = useState<boolean>(false)
   const [chatWaitingIndex, setChatWaitingIndex] = useState<boolean>(false)
@@ -254,6 +264,14 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   const onVideoLoadedMetadata = useCallback(() => {
     const el = videoElRef.current
     if (!el) return
+
+    const dur = typeof el.duration === 'number' && Number.isFinite(el.duration) ? el.duration : 0
+    setPlayerDurationSeconds(dur)
+    const t = typeof el.currentTime === 'number' && Number.isFinite(el.currentTime) ? el.currentTime : 0
+    setPlayerTimeSeconds(t)
+    const r = typeof el.playbackRate === 'number' && Number.isFinite(el.playbackRate) ? el.playbackRate : 1
+    setPlayerPlaybackRate(r)
+
     const pending = pendingSeekRef.current
     if (!pending) return
 
@@ -266,6 +284,60 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
       void el.play().catch(() => {})
     }
   }, [])
+
+  useEffect(() => {
+    const trackEl = generatedSubTrackRef.current
+    if (!trackEl) return
+    try {
+      ;(trackEl as any).track.mode = generatedSubtitlesEnabled ? 'showing' : 'disabled'
+    } catch {
+    }
+  }, [generatedSubtitlesEnabled, subtitlesVttUrl, videoId])
+
+  const setPlaybackRate = useCallback((rate: number) => {
+    const el = videoElRef.current
+    if (!el) return
+    const r = typeof rate === 'number' && Number.isFinite(rate) ? rate : 1
+    try {
+      el.playbackRate = r
+    } catch {
+    }
+    setPlayerPlaybackRate(r)
+  }, [])
+
+  const nudgeVideoSeconds = useCallback(
+    (delta: number) => {
+      const el = videoElRef.current
+      if (!el) return
+      const paused = !!el.paused
+      const t = typeof el.currentTime === 'number' && Number.isFinite(el.currentTime) ? el.currentTime : 0
+      const next = t + delta
+      seekToSeconds(next, { play: !paused })
+    },
+    [seekToSeconds]
+  )
+
+  const copyPlayerTimestamp = useCallback(() => {
+    const el = videoElRef.current
+    const t = el && typeof el.currentTime === 'number' && Number.isFinite(el.currentTime) ? el.currentTime : playerTimeSeconds
+    const txt = fmtTime(t)
+    const nav: any = typeof navigator !== 'undefined' ? (navigator as any) : null
+    if (nav && nav.clipboard && typeof nav.clipboard.writeText === 'function') {
+      void nav.clipboard.writeText(txt)
+      return
+    }
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = txt
+      ta.style.position = 'fixed'
+      ta.style.left = '-9999px'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+    } catch {
+    }
+  }, [fmtTime, playerTimeSeconds])
 
   const doChat = useCallback(
     async (q: string, opts?: { topK?: number; confirmSend?: boolean; fromRetry?: boolean }) => {
@@ -294,6 +366,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
       setChatDetail(null)
       setChatAnswer('')
       setChatCitations([])
+      setChatShowAllCitations(false)
       setChatNeedsConfirm(false)
       setChatWaitingIndex(false)
 
@@ -431,8 +504,19 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   const sendChat = useCallback(() => {
     const q = String(chatQuery || '').trim()
     if (!q) return
+    setChatShowAllCitations(false)
     void doChat(q)
   }, [chatQuery, doChat])
+
+  const clearChatResult = useCallback(() => {
+    setChatError(null)
+    setChatDetail(null)
+    setChatAnswer('')
+    setChatCitations([])
+    setChatShowAllCitations(false)
+    setChatNeedsConfirm(false)
+    setChatWaitingIndex(false)
+  }, [])
 
   const cancelChat = useCallback(() => {
     if (chatAbortRef.current) {
@@ -495,19 +579,65 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     if (!el) return
 
     const onTimeUpdate = () => {
-      if (!transcriptSegments.length) return
       const t = typeof el.currentTime === 'number' && Number.isFinite(el.currentTime) ? el.currentTime : 0
+      const dur = typeof el.duration === 'number' && Number.isFinite(el.duration) ? el.duration : 0
 
-      let idx = -1
-      for (let i = 0; i < transcriptSegments.length; i++) {
+      const now = Date.now()
+      if (now - playerTimeLastSetAtRef.current > 180) {
+        playerTimeLastSetAtRef.current = now
+        setPlayerTimeSeconds(t)
+        setPlayerDurationSeconds(dur)
+      }
+
+      if (!transcriptSegments.length) return
+
+      let idx = activeTranscriptIndexRef.current
+      const within = (i: number): boolean => {
+        if (i < 0 || i >= transcriptSegments.length) return false
         const seg: any = transcriptSegments[i]
         const start = typeof seg?.start === 'number' ? seg.start : Number(seg?.start || 0)
         const endRaw = typeof seg?.end === 'number' ? seg.end : Number(seg?.end || 0)
         const end = endRaw > start ? endRaw : start + 0.001
-        if (t >= start && t < end) {
-          idx = i
-          break
+        return t >= start && t < end
+      }
+
+      if (!within(idx)) {
+        let found = -1
+
+        if (idx >= 0 && idx < transcriptSegments.length) {
+          if (t >= Number((transcriptSegments[idx] as any)?.end || 0)) {
+            for (let i = idx + 1; i < transcriptSegments.length; i++) {
+              if (within(i)) {
+                found = i
+                break
+              }
+              const seg: any = transcriptSegments[i]
+              const start = typeof seg?.start === 'number' ? seg.start : Number(seg?.start || 0)
+              if (t < start) break
+            }
+          } else {
+            for (let i = idx - 1; i >= 0; i--) {
+              if (within(i)) {
+                found = i
+                break
+              }
+              const seg: any = transcriptSegments[i]
+              const end = typeof seg?.end === 'number' ? seg.end : Number(seg?.end || 0)
+              if (t > end) break
+            }
+          }
         }
+
+        if (found < 0) {
+          for (let i = 0; i < transcriptSegments.length; i++) {
+            if (within(i)) {
+              found = i
+              break
+            }
+          }
+        }
+
+        idx = found
       }
 
       if (idx !== activeTranscriptIndexRef.current) {
@@ -517,19 +647,36 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     }
 
     el.addEventListener('timeupdate', onTimeUpdate)
+    const onSeeked = () => {
+      onTimeUpdate()
+    }
+    const onRateChange = () => {
+      const r = typeof el.playbackRate === 'number' && Number.isFinite(el.playbackRate) ? el.playbackRate : 1
+      setPlayerPlaybackRate(r)
+    }
+    el.addEventListener('seeked', onSeeked)
+    el.addEventListener('ratechange', onRateChange)
     return () => {
       el.removeEventListener('timeupdate', onTimeUpdate)
+      el.removeEventListener('seeked', onSeeked)
+      el.removeEventListener('ratechange', onRateChange)
     }
   }, [transcriptSegments])
 
   useEffect(() => {
+    if (!transcriptAutoScroll) return
     const el = activeTranscriptElRef.current
-    if (!el) return
+    const container = transcriptListElRef.current
+    if (!el || !container) return
     try {
-      el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+      const er = el.getBoundingClientRect()
+      const cr = container.getBoundingClientRect()
+      if (er.top < cr.top + 16 || er.bottom > cr.bottom - 16) {
+        el.scrollIntoView({ block: 'center', inline: 'nearest' })
+      }
     } catch {
     }
-  }, [activeTranscriptIndex])
+  }, [activeTranscriptIndex, transcriptAutoScroll])
 
   const load = useCallback(async () => {
     setBusy(true)
@@ -555,6 +702,12 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     setTranscribeJob(null)
     setTranscribeSseState('idle')
     setTranscribeSseError(null)
+
+    setPlayerTimeSeconds(0)
+    setPlayerDurationSeconds(0)
+    setPlayerPlaybackRate(1)
+    setGeneratedSubtitlesEnabled(true)
+    setTranscriptAutoScroll(true)
 
     setTranscriptBusy(false)
     setTranscriptError(null)
@@ -1409,6 +1562,24 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     return renderMarkdownLite(summaryMarkdownText)
   }, [renderMarkdownLite, summaryMarkdownText])
 
+  const chatAnswerNodes = useMemo(() => {
+    return renderMarkdownLite(chatAnswer)
+  }, [chatAnswer, renderMarkdownLite])
+
+  const chatCitationsToShow = useMemo(() => {
+    if (!Array.isArray(chatCitations)) return []
+    if (chatShowAllCitations) return chatCitations
+    return chatCitations.slice(0, 8)
+  }, [chatCitations, chatShowAllCitations])
+
+  const chatErrorHuman = useMemo(() => {
+    if (!chatError) return null
+    const e = String(chatError)
+    if (e === 'INDEX_FAILED') return '\u7d22\u5f15\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u6216\u91cd\u65b0\u542f\u52a8\u7d22\u5f15\u4efb\u52a1\u3002'
+    if (e.includes('CONFIRM_SEND_REQUIRED')) return '\u9700\u8981\u786e\u8ba4\u5411\u5916\u90e8\u6a21\u578b\u53d1\u8d77\u8bf7\u6c42\uff0c\u8bf7\u52fe\u9009 confirm_send \u540e\u91cd\u8bd5\u3002'
+    return e
+  }, [chatError])
+
   return (
     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
       <div className="stack" style={{ flex: '2 1 640px', minWidth: 320, maxWidth: 'none' }}>
@@ -1466,6 +1637,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             style={{ width: '100%', maxHeight: 520, background: 'rgba(0,0,0,0.35)', borderRadius: 8 }}
           >
             <track
+              ref={generatedSubTrackRef}
               kind="subtitles"
               src={subtitlesVttUrl}
               srcLang="zh"
@@ -1473,6 +1645,41 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
               default
             />
           </video>
+          <div className="row" style={{ marginTop: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <div className="muted" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>
+              {fmtTime(playerTimeSeconds)} {'/'} {playerDurationSeconds > 0 ? fmtTime(playerDurationSeconds) : '-'}
+            </div>
+            <div className="row" style={{ marginTop: 0 }}>
+              <button className="btn" onClick={() => nudgeVideoSeconds(-15)} disabled={busy}>
+                {'-15s'}
+              </button>
+              <button className="btn" onClick={() => nudgeVideoSeconds(15)} disabled={busy}>
+                {'+15s'}
+              </button>
+              <div className="muted">{'\u500d\u901f'}</div>
+              <select
+                value={String(playerPlaybackRate)}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value)
+                  setPlaybackRate(Number.isFinite(v) ? v : 1)
+                }}
+                disabled={busy}
+              >
+                <option value="0.5">0.5x</option>
+                <option value="0.75">0.75x</option>
+                <option value="1">1x</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+              </select>
+              <button className="btn" onClick={copyPlayerTimestamp} disabled={busy}>
+                {'\u590d\u5236\u65f6\u95f4\u6233'}
+              </button>
+              <button className="btn" onClick={() => setGeneratedSubtitlesEnabled((v) => !v)} disabled={busy}>
+                {generatedSubtitlesEnabled ? '\u5b57\u5e55: \u5f00' : '\u5b57\u5e55: \u5173'}
+              </button>
+            </div>
+          </div>
           <div className="muted" style={{ marginTop: 8 }}>
             {'\u652f\u6301\u70b9\u51fb\u8f6c\u5199\u6bb5\u843d\u6216\u5173\u952e\u5e27\u8df3\u8f6c\u5230\u5bf9\u5e94\u65f6\u95f4\u6233\u3002'}
           </div>
@@ -1748,7 +1955,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <h3 style={{ margin: 0 }}>{'\u8f6c\u5199\u7ed3\u679c\u9884\u89c8'}</h3>
-          <div className="row" style={{ marginTop: 0 }}>
+          <div className="row" style={{ marginTop: 0, alignItems: 'center', flexWrap: 'wrap' }}>
             <div className="muted">limit</div>
             <input
               value={String(transcriptLimit)}
@@ -1759,6 +1966,15 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
               style={{ width: 80 }}
               disabled={busy}
             />
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={transcriptAutoScroll}
+                onChange={(e) => setTranscriptAutoScroll(e.target.checked)}
+                disabled={busy}
+              />
+              <span className="muted">{'\u81ea\u52a8\u6eda\u52a8'}</span>
+            </label>
             <button className="btn" onClick={() => loadTranscriptPreview({ force: true })} disabled={busy || transcriptBusy}>
               {'\u5237\u65b0\u9884\u89c8'}
             </button>
@@ -1774,7 +1990,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
         ) : null}
 
         {transcriptSegments.length > 0 ? (
-          <div className="subcard" style={{ maxHeight: 320, overflow: 'auto' }}>
+          <div ref={transcriptListElRef} className="subcard" style={{ maxHeight: 320, overflow: 'auto' }}>
             {transcriptSegments.map((seg, idx) => {
               const start = typeof (seg as any).start === 'number' ? (seg as any).start : Number((seg as any).start || 0)
               const end = typeof (seg as any).end === 'number' ? (seg as any).end : Number((seg as any).end || 0)
@@ -1783,7 +1999,11 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
               return (
                 <div
                   key={idx}
-                  onClick={() => seekToSeconds(start, { play: true })}
+                  onClick={() => {
+                    activeTranscriptIndexRef.current = idx
+                    setActiveTranscriptIndex(idx)
+                    seekToSeconds(start, { play: true })
+                  }}
                   ref={isActive ? activeTranscriptElRef : undefined}
                   style={{
                     padding: '8px 0',
@@ -1861,10 +2081,13 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
                 <button className="btn" onClick={cancelChat} disabled={busy || !chatBusy}>
                   {'\u53d6\u6d88'}
                 </button>
+                <button className="btn" onClick={clearChatResult} disabled={busy || chatBusy || (!chatAnswer && !chatCitations.length && !chatError && !chatDetail)}>
+                  {'\u6e05\u7a7a'}
+                </button>
               </div>
 
-              {chatError ? <div className="alert alert-error">{chatError}</div> : null}
-              {chatDetail ? <div className="alert alert-info">{chatDetail}</div> : null}
+              {chatErrorHuman ? <div className="alert alert-error">{chatErrorHuman}</div> : null}
+              {chatDetail ? <div className="alert alert-info">{String(chatDetail)}</div> : null}
               {chatWaitingIndex ? (
                 <div className="alert alert-info">{'\u6b63\u5728\u7b49\u5f85\u7d22\u5f15\u5b8c\u6210\uff0c\u5b8c\u6210\u540e\u5c06\u81ea\u52a8\u91cd\u8bd5...'} </div>
               ) : null}
@@ -1888,6 +2111,17 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
                 <textarea
                   value={chatQuery}
                   onChange={(e) => setChatQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    const key = (e as any)?.key ? String((e as any).key) : ''
+                    const isEnter = key === 'Enter'
+                    const mod = !!(e as any).ctrlKey || !!(e as any).metaKey
+                    if (isEnter && mod) {
+                      e.preventDefault()
+                      if (!busy && !chatBusy && String(chatQuery || '').trim()) {
+                        sendChat()
+                      }
+                    }
+                  }}
                   rows={6}
                   style={{ width: '100%', resize: 'vertical' }}
                   disabled={busy || chatBusy}
@@ -1897,15 +2131,24 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
               {chatAnswer ? (
                 <div className="subcard">
                   <div style={{ fontWeight: 700, marginBottom: 6 }}>{'\u56de\u7b54'}</div>
-                  <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{chatAnswer}</div>
+                  <div style={{ maxHeight: 420, overflow: 'auto', fontSize: 13.5, lineHeight: 1.75 }}>
+                    {chatAnswerNodes}
+                  </div>
                 </div>
               ) : null}
 
               {chatCitations.length ? (
                 <div className="subcard">
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>{'\u5f15\u7528'}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+                    <div style={{ fontWeight: 700 }}>{'\u5f15\u7528'}</div>
+                    {chatCitations.length > 8 ? (
+                      <button className="btn" onClick={() => setChatShowAllCitations((v) => !v)} disabled={busy || chatBusy}>
+                        {chatShowAllCitations ? '\u6536\u8d77' : '\u663e\u793a\u66f4\u591a'}
+                      </button>
+                    ) : null}
+                  </div>
                   <div style={{ display: 'grid', gap: 10 }}>
-                    {chatCitations.slice(0, 8).map((c, idx) => {
+                    {chatCitationsToShow.map((c, idx) => {
                       const start = typeof (c as any).start_time === 'number' ? (c as any).start_time : Number((c as any).start_time || 0)
                       const end = typeof (c as any).end_time === 'number' ? (c as any).end_time : Number((c as any).end_time || 0)
                       const score = typeof (c as any).score === 'number' ? (c as any).score : Number((c as any).score || 0)
@@ -1913,19 +2156,31 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
                       return (
                         <div
                           key={idx}
-                          onClick={() => seekToSeconds(start, { play: true })}
                           style={{
                             border: '1px solid rgba(255,255,255,0.06)',
                             borderRadius: 8,
                             padding: 10,
-                            cursor: 'pointer'
+                            background: 'rgba(255,255,255,0.02)'
                           }}
                         >
-                          <div className="muted" style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                            <div>
-                              {fmtTime(start)}{end > 0 ? ` - ${fmtTime(end)}` : ''}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                            <div className="muted" style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                              <div
+                                onClick={() => seekToSeconds(start, { play: true })}
+                                style={{ cursor: 'pointer', fontWeight: 700, color: 'rgba(255,255,255,0.88)' }}
+                              >
+                                {fmtTime(start)}{end > 0 ? ` - ${fmtTime(end)}` : ''}
+                              </div>
+                              <div style={{ flex: '0 0 auto' }}>{'score '} {fmtScore(score)}</div>
                             </div>
-                            <div>{'score '} {fmtScore(score)}</div>
+                            <button
+                              className="btn"
+                              onClick={() => seekToSeconds(start, { play: true })}
+                              disabled={busy}
+                              style={{ flex: '0 0 auto' }}
+                            >
+                              {'\u8df3\u8f6c'}
+                            </button>
                           </div>
                           <div style={{ marginTop: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text.slice(0, 360)}</div>
                         </div>
