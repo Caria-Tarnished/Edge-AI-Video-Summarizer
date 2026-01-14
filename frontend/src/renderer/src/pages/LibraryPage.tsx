@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type VideoItem } from "../api/backend";
 
+type UiLang = "zh" | "en";
+
 type Props = {
-  onOpenVideo: (videoId: string) => void
-}
+  uiLang?: UiLang;
+  onOpenVideo: (videoId: string) => void;
+};
 
 function fmtBytes(n: number | null | undefined): string {
   const v = typeof n === "number" && isFinite(n) ? n : 0;
@@ -27,7 +30,7 @@ function fmtDuration(seconds: number | null | undefined): string {
   return `${mm}:${String(ss).padStart(2, "0")}`;
 }
 
-export default function LibraryPage({ onOpenVideo }: Props) {
+export default function LibraryPage({ uiLang = "zh", onOpenVideo }: Props) {
   const [items, setItems] = useState<VideoItem[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [busy, setBusy] = useState<boolean>(false);
@@ -98,7 +101,7 @@ export default function LibraryPage({ onOpenVideo }: Props) {
             gap: 12,
           }}
         >
-          <h2 style={{ margin: 0 }}>{"\u89c6\u9891\u5e93"}</h2>
+          <h2 style={{ margin: 0 }}>{uiLang === "en" ? "Workspace" : "\u5de5\u4f5c\u533a"}</h2>
           <div className="row" style={{ marginTop: 0 }}>
             <button className="btn" onClick={load} disabled={busy}>
               {"\u5237\u65b0"}

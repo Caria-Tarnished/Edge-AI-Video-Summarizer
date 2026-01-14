@@ -22,7 +22,6 @@ type LlmDraft = {
   model?: string | null
   temperature?: number
   max_tokens?: number
-  output_language?: string
 }
 
 type DevConfigDraft = {
@@ -54,7 +53,7 @@ export default function SettingsPage({ uiLang = 'zh' }: Props) {
   const [info, setInfo] = useState<string | null>(null)
 
   const t = useCallback(
-    (key: 'settings' | 'backend_hint' | 'refresh_all' | 'runtime_profile' | 'save_runtime' | 'default_llm' | 'save_default_llm' | 'output_language' | 'local_status' | 'refresh_status' | 'local_launch_config' | 'save_local_launch' | 'pick_file' | 'not_electron' | 'no_status_yet') => {
+    (key: 'settings' | 'backend_hint' | 'refresh_all' | 'runtime_profile' | 'save_runtime' | 'default_llm' | 'save_default_llm' | 'local_status' | 'refresh_status' | 'local_launch_config' | 'save_local_launch' | 'pick_file' | 'not_electron' | 'no_status_yet') => {
       if (uiLang === 'en') {
         if (key === 'settings') return 'Settings'
         if (key === 'backend_hint') return 'Backend: please start backend first (default http://127.0.0.1:8001)'
@@ -63,14 +62,13 @@ export default function SettingsPage({ uiLang = 'zh' }: Props) {
         if (key === 'save_runtime') return 'Save runtime profile'
         if (key === 'default_llm') return 'Default LLM Preferences'
         if (key === 'save_default_llm') return 'Save default LLM preferences'
-        if (key === 'output_language') return 'Output language'
         if (key === 'local_status') return 'Local llama-server status'
         if (key === 'refresh_status') return 'Refresh status'
         if (key === 'local_launch_config') return 'Local llama-server launch config'
         if (key === 'save_local_launch') return 'Save local launch config'
         if (key === 'pick_file') return 'Pick file'
         if (key === 'not_electron') return 'Not running in Electron (or preload disabled); cannot save launch config.'
-        if (key === 'no_status_yet') return 'Status not loaded (click "Refresh status")'
+        if (key === 'no_status_yet') return 'Status not loaded (click ¡°Refresh status¡±)'
       }
       if (key === 'settings') return '\u8bbe\u7f6e'
       if (key === 'backend_hint') return '\u540e\u7aef\uff1a\u8bf7\u5148\u542f\u52a8 backend\uff08\u9ed8\u8ba4 http://127.0.0.1:8001\uff09'
@@ -79,7 +77,6 @@ export default function SettingsPage({ uiLang = 'zh' }: Props) {
       if (key === 'save_runtime') return '\u4fdd\u5b58\u8fd0\u884c\u65f6\u914d\u7f6e'
       if (key === 'default_llm') return '\u9ed8\u8ba4 LLM \u504f\u597d'
       if (key === 'save_default_llm') return '\u4fdd\u5b58\u9ed8\u8ba4 LLM \u504f\u597d'
-      if (key === 'output_language') return '\u8f93\u51fa\u8bed\u8a00'
       if (key === 'local_status') return '\u672c\u5730 llama-server \u72b6\u6001'
       if (key === 'refresh_status') return '\u5237\u65b0\u72b6\u6001'
       if (key === 'local_launch_config') return '\u672c\u5730 llama-server \u542f\u52a8\u914d\u7f6e'
@@ -118,8 +115,7 @@ export default function SettingsPage({ uiLang = 'zh' }: Props) {
         provider: llm.preferences?.provider ?? 'fake',
         model: llm.preferences?.model ?? null,
         temperature: llm.preferences?.temperature ?? 0.2,
-        max_tokens: llm.preferences?.max_tokens ?? 512,
-        output_language: llm.preferences?.output_language ?? 'zh'
+        max_tokens: llm.preferences?.max_tokens ?? 512
       })
 
       setProviders(prov.providers || [])
@@ -181,8 +177,7 @@ export default function SettingsPage({ uiLang = 'zh' }: Props) {
         provider: String(llmDraft.provider || '').trim(),
         model: llmDraft.model ?? null,
         temperature: Number(llmDraft.temperature ?? 0.2),
-        max_tokens: Number(llmDraft.max_tokens ?? 512),
-        output_language: String(llmDraft.output_language || 'zh').trim().toLowerCase()
+        max_tokens: Number(llmDraft.max_tokens ?? 512)
       }
       await api.setDefaultLlmPreferences(payload)
       setInfo(uiLang === 'en' ? 'Default LLM preferences saved' : '\u9ed8\u8ba4 LLM \u504f\u597d\u5df2\u4fdd\u5b58')
@@ -456,21 +451,6 @@ export default function SettingsPage({ uiLang = 'zh' }: Props) {
               }
               inputMode="numeric"
             />
-          </label>
-
-          <label className="field">
-            <div className="label">{t('output_language')}</div>
-            <select
-              className="input"
-              value={llmDraft.output_language ?? 'zh'}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-                setLlmDraft((d) => ({ ...d, output_language: e.target.value }))
-              }
-            >
-              <option value="zh">{uiLang === 'en' ? 'Chinese' : '\u4e2d\u6587'}</option>
-              <option value="en">{uiLang === 'en' ? 'English' : '\u82f1\u6587'}</option>
-              <option value="auto">{uiLang === 'en' ? 'Auto' : '\u81ea\u52a8'}</option>
-            </select>
           </label>
         </div>
 

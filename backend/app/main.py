@@ -181,6 +181,7 @@ class LLMDefaultPreferencesRequest(BaseModel):
     model: Optional[str] = None
     temperature: float = 0.2
     max_tokens: int = 512
+    output_language: str = "zh"
 
 
 class RuntimeProfileRequest(BaseModel):
@@ -291,6 +292,9 @@ def set_llm_default_preferences_api(
         "model": req.model,
         "temperature": float(req.temperature),
         "max_tokens": int(req.max_tokens),
+        "output_language": (
+            str(req.output_language or "").strip().lower() or "zh"
+        ),
     }
     return {
         "preferences": set_default_llm_preferences(prefs),
@@ -1196,12 +1200,30 @@ def _generate_answer_retrieval_only(
     query: str,
     items: list[Dict[str, Any]],
     max_snippets: int = 3,
+    output_language: str = "zh",
 ) -> str:
     q = (query or "").strip()
     if not items:
-        return f"未配置本地 LLM。未检索到与问题相关的片段：{q}"
+        if str(output_language or "").lower() == "en":
+            return f"Local LLM not configured. No relevant snippets found: {q}"
+        return (
+            "\u672a\u914d\u7f6e\u672c\u5730 LLM\u3002"
+            "\u672a\u68c0\u7d22\u5230\u4e0e\u95ee\u9898"
+            "\u76f8\u5173\u7684\u7247\u6bb5\uff1a"
+            f"{q}"
+        )
 
-    lines = [f"未配置本地 LLM。以下为与问题最相关的片段：{q}"]
+    if str(output_language or "").lower() == "en":
+        lines = [f"Local LLM not configured. Most relevant snippets for: {q}"]
+    else:
+        lines = [
+            (
+                "\u672a\u914d\u7f6e\u672c\u5730 LLM\u3002"
+                "\u4ee5\u4e0b\u4e3a\u4e0e\u95ee\u9898"
+                "\u6700\u76f8\u5173\u7684\u7247\u6bb5\uff1a"
+                f"{q}"
+            )
+        ]
     for it in items[: max(1, int(max_snippets))]:
         start = _format_seconds(it.get("start_time"))
         end = _format_seconds(it.get("end_time"))
@@ -1213,6 +1235,23 @@ def _generate_answer_retrieval_only(
         else:
             lines.append(text)
     return "\n".join(lines).strip()
+
+
+def _looks_like_zh(s: str) -> bool:
+    s2 = str(s or "")
+    for ch in s2[:400]:
+        if "\u4e00" <= ch <= "\u9fff":
+            return True
+    return False
+
+
+def _normalize_output_language(v: str, hint_text: str = "") -> str:
+    lang = str(v or "").strip().lower() or "zh"
+    if lang not in ("zh", "en", "auto"):
+        lang = "zh"
+    if lang == "auto":
+        return "zh" if _looks_like_zh(hint_text) else "en"
+    return lang
 
 
 def _sse_event(event: str, data: Dict[str, Any]) -> str:
@@ -1351,9 +1390,17 @@ def chat_api(req: ChatRequest) -> Response:
         )
 
     stored = get_default_llm_preferences()
+    output_language = _normalize_output_language(
+        str(stored.get("output_language") or "zh"),
+        hint_text=q,
+    )
     provider_name = str(stored.get("provider") or "fake").strip() or "fake"
     if provider_name == "none":
-        answer = _generate_answer_retrieval_only(query=q, items=items)
+        answer = _generate_answer_retrieval_only(
+            query=q,
+            items=items,
+            output_language=output_language,
+        )
         if bool(req.stream):
 
             def gen():
@@ -1399,16 +1446,37 @@ def chat_api(req: ChatRequest) -> Response:
     ):
         raise HTTPException(status_code=400, detail="CONFIRM_SEND_REQUIRED")
 
+    if output_language == "en":
+        system_prompt = (
+            "You are a local-first video assistant. "
+            "Answer the question using ONLY the cited snippets below. "
+            "Write in English."
+        )
+        user_prefix = "Question"
+        cites_prefix = "Cited snippets (with timestamps)"
+    else:
+        system_prompt = (
+            "\u4f60\u662f\u4e00\u4e2a\u672c\u5730\u4f18\u5148\u7684"
+            "\u89c6\u9891\u5185\u5bb9\u6574\u7406\u52a9\u624b\u3002"
+            "\u8bf7\u57fa\u4e8e\u7ed9\u5b9a\u7684\u5f15\u7528\u7247\u6bb5"
+            "\u56de\u7b54\u95ee\u9898\u3002"
+            "\u8bf7\u7528\u4e2d\u6587\u8f93\u51fa\u3002"
+        )
+        user_prefix = "\u95ee\u9898"
+        cites_prefix = (
+            "\u5f15\u7528\u7247\u6bb5\uff08\u5e26\u65f6\u95f4\u6233\uff09"
+        )
+
     messages: list[ChatMessage] = [
         {
             "role": "system",
-            "content": "你是一个本地优先的视频内容整理助手。请基于给定的引用片段回答问题。",
+            "content": system_prompt,
         },
         {
             "role": "user",
             "content": (
-                f"问题：{q}\n\n"
-                f"引用片段（带时间戳）：\n"
+                f"{user_prefix}\uff1a{q}\n\n"
+                f"{cites_prefix}\uff1a\n"
                 + "\n".join(
                     [
                         f"[{_format_seconds(it.get('start_time'))} - "
@@ -1711,9 +1779,12 @@ def cloud_summary(req: CloudSummaryRequest) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="CONFIRM_SEND_REQUIRED")
 
     api_key = req.api_key or ""
+    stored = get_default_llm_preferences()
+    output_language = str(stored.get("output_language") or "zh")
     result = summarize(
         req.text,
         api_key=api_key,
+        output_language=output_language,
     )
 
     if result == "CLOUD_SUMMARY_DISABLED":

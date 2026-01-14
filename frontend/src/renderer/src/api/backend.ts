@@ -187,6 +187,7 @@ export type LlmPreferencesResponse = {
     model?: string | null
     temperature?: number
     max_tokens?: number
+    output_language?: string
   }
 }
 

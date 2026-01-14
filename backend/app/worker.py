@@ -282,7 +282,11 @@ class JobWorker:
         max_frames = max(1, min(max_frames, 500))
 
         target_width: Any = params.get("target_width")
-        target_width_i = int(target_width) if target_width is not None else None
+        target_width_i = (
+            int(target_width)
+            if target_width is not None
+            else None
+        )
         if target_width_i is not None and target_width_i <= 0:
             target_width_i = None
 
@@ -875,6 +879,21 @@ class JobWorker:
                     return {"raw": str(obj)}
             return obj
 
+        def _looks_like_zh(s: str) -> bool:
+            s2 = str(s or "")
+            for ch in s2[:400]:
+                if "\u4e00" <= ch <= "\u9fff":
+                    return True
+            return False
+
+        def _normalize_output_language(v: str, hint_text: str = "") -> str:
+            lang = str(v or "").strip().lower() or "zh"
+            if lang not in ("zh", "en", "auto"):
+                lang = "zh"
+            if lang == "auto":
+                return "zh" if _looks_like_zh(hint_text) else "en"
+            return lang
+
         job_id = job["id"]
         video_id = job["video_id"]
 
@@ -949,6 +968,11 @@ class JobWorker:
         if not chunks:
             raise RuntimeError("NO_TEXT")
 
+        output_language = _normalize_output_language(
+            str(stored.get("output_language") or "zh"),
+            hint_text=str(chunks[0].get("text") or ""),
+        )
+
         params_json = json.dumps(params, ensure_ascii=False)
         upsert_video_summary(
             video_id=video_id,
@@ -976,23 +1000,46 @@ class JobWorker:
             if not text:
                 continue
 
+            if output_language == "zh":
+                seg_system = (
+                    "\u4f60\u662f\u4e00\u4e2a\u89c6\u9891\u5185\u5bb9"
+                    "\u6574\u7406\u52a9\u624b\u3002"
+                    "\u4f60\u9700\u8981\u5bf9\u89c6\u9891\u8f6c\u5199"
+                    "\u7247\u6bb5\u8fdb\u884c\u7b80\u8981\u603b\u7ed3"
+                    "\uff0c\u8981\u6c42\u7b80\u6d01\uff0c\u4fdd\u7559"
+                    "\u5173\u952e\u4e8b\u5b9e\u3002"
+                    "\u8bf7\u7528\u4e2d\u6587\u8f93\u51fa\u3002"
+                )
+                seg_user = (
+                    "\u65f6\u95f4\u8303\u56f4\uff1a"
+                    + f"{start_time:.2f}-{end_time:.2f} \u79d2\n\n"
+                    "\u8f6c\u5199\uff1a\n"
+                    f"{text[:12000]}\n\n"
+                    "\u4efb\u52a1\uff1a\u7528\u8981\u70b9"
+                    "\uff08bullet points\uff09\u5199\u4e00\u6bb5"
+                    "\u7b80\u77ed\u603b\u7ed3\u3002"
+                )
+            else:
+                seg_system = (
+                    "You summarize transcript segments. "
+                    "Be concise and keep key facts. Write in English."
+                )
+                seg_user = (
+                    "Time range: "
+                    + f"{start_time:.2f}-{end_time:.2f} seconds\n\n"
+                    "Transcript:\n"
+                    f"{text[:12000]}\n\n"
+                    "Task: write a short bullet-point summary."
+                )
+
             messages = [
                 {
                     "role": "system",
-                    "content": (
-                        "You summarize transcript segments. "
-                        "Be concise and keep key facts."
-                    ),
+                    "content": seg_system,
                 },
                 {
                     "role": "user",
-                    "content": (
-                        "Time range: "
-                        + f"{start_time:.2f}-{end_time:.2f} seconds\n\n"
-                        "Transcript:\n"
-                        f"{text[:12000]}\n\n"
-                        "Task: write a short bullet-point summary."
-                    ),
+                    "content": seg_user,
                 },
             ]
             with limit_llm():
@@ -1034,18 +1081,38 @@ class JobWorker:
         )
 
         reduce_input = json.dumps(segment_summaries, ensure_ascii=False)
+
+        if output_language == "zh":
+            reduce_system = (
+                "\u4f60\u9700\u8981\u7f16\u5199\u4e00\u4efd"
+                "\u7ed3\u6784\u5316\u7684\u89c6\u9891\u603b\u7ed3"
+                "\uff08Markdown\uff09\u3002"
+                "\u8bf7\u7528\u4e2d\u6587\u8f93\u51fa\u3002"
+            )
+            reduce_user = (
+                "\u7ed9\u5b9a\u5e26\u65f6\u95f4\u6233\u7684"
+                "\u7247\u6bb5\u603b\u7ed3\uff08JSON\uff09\uff0c"
+                "\u8bf7\u5199\u51fa\u4e00\u4efd Markdown \u683c\u5f0f"
+                "\u7684\u89c6\u9891\u603b\u7ed3\uff0c\u5c3d\u91cf"
+                "\u4fdd\u7559\u5173\u952e\u65f6\u95f4\u70b9\u3002\n\n"
+                f"Input JSON:\n{reduce_input[:18000]}"
+            )
+        else:
+            reduce_system = "You write a structured video summary."
+            reduce_user = (
+                "Given segment summaries with timestamps (JSON), "
+                "write a Markdown summary with key timestamps.\n\n"
+                f"Input JSON:\n{reduce_input[:18000]}"
+            )
+
         messages_reduce = [
             {
                 "role": "system",
-                "content": "You write a structured video summary.",
+                "content": reduce_system,
             },
             {
                 "role": "user",
-                "content": (
-                    "Given segment summaries with timestamps (JSON), "
-                    "write a Markdown summary with key timestamps.\n\n"
-                    f"Input JSON:\n{reduce_input[:18000]}"
-                ),
+                "content": reduce_user,
             },
         ]
         with limit_llm():
@@ -1055,21 +1122,47 @@ class JobWorker:
                 confirm_send=False,
             )
 
-        self._ensure_same_run(job_id, claimed_started_at)
+        self._ensure_same_run(
+            job_id,
+            claimed_started_at,
+        )
         update_job(job_id, progress=0.9, message="outline")
+
+        if output_language == "zh":
+            outline_system = (
+                "\u4f60\u53ea\u8f93\u51fa JSON\uff0c\u4e0d\u8981"
+                "\u8f93\u51fa\u5176\u4ed6\u5185\u5bb9\u3002"
+            )
+            outline_user = (
+                "\u4ece\u7247\u6bb5\u603b\u7ed3 JSON \u751f\u6210"
+                "\u89c6\u9891\u5927\u7eb2\uff0c\u8f93\u51fa\u4e00\u4e2a"
+                " JSON \u6570\u7ec4\u3002"
+                "\u6bcf\u4e2a\u6761\u76ee\u5305\u542b\uff1atitle, start_time, "
+                "end_time, bullets\uff08\u5b57\u7b26\u4e32"
+                "\u6570\u7ec4\uff09\u3002"
+                "\u5b57\u6bb5\u540d\u56fa\u5b9a\u4e3a\u8fd9\u4e9b\uff0c"
+                "\u4f46 title/bullets \u7684\u5185\u5bb9"
+                "\u8bf7\u7528\u4e2d\u6587\u3002"
+                "\u53ea\u8f93\u51fa JSON\u3002\n\n"
+                f"Input JSON:\n{reduce_input[:18000]}"
+            )
+        else:
+            outline_system = "You produce JSON only."
+            outline_user = (
+                "From the segment summaries JSON, generate an outline "
+                "as a JSON array. Each item: title, start_time, end_time, "
+                "bullets (array of strings). Output JSON only.\n\n"
+                f"Input JSON:\n{reduce_input[:18000]}"
+            )
+
         messages_outline = [
             {
                 "role": "system",
-                "content": "You produce JSON only.",
+                "content": outline_system,
             },
             {
                 "role": "user",
-                "content": (
-                    "From the segment summaries JSON, generate an outline "
-                    "as a JSON array. Each item: title, start_time, end_time, "
-                    "bullets (array of strings). Output JSON only.\n\n"
-                    f"Input JSON:\n{reduce_input[:18000]}"
-                ),
+                "content": outline_user,
             },
         ]
         with limit_llm():
@@ -1082,18 +1175,32 @@ class JobWorker:
         outline_obj = _parse_jsonish(outline_raw)
         if isinstance(outline_obj, dict) and "raw" in outline_obj:
             raw_text = str(outline_obj.get("raw") or "")
+            if output_language == "zh":
+                fix_system = (
+                    "\u4f60\u53ea\u8f93\u51fa\u6709\u6548\u7684 JSON\uff0c"
+                    "\u4e0d\u8981\u8f93\u51fa\u5176\u4ed6\u5185\u5bb9\u3002"
+                )
+                fix_user = (
+                    "\u8bf7\u5c06\u4ee5\u4e0b\u5185\u5bb9\u4fee\u6b63\u4e3a"
+                    "\u6709\u6548\u7684 JSON \u6570\u7ec4\u5927\u7eb2\u3002"
+                    "\u53ea\u8f93\u51fa JSON\u3002\n\n"
+                    + raw_text[:12000]
+                )
+            else:
+                fix_system = "You output valid JSON only."
+                fix_user = (
+                    "Fix the following into a valid JSON array outline. "
+                    "Output JSON only.\n\n"
+                    + raw_text[:12000]
+                )
             messages_fix = [
                 {
                     "role": "system",
-                    "content": "You output valid JSON only.",
+                    "content": fix_system,
                 },
                 {
                     "role": "user",
-                    "content": (
-                        "Fix the following into a valid JSON array outline. "
-                        "Output JSON only.\n\n"
-                        + raw_text[:12000]
-                    ),
+                    "content": fix_user,
                 },
             ]
             with limit_llm():

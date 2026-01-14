@@ -1,23 +1,57 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import LibraryPage from './pages/LibraryPage'
 import SettingsPage from './pages/SettingsPage'
 import VideoDetailPage from './pages/VideoDetailPage'
 
 type Route = 'settings' | 'library'
 
+type UiLang = 'zh' | 'en'
+
+function loadUiLang(): UiLang {
+  try {
+    const v = String(localStorage.getItem('ui_lang') || '').trim().toLowerCase()
+    if (v === 'en') return 'en'
+  } catch {
+    // ignore
+  }
+  return 'zh'
+}
+
 export default function App() {
-  const [route, setRoute] = useState<Route>('settings')
+  const [route, setRoute] = useState<Route>('library')
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
+  const [uiLang, setUiLang] = useState<UiLang>(() => loadUiLang())
+
+  const setUiLangAndPersist = useCallback((next: UiLang) => {
+    setUiLang(next)
+    try {
+      localStorage.setItem('ui_lang', next)
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const t = useCallback(
+    (key: 'settings' | 'workspace') => {
+      if (uiLang === 'en') {
+        if (key === 'settings') return 'Settings'
+        if (key === 'workspace') return 'Workspace'
+      }
+      if (key === 'settings') return '\u8bbe\u7f6e'
+      return '\u5de5\u4f5c\u533a'
+    },
+    [uiLang]
+  )
 
   const content = useMemo(() => {
     if (route === 'settings') {
-      return <SettingsPage />
+      return <SettingsPage uiLang={uiLang} />
     }
     if (selectedVideoId) {
       return <VideoDetailPage videoId={selectedVideoId} onBack={() => setSelectedVideoId(null)} />
     }
-    return <LibraryPage onOpenVideo={(id) => setSelectedVideoId(id)} />
-  }, [route, selectedVideoId])
+    return <LibraryPage uiLang={uiLang} onOpenVideo={(id) => setSelectedVideoId(id)} />
+  }, [route, selectedVideoId, uiLang])
 
   return (
     <div className="app">
@@ -25,19 +59,30 @@ export default function App() {
         <div className="brand">Edge Video Agent</div>
         <div className="tabs">
           <button
-            className={route === 'settings' ? 'tab active' : 'tab'}
-            onClick={() => setRoute('settings')}
-          >
-            {'\u8bbe\u7f6e'}
-          </button>
-          <button
             className={route === 'library' ? 'tab active' : 'tab'}
             onClick={() => {
               setRoute('library')
               setSelectedVideoId(null)
             }}
           >
-            {'\u5e93'}
+            {t('workspace')}
+          </button>
+
+          <button
+            className={uiLang === 'zh' ? 'tab active' : 'tab'}
+            onClick={() => setUiLangAndPersist(uiLang === 'zh' ? 'en' : 'zh')}
+            title={uiLang === 'zh' ? '\u5207\u6362\u8bed\u8a00' : 'Switch language'}
+          >
+            {uiLang === 'zh' ? 'ZH' : 'EN'}
+          </button>
+
+          <button
+            className={route === 'settings' ? 'tab active' : 'tab'}
+            onClick={() => setRoute('settings')}
+            title={t('settings')}
+            aria-label={t('settings')}
+          >
+            {'\u2699'}
           </button>
         </div>
       </div>
