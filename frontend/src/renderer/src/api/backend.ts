@@ -204,6 +204,38 @@ export type LlmLocalStatusResponse = {
   error?: string
 }
 
+export type AsrModelStatusResponse = {
+  model: string
+  repo_id: string
+  local: {
+    ok: boolean
+    repo_id?: string
+    has_model_bin?: boolean
+    has_config_json?: boolean
+    model_bin?: string | null
+    config_json?: string | null
+    error?: string
+    [k: string]: any
+  }
+  download: {
+    ok: boolean
+    url?: string
+    error?: string
+    [k: string]: any
+  }
+  huggingface_hub?: {
+    version?: string
+    [k: string]: any
+  }
+  [k: string]: any
+}
+
+export type DeleteVideoResponse = {
+  ok: boolean
+  video_id: string
+  [k: string]: any
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: {
@@ -263,6 +295,8 @@ export const api = {
   listLlmProviders: () => fetchJson<LlmProvidersResponse>('/llm/providers'),
   getLocalLlmStatus: () => fetchJson<LlmLocalStatusResponse>('/llm/local/status'),
 
+  getAsrModelStatus: () => fetchJson<AsrModelStatusResponse>('/asr/models/status'),
+
   listVideos: (params?: { status?: string; limit?: number; offset?: number }) =>
     fetchJson<ListVideosResponse>(
       `/videos${toQuery({
@@ -277,6 +311,10 @@ export const api = {
       body: JSON.stringify({ file_path })
     }),
   getVideo: (video_id: string) => fetchJson<VideoItem>(`/videos/${encodeURIComponent(video_id)}`),
+  deleteVideo: (video_id: string) =>
+    fetchJson<DeleteVideoResponse>(`/videos/${encodeURIComponent(video_id)}`, {
+      method: 'DELETE'
+    }),
   getTranscript: (video_id: string, params?: { limit?: number }) =>
     fetchJson<TranscriptResponse>(
       `/videos/${encodeURIComponent(video_id)}/transcript${toQuery({

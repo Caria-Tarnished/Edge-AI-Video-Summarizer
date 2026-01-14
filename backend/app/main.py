@@ -2,6 +2,7 @@ import asyncio
 import json
 import mimetypes
 import os
+import shutil
 import threading
 from typing import Any, Dict, Optional
 
@@ -28,6 +29,7 @@ from .repo import (
     cancel_job,
     create_job,
     create_or_get_video,
+    delete_video,
     delete_chunks_for_video,
     delete_video_keyframe_index,
     delete_video_keyframes_for_video,
@@ -36,6 +38,7 @@ from .repo import (
     get_default_llm_preferences,
     get_default_runtime_preferences,
     get_active_job_for_video,
+    get_any_active_job_for_video,
     get_job,
     get_video,
     get_video_index,
@@ -53,7 +56,7 @@ from .repo import (
     set_default_runtime_preferences,
     set_video_status,
 )
-from .paths import keyframes_dir
+from .paths import audio_wav_path, keyframes_dir
 from .runtime import (
     apply_runtime_preferences,
     get_effective_runtime_preferences,
@@ -121,6 +124,26 @@ def _probe_openai_models(base_url: str) -> Dict[str, Any]:
             "ok": False,
             "error": f"ERROR:{type(e).__name__}:{e}",
         }
+
+
+def _probe_huggingface_resolve(url: str) -> Dict[str, Any]:
+    req = UrlRequest(url, method="GET")
+    try:
+        with urlopen(req, timeout=2.5) as resp:
+            resp.read(256)
+        return {"ok": True}
+    except HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")
+        return {
+            "ok": False,
+            "error": f"HTTP_{e.code}:{detail[:500]}",
+        }
+    except TimeoutError:
+        return {"ok": False, "error": "TIMEOUT"}
+    except URLError as e:
+        return {"ok": False, "error": f"URL_ERROR:{e}"}
+    except Exception as e:
+        return {"ok": False, "error": f"ERROR:{type(e).__name__}:{e}"}
 
 
 class ImportVideoRequest(BaseModel):
@@ -314,7 +337,10 @@ def get_runtime_profile_api() -> Dict[str, Any]:
 def set_runtime_profile_api(req: RuntimeProfileRequest) -> Dict[str, Any]:
     prefs: Dict[str, Any] = dict(get_default_runtime_preferences())
     if req.profile is not None:
-        prefs["profile"] = str(req.profile or "balanced").strip().lower()
+        profile = str(req.profile or "balanced").strip().lower()
+        if profile == "gpu":
+            profile = "gpu_recommended"
+        prefs["profile"] = profile
     if req.asr_concurrency is not None:
         prefs["asr_concurrency"] = int(req.asr_concurrency)
     if req.llm_concurrency is not None:
@@ -331,6 +357,66 @@ def set_runtime_profile_api(req: RuntimeProfileRequest) -> Dict[str, Any]:
     return {
         "preferences": stored,
         "effective": effective,
+    }
+
+
+@app.get("/asr/models/status")
+def asr_models_status_api() -> Dict[str, Any]:
+    repo_id = "Systran/faster-whisper-large-v3"
+    model_name = "large-v3"
+
+    local: Dict[str, Any] = {"ok": False}
+    download: Dict[str, Any] = {"ok": False}
+    hub: Dict[str, Any] = {}
+
+    try:
+        import huggingface_hub  # type: ignore
+        from huggingface_hub import try_to_load_from_cache  # type: ignore
+
+        hub["version"] = str(getattr(huggingface_hub, "__version__", ""))
+        model_bin = try_to_load_from_cache(repo_id, "model.bin")
+        config_json = try_to_load_from_cache(repo_id, "config.json")
+
+        model_bin_path = (
+            os.fspath(model_bin)
+            if isinstance(model_bin, (str, os.PathLike))
+            else ""
+        )
+        config_json_path = (
+            os.fspath(config_json)
+            if isinstance(config_json, (str, os.PathLike))
+            else ""
+        )
+
+        local["repo_id"] = repo_id
+        local["has_model_bin"] = bool(model_bin_path) and os.path.exists(
+            model_bin_path
+        )
+        local["has_config_json"] = bool(config_json_path) and os.path.exists(
+            config_json_path
+        )
+        local["model_bin"] = model_bin_path or None
+        local["config_json"] = config_json_path or None
+        local["ok"] = bool(local["has_model_bin"]) and bool(
+            local["has_config_json"]
+        )
+    except Exception as e:
+        local["error"] = f"ERROR:{type(e).__name__}:{e}"
+
+    url = (
+        "https://huggingface.co/" + repo_id + "/resolve/main/config.json"
+    )
+    download = {
+        "url": url,
+        **_probe_huggingface_resolve(url),
+    }
+
+    return {
+        "model": model_name,
+        "repo_id": repo_id,
+        "local": local,
+        "download": download,
+        "huggingface_hub": hub,
     }
 
 
@@ -352,6 +438,59 @@ def get_video_api(video_id: str) -> Dict[str, Any]:
     if not video:
         raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
     return video
+
+
+@app.delete("/videos/{video_id}")
+def delete_video_api(video_id: str) -> Dict[str, Any]:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
+
+    active = get_any_active_job_for_video(video_id)
+    if active:
+        raise HTTPException(
+            status_code=409,
+            detail="VIDEO_HAS_ACTIVE_JOB",
+        )
+
+    idx = get_video_index(video_id)
+    embed_model = str(
+        (idx or {}).get("embed_model") or settings.embedding_model
+    )
+    embed_dim = int((idx or {}).get("embed_dim") or settings.embedding_dim)
+    collection_name = chunks_collection_name(embed_model, embed_dim)
+
+    try:
+        delete_video_vectors(
+            collection_name=collection_name,
+            video_id=video_id,
+        )
+    except VectorStoreUnavailable:
+        pass
+
+    try:
+        delete_video_vectors(
+            collection_name=LEGACY_COLLECTION_NAME,
+            video_id=video_id,
+        )
+    except VectorStoreUnavailable:
+        pass
+
+    delete_transcript(video_id)
+    try:
+        os.remove(audio_wav_path(video_id))
+    except FileNotFoundError:
+        pass
+    except Exception:
+        pass
+
+    shutil.rmtree(keyframes_dir(video_id), ignore_errors=True)
+
+    ok = delete_video(video_id)
+    return {
+        "ok": bool(ok),
+        "video_id": video_id,
+    }
 
 
 @app.get("/videos/{video_id}/file")
@@ -1489,33 +1628,41 @@ def chat_api(req: ChatRequest) -> Response:
         },
     ]
 
-    if bool(req.stream):
+    if req.stream:
 
         def gen():
             parts: list[str] = []
             try:
-                with limit_llm():
-                    for part in provider.stream_generate(
-                        messages=messages,
-                        prefs=prefs,
-                        confirm_send=bool(req.confirm_send),
-                    ):
-                        parts.append(part)
-                        yield _sse_event("token", {"delta": part})
-
-                answer = "".join(parts)
-                yield _sse_event(
-                    "done",
-                    {
+                try:
+                    with limit_llm():
+                        for part in provider.stream_generate(
+                            messages=messages,
+                            prefs=prefs,
+                            confirm_send=bool(req.confirm_send),
+                        ):
+                            parts.append(part)
+                            yield f"event: token\ndata: {part}\n\n"
+                except RuntimeError as e:
+                    if str(e) == "LLM_CONCURRENCY_TIMEOUT":
+                        yield "event: error\ndata: LLM_CONCURRENCY_TIMEOUT\n\n"
+                        return
+                    raise
+            except Exception as e:
+                # NOTE: In streaming mode we cannot easily change status code.
+                err = str(e) or type(e).__name__
+                yield f"event: error\ndata: {err}\n\n"
+            finally:
+                if parts:
+                    answer = "".join(parts)
+                    payload = {
                         "video_id": video_id,
                         "query": q,
                         "mode": "rag",
                         "answer": answer,
                         "citations": items,
-                    },
-                )
-            except Exception as e:
-                yield _sse_event("error", {"detail": str(e)})
+                    }
+                    data = json.dumps(payload, ensure_ascii=False)
+                    yield f"event: done\ndata: {data}\n\n"
 
         return StreamingResponse(gen(), media_type="text/event-stream")
 
@@ -1526,11 +1673,16 @@ def chat_api(req: ChatRequest) -> Response:
                 prefs=prefs,
                 confirm_send=bool(req.confirm_send),
             )
+    except RuntimeError as e:
+        if str(e) == "LLM_CONCURRENCY_TIMEOUT":
+            raise HTTPException(
+                status_code=429,
+                detail="LLM_CONCURRENCY_TIMEOUT",
+            )
+        raise HTTPException(status_code=400, detail=str(e) or "LLM_ERROR")
     except Exception as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"LLM_FAILED:{str(e)[:2000]}",
-        )
+        raise HTTPException(status_code=400, detail=str(e) or "LLM_ERROR")
+
     return UTF8JSONResponse(
         status_code=200,
         content={
@@ -1781,11 +1933,20 @@ def cloud_summary(req: CloudSummaryRequest) -> Dict[str, Any]:
     api_key = req.api_key or ""
     stored = get_default_llm_preferences()
     output_language = str(stored.get("output_language") or "zh")
-    result = summarize(
-        req.text,
-        api_key=api_key,
-        output_language=output_language,
-    )
+    try:
+        with limit_llm():
+            result = summarize(
+                req.text,
+                api_key=api_key,
+                output_language=output_language,
+            )
+    except RuntimeError as e:
+        if str(e) == "LLM_CONCURRENCY_TIMEOUT":
+            raise HTTPException(
+                status_code=429,
+                detail="LLM_CONCURRENCY_TIMEOUT",
+            )
+        raise
 
     if result == "CLOUD_SUMMARY_DISABLED":
         raise HTTPException(status_code=400, detail="CLOUD_SUMMARY_DISABLED")

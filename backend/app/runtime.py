@@ -66,9 +66,9 @@ def get_profile_defaults(profile: str) -> Dict[str, Any]:
             "asr_device": "cpu",
             "asr_compute_type": "int8",
         }
-    if name == "gpu":
+    if name in ("gpu", "gpu_recommended"):
         return {
-            "profile": "gpu",
+            "profile": "gpu_recommended",
             "asr_concurrency": 1,
             "llm_concurrency": 1,
             "llm_timeout_seconds": 600,
@@ -89,6 +89,8 @@ def get_effective_runtime_preferences(prefs: Dict[str, Any]) -> Dict[str, Any]:
     profile = str(
         (prefs or {}).get("profile") or "balanced"
     ).strip().lower()
+    if profile == "gpu":
+        profile = "gpu_recommended"
     base = get_profile_defaults(profile)
 
     merged: Dict[str, Any] = dict(base)
@@ -98,6 +100,8 @@ def get_effective_runtime_preferences(prefs: Dict[str, Any]) -> Dict[str, Any]:
     merged["profile"] = str(
         merged.get("profile") or "balanced"
     ).strip().lower()
+    if merged["profile"] == "gpu":
+        merged["profile"] = "gpu_recommended"
 
     try:
         merged["asr_concurrency"] = max(

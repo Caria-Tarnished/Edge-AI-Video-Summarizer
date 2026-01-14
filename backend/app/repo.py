@@ -799,6 +799,28 @@ def get_active_job_for_video(
         return dict(row) if row else None
 
 
+def get_any_active_job_for_video(video_id: str) -> Optional[Dict[str, Any]]:
+    with connect() as conn:
+        row = conn.execute(
+            (
+                "SELECT * FROM jobs WHERE video_id=? "
+                "AND status IN ('pending','running') "
+                "ORDER BY created_at DESC LIMIT 1"
+            ),
+            (video_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def delete_video(video_id: str) -> bool:
+    with connect() as conn:
+        cur = conn.execute(
+            "DELETE FROM videos WHERE id=?",
+            (video_id,),
+        )
+        return bool(cur.rowcount)
+
+
 def upsert_video_index(
     *,
     video_id: str,

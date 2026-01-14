@@ -58,6 +58,33 @@ export default function LibraryPage({ uiLang = "zh", onOpenVideo }: Props) {
     void load();
   }, [load]);
 
+  const onDelete = useCallback(
+    async (videoId: string) => {
+      setInfo(null);
+      setError(null);
+
+      const ok = window.confirm(
+        uiLang === "en"
+          ? "Delete this workspace item? This will remove app-generated data (transcripts/summaries/keyframes/index) but will NOT delete the original video file."
+          : "\u5220\u9664\u8be5\u5de5\u4f5c\u533a\u4efb\u52a1\uff1f\u8fd9\u4f1a\u5220\u9664\u5e94\u7528\u751f\u6210\u7684\u6570\u636e\uff08\u8f6c\u5199/\u6458\u8981/\u5173\u952e\u5e27/\u7d22\u5f15\u7b49\uff09\uff0c\u4f46\u4e0d\u4f1a\u5220\u9664\u539f\u59cb\u89c6\u9891\u6587\u4ef6\u3002"
+      );
+      if (!ok) return;
+
+      setBusy(true);
+      try {
+        await api.deleteVideo(videoId);
+        setInfo(uiLang === "en" ? "Deleted" : "\u5df2\u5220\u9664");
+        await load();
+      } catch (e: any) {
+        const msg = e && e.message ? String(e.message) : String(e);
+        setError(msg);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [load, uiLang]
+  );
+
   const onImport = useCallback(async () => {
     setInfo(null);
     setError(null);
@@ -150,6 +177,13 @@ export default function LibraryPage({ uiLang = "zh", onOpenVideo }: Props) {
                   <div className={String(v.status) === 'completed' ? 'v ok' : 'v'}>{String(v.status)}</div>
                   <button className="btn" onClick={() => onOpenVideo(String(v.id))} disabled={busy}>
                     {'\u8be6\u60c5'}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => onDelete(String(v.id))}
+                    disabled={busy}
+                  >
+                    {uiLang === 'en' ? 'Delete' : '\u5220\u9664'}
                   </button>
                 </div>
               </div>
