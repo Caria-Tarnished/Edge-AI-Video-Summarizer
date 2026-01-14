@@ -441,7 +441,10 @@ def get_video_api(video_id: str) -> Dict[str, Any]:
 
 
 @app.delete("/videos/{video_id}")
-def delete_video_api(video_id: str) -> Dict[str, Any]:
+def delete_video_api(
+    video_id: str,
+    delete_file: bool = False,
+) -> Dict[str, Any]:
     video = get_video(video_id)
     if not video:
         raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
@@ -486,10 +489,33 @@ def delete_video_api(video_id: str) -> Dict[str, Any]:
 
     shutil.rmtree(keyframes_dir(video_id), ignore_errors=True)
 
+    file_deleted = False
+    file_delete_error: Optional[str] = None
+    file_path = str(video.get("file_path") or "").strip()
+
     ok = delete_video(video_id)
+
+    if ok and delete_file:
+        if not file_path:
+            file_delete_error = "VIDEO_FILE_PATH_EMPTY"
+        else:
+            abspath = os.path.abspath(file_path)
+            if not os.path.exists(abspath):
+                file_delete_error = "VIDEO_FILE_NOT_FOUND"
+            elif not os.path.isfile(abspath):
+                file_delete_error = "VIDEO_FILE_NOT_A_FILE"
+            else:
+                try:
+                    os.remove(abspath)
+                    file_deleted = True
+                except Exception as e:
+                    file_delete_error = f"{type(e).__name__}:{e}"
+
     return {
         "ok": bool(ok),
         "video_id": video_id,
+        "file_deleted": bool(file_deleted),
+        "file_delete_error": file_delete_error,
     }
 
 

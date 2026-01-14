@@ -70,10 +70,41 @@ export default function LibraryPage({ uiLang = "zh", onOpenVideo }: Props) {
       );
       if (!ok) return;
 
+      const deleteFile = window.confirm(
+        uiLang === "en"
+          ? "Also delete the original video file from disk? (Default: Cancel = keep file)"
+          : "\u662f\u5426\u540c\u65f6\u5220\u9664\u78c1\u76d8\u4e0a\u7684\u539f\u59cb\u89c6\u9891\u6587\u4ef6\uff1f\uff08\u9ed8\u8ba4\u70b9\u53d6\u6d88 = \u4fdd\u7559\u6587\u4ef6\uff09"
+      );
+
       setBusy(true);
       try {
-        await api.deleteVideo(videoId);
-        setInfo(uiLang === "en" ? "Deleted" : "\u5df2\u5220\u9664");
+        const res = await api.deleteVideo(videoId, {
+          delete_file: deleteFile,
+        });
+
+        if (deleteFile) {
+          if (res.file_deleted) {
+            setInfo(
+              uiLang === "en"
+                ? "Deleted (workspace + file removed)"
+                : "\u5df2\u5220\u9664\uff08\u5de5\u4f5c\u533a + \u6587\u4ef6\u5df2\u5220\u9664\uff09"
+            );
+          } else if (res.file_delete_error) {
+            setInfo(
+              uiLang === "en"
+                ? `Deleted (workspace). File delete failed: ${res.file_delete_error}`
+                : `\u5df2\u5220\u9664\uff08\u5de5\u4f5c\u533a\uff09\uff0c\u6587\u4ef6\u5220\u9664\u5931\u8d25\uff1a${res.file_delete_error}`
+            );
+          } else {
+            setInfo(
+              uiLang === "en"
+                ? "Deleted (workspace). File not deleted."
+                : "\u5df2\u5220\u9664\uff08\u5de5\u4f5c\u533a\uff09\uff0c\u672a\u5220\u9664\u6587\u4ef6\u3002"
+            );
+          }
+        } else {
+          setInfo(uiLang === "en" ? "Deleted" : "\u5df2\u5220\u9664");
+        }
         await load();
       } catch (e: any) {
         const msg = e && e.message ? String(e.message) : String(e);

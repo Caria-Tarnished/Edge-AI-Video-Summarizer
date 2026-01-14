@@ -233,6 +233,8 @@ export type AsrModelStatusResponse = {
 export type DeleteVideoResponse = {
   ok: boolean
   video_id: string
+  file_deleted?: boolean
+  file_delete_error?: string | null
   [k: string]: any
 }
 
@@ -311,10 +313,15 @@ export const api = {
       body: JSON.stringify({ file_path })
     }),
   getVideo: (video_id: string) => fetchJson<VideoItem>(`/videos/${encodeURIComponent(video_id)}`),
-  deleteVideo: (video_id: string) =>
-    fetchJson<DeleteVideoResponse>(`/videos/${encodeURIComponent(video_id)}`, {
+  deleteVideo: (video_id: string, params?: { delete_file?: boolean }) =>
+    fetchJson<DeleteVideoResponse>(
+      `/videos/${encodeURIComponent(video_id)}${toQuery({
+        delete_file: params?.delete_file ? true : null
+      })}`,
+      {
       method: 'DELETE'
-    }),
+      }
+    ),
   getTranscript: (video_id: string, params?: { limit?: number }) =>
     fetchJson<TranscriptResponse>(
       `/videos/${encodeURIComponent(video_id)}/transcript${toQuery({
