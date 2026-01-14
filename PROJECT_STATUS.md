@@ -118,11 +118,24 @@
     - 点击视频进入详情页
   - Video Detail（视频详情）：
     - 展示基础视频信息
+    - 播放器（HTML5 video）：
+      - 视频播放：`GET /videos/{video_id}/file`
+      - 字幕：默认挂载自动生成 VTT（`GET /videos/{video_id}/subtitles/vtt`），并提供“字幕开/关”按钮避免与视频自带字幕冲突
+      - 控制：`-15s/+15s` 跳转、倍速、复制当前时间戳
+      - 联动：点击转写段落 / 大纲 / 引用 / 关键帧可跳转到对应时间戳
     - 转写（transcribe）：参数面板（segment_seconds/overlap_seconds/from_scratch）+ SSE 进度订阅 + transcript 预览（`GET /videos/{id}/transcript`）
     - 索引/摘要/关键帧：SSE 进度订阅 + 结果预览
       - index：`GET /videos/{id}/index`
       - summary：`GET /videos/{id}/summary` + outline（可选）`GET /videos/{id}/outline`
       - keyframes：`GET /videos/{id}/keyframes/index` + 缩略图列表 `GET /videos/{id}/keyframes`
+    - Notes（摘要/大纲侧栏，Tab）：
+      - 摘要：轻量 markdown 渲染（标题/列表/代码块）+ 展开/收起（按高度折叠）
+      - 大纲：支持自动展开开关；节点可折叠 + 全部展开/全部收起；点击标题栏可跳转播放
+      - aligned keyframes：缩略图时间戳 overlay、数量展示、空态/加载态更清晰；并对请求做去重/合并避免重复刷新
+    - AI 助手（Chat 侧栏，Tab）：
+      - `/chat` SSE streaming：支持取消、confirm_send 确认提示；索引未就绪自动等待并重试
+      - 回答：轻量 markdown 渲染；引用列表增强（显示更多/收起、一键跳转到时间戳）
+      - 快捷键：Ctrl/Cmd + Enter 发送；支持清空结果
     - 修复：避免预览区因 React effect 依赖导致的重复请求风暴与偶发 “Failed to fetch”
 
 ## API 一览（MVP-1 + MVP-2 + MVP-3 + MVP-4）
@@ -478,3 +491,4 @@ powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\
 - 2026-01-13：MVP-4：新增 `keyframes` job 与 SQLite 落盘（interval/scene）；scene 模式写入 `score`；aligned 支持 scene 优先高分并可返回 `score`，可选 `fallback=nearest`。
 - 2026-01-13：桌面端开发环境跑通：一键启动/停止脚本完善（含默认启动 llama-server）；修复 Electron-Vite entry/host 与 dev server 等待逻辑；dev 模式 CORS 绕过；前端中文 UI 文案改为 Unicode escape，避免 GBK/GB2312 编码导致乱码。
 - 2026-01-14：桌面端联调：完成 Library/Video Detail 页面（导入/列表/导航）；转写参数面板 + SSE 进度 + transcript 预览；索引/摘要/关键帧 SSE 进度订阅与结果预览；修复预览区重复请求风暴导致的后端日志刷屏与偶发 “Failed to fetch”。
+- 2026-01-14：桌面端体验增强（Video Detail）：Notes/Chat 侧栏 Tab 落地并优化阅读体验（摘要 markdown 渲染、大纲可折叠与自动展开开关、aligned keyframes 缩略图与去重）；Chat 支持答案 markdown、引用跳转与快捷键；播放器增加 `-15s/+15s`、倍速、复制时间戳与自动字幕开关，并优化转录高亮与自动滚动。

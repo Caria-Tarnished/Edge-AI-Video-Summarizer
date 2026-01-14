@@ -149,6 +149,20 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 - 视频详情（Video Detail）：
   - 转写：参数面板 + SSE 进度订阅（`GET /jobs/{job_id}/events`）+ transcript 预览（`GET /videos/{id}/transcript`）
   - 索引/摘要/关键帧：SSE 进度订阅 + 结果预览（index/summary/outline/keyframes）
+  - 播放器：
+    - 视频播放（`/videos/{video_id}/file`）+ 可播放字幕（VTT track）
+    - 控件：`-15s/+15s`、倍速、复制当前时间戳
+    - 字幕开关：可关闭/开启“自动生成字幕”（避免与视频自带字幕冲突）
+    - 联动：点击转写段落/大纲节点/引用/关键帧可跳转到对应时间戳
+  - Notes（摘要/大纲侧栏）：
+    - 摘要 markdown 阅读优化（轻量渲染：标题/列表/代码块）+ 展开/收起（按高度折叠）
+    - 自动展开大纲开关（进入 Notes 可自动展开并加载）
+    - 大纲节点可折叠 + 全部展开/全部收起
+    - aligned keyframes：缩略图时间戳 overlay、数量展示、空态与加载态更清晰，并避免重复请求
+  - AI 助手（Chat 侧栏）：
+    - SSE streaming 输出、取消、confirm_send 确认提示、索引未就绪自动等待并重试
+    - 回答支持轻量 markdown 渲染；引用列表更清晰并支持“一键跳转”到视频时间戳
+    - 快捷键：Ctrl/Cmd + Enter 发送；支持清空结果
 
 ### 3) 健康检查
 
@@ -228,11 +242,10 @@ curl.exe http://127.0.0.1:8001/health
 
 - 完成：桌面端视频库（Library）页（列表 + 导入入口）
 - 完成：桌面端视频详情页（转写/索引/摘要/关键帧）与进度展示（SSE）+ 结果预览
-- 进行中 / 下一步（按 `Architecture_Design.md` 的 UI 目标）：
-  - 详情页集成播放器（seek/倍速等基础能力），并支持从 transcript/outline/citations 点击时间戳跳转
-  - 桌面端 Chat 页（对接 `/chat` SSE streaming）+ citations 展示与跳转
-  - 摘要/大纲侧栏（Tab）与关键帧对齐展示（优先对接 `/videos/{id}/keyframes/aligned`）
+- 下一步（按 `Architecture_Design.md` 的 UI 目标）：
   - 打包与分发：PyInstaller + Electron Builder；模型下载/导入向导；数据目录迁移/备份
+  - 播放器增强（可选）：键盘快捷键、章节导航、画中画/全屏体验优化
+  - 任务中心（可选）：全局 jobs 列表 + 取消/重试 + 进度订阅
 
 ---
 
