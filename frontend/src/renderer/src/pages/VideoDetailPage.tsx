@@ -105,6 +105,9 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   const [chatNeedsConfirm, setChatNeedsConfirm] = useState<boolean>(false)
   const [chatWaitingIndex, setChatWaitingIndex] = useState<boolean>(false)
 
+  const [sidebarTab, setSidebarTab] = useState<'notes' | 'chat'>('notes')
+  const [notesAutoExpandOutline, setNotesAutoExpandOutline] = useState<boolean>(true)
+
   const chatAbortRef = useRef<AbortController | null>(null)
   const chatPendingAfterIndexRef = useRef<{ query: string; top_k: number; confirm_send: boolean } | null>(null)
 
@@ -562,6 +565,9 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     setAlignedKeyframesItems([])
     setAutoSummaryLoadedForJobId(null)
 
+    setSidebarTab('notes')
+    setNotesAutoExpandOutline(true)
+
     setLastKeyframesJob(null)
     setKeyframesJobId(null)
     setKeyframesJob(null)
@@ -638,6 +644,15 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     },
     [videoId]
   )
+
+  useEffect(() => {
+    if (sidebarTab !== 'notes') return
+    if (!notesAutoExpandOutline) return
+    if (outlineShow) return
+    setOutlineShow(true)
+    void loadOutline({ force: true })
+    void loadAlignedKeyframes({ force: true })
+  }, [loadAlignedKeyframes, loadOutline, notesAutoExpandOutline, outlineShow, sidebarTab])
 
   const loadKeyframesIndex = useCallback(
     async (opts?: { force?: boolean }) => {
@@ -1244,8 +1259,108 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     return alignedKeyframesItems.some((it: any) => Array.isArray(it?.keyframes) && it.keyframes.length > 0)
   }, [alignedKeyframesItems])
 
+  const renderMarkdownLite = useCallback((md: string) => {
+    const src = String(md || '')
+    const lines = src.split(/\r?\n/)
+    const out: any[] = []
+
+    let inCode = false
+    let codeBuf: string[] = []
+
+    const pushCode = (key: string) => {
+      if (!codeBuf.length) return
+      const code = codeBuf.join('\n')
+      out.push(
+        <pre key={key} className="pre" style={{ marginTop: 10, marginBottom: 10, lineHeight: 1.55 }}>
+          {code}
+        </pre>
+      )
+      codeBuf = []
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i] ?? ''
+
+      if (line.trim().startsWith('```')) {
+        if (inCode) {
+          pushCode(`md-code-${i}`)
+          inCode = false
+        } else {
+          inCode = true
+        }
+        continue
+      }
+
+      if (inCode) {
+        codeBuf.push(line)
+        continue
+      }
+
+      const trimmed = String(line).trimEnd()
+      if (!trimmed.trim()) {
+        out.push(<div key={`md-sp-${i}`} style={{ height: 8 }} />)
+        continue
+      }
+
+      if (trimmed.startsWith('# ')) {
+        out.push(
+          <div key={`md-h1-${i}`} style={{ fontWeight: 800, fontSize: 18, marginTop: 10, marginBottom: 6, lineHeight: 1.35 }}>
+            {trimmed.slice(2).trim()}
+          </div>
+        )
+        continue
+      }
+      if (trimmed.startsWith('## ')) {
+        out.push(
+          <div key={`md-h2-${i}`} style={{ fontWeight: 800, fontSize: 16, marginTop: 10, marginBottom: 6, lineHeight: 1.35 }}>
+            {trimmed.slice(3).trim()}
+          </div>
+        )
+        continue
+      }
+      if (trimmed.startsWith('### ')) {
+        out.push(
+          <div key={`md-h3-${i}`} style={{ fontWeight: 800, fontSize: 14, marginTop: 10, marginBottom: 6, lineHeight: 1.35 }}>
+            {trimmed.slice(4).trim()}
+          </div>
+        )
+        continue
+      }
+
+      if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        out.push(
+          <div key={`md-li-${i}`} style={{ marginLeft: 14, lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {'- '}{trimmed.slice(2)}
+          </div>
+        )
+        continue
+      }
+
+      out.push(
+        <div key={`md-p-${i}`} style={{ lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          {trimmed}
+        </div>
+      )
+    }
+
+    if (inCode) {
+      pushCode(`md-code-eof`)
+    }
+    return out
+  }, [])
+
+  const summaryMarkdownText = useMemo(() => {
+    const raw = summaryStatus ? String((summaryStatus as any).summary_markdown || '') : ''
+    return raw
+  }, [summaryStatus])
+
+  const summaryMarkdownNodes = useMemo(() => {
+    return renderMarkdownLite(summaryMarkdownText)
+  }, [renderMarkdownLite, summaryMarkdownText])
+
   return (
-    <div className="stack">
+    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+      <div className="stack" style={{ flex: '2 1 640px', minWidth: 320, maxWidth: 'none' }}>
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
@@ -1474,289 +1589,6 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
 
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <h3 style={{ margin: 0 }}>{'\u0041\u0049 \u52a9\u624b'}</h3>
-          <div className="row" style={{ marginTop: 0 }}>
-            <div className="muted">top_k</div>
-            <input
-              value={String(chatTopK)}
-              onChange={(e) => {
-                const n = parseInt(e.target.value || '0', 10)
-                const v = Number.isFinite(n) ? n : 5
-                setChatTopK(Math.max(1, Math.min(20, v)))
-              }}
-              style={{ width: 80 }}
-              disabled={busy || chatBusy}
-            />
-            <button className="btn primary" onClick={sendChat} disabled={busy || chatBusy || !String(chatQuery || '').trim()}>
-              {chatBusy ? '\u6b63\u5728\u751f\u6210...' : '\u53d1\u9001'}
-            </button>
-            <button className="btn" onClick={cancelChat} disabled={busy || !chatBusy}>
-              {'\u53d6\u6d88'}
-            </button>
-          </div>
-        </div>
-
-        {chatError ? <div className="alert alert-error">{chatError}</div> : null}
-        {chatDetail ? <div className="alert alert-info">{chatDetail}</div> : null}
-        {chatWaitingIndex ? <div className="alert alert-info">{'\u6b63\u5728\u7b49\u5f85\u7d22\u5f15\u5b8c\u6210\uff0c\u5b8c\u6210\u540e\u5c06\u81ea\u52a8\u91cd\u8bd5...'} </div> : null}
-
-        <div className="subcard">
-          <div className="muted" style={{ marginBottom: 6 }}>
-            {'\u8bf7\u8f93\u5165\u4f60\u7684\u95ee\u9898\uff0c\u5982\uff1a\u8fd9\u4e2a\u89c6\u9891\u7684\u4e3b\u8981\u7ed3\u8bba\u662f\u4ec0\u4e48\uff1f'}
-          </div>
-          {chatNeedsConfirm ? (
-            <div className="alert alert-info">{'\u9700\u8981\u786e\u8ba4\u5411\u5916\u90e8\u6a21\u578b\u63d0\u4ea4\u8bf7\u6c42\u3002\u8bf7\u52fe\u9009\u786e\u8ba4\u540e\u518d\u53d1\u9001\u3002'}</div>
-          ) : null}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <input
-              type="checkbox"
-              checked={chatConfirmSend}
-              onChange={(e) => setChatConfirmSend(e.target.checked)}
-              disabled={busy || chatBusy}
-            />
-            <span className="muted">{'\u786e\u8ba4\u53d1\u9001\uff08confirm_send\uff09'}</span>
-          </label>
-          <textarea
-            value={chatQuery}
-            onChange={(e) => setChatQuery(e.target.value)}
-            rows={4}
-            style={{ width: '100%', resize: 'vertical' }}
-            disabled={busy || chatBusy}
-          />
-        </div>
-
-        {chatAnswer ? (
-          <div className="subcard">
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>{'\u56de\u7b54'}</div>
-            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{chatAnswer}</div>
-          </div>
-        ) : null}
-
-        {chatCitations.length ? (
-          <div className="subcard">
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>{'\u5f15\u7528'}</div>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {chatCitations.slice(0, 8).map((c, idx) => {
-                const start = typeof (c as any).start_time === 'number' ? (c as any).start_time : Number((c as any).start_time || 0)
-                const end = typeof (c as any).end_time === 'number' ? (c as any).end_time : Number((c as any).end_time || 0)
-                const score = typeof (c as any).score === 'number' ? (c as any).score : Number((c as any).score || 0)
-                const text = String((c as any).text || '')
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => seekToSeconds(start, { play: true })}
-                    style={{
-                      border: '1px solid rgba(255,255,255,0.06)',
-                      borderRadius: 8,
-                      padding: 10,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <div className="muted" style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                      <div>
-                        {fmtTime(start)}{end > 0 ? ` - ${fmtTime(end)}` : ''}
-                      </div>
-                      <div>{'score '} {fmtScore(score)}</div>
-                    </div>
-                    <div style={{ marginTop: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text.slice(0, 360)}</div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <h3 style={{ margin: 0 }}>{'\u6458\u8981\u7ed3\u679c\u9884\u89c8'}</h3>
-          <div className="row" style={{ marginTop: 0 }}>
-            <button className="btn" onClick={() => loadSummary({ force: true })} disabled={busy || summaryBusy}>
-              {'\u5237\u65b0\u9884\u89c8'}
-            </button>
-            <button
-              className="btn"
-              onClick={() => {
-                const next = !outlineShow
-                setOutlineShow(next)
-                if (next) {
-                  void loadOutline({ force: true })
-                  void loadAlignedKeyframes({ force: true })
-                }
-              }}
-              disabled={busy}
-            >
-              {outlineShow ? '\u9690\u85cf\u5927\u7eb2' : '\u663e\u793a\u5927\u7eb2'}
-            </button>
-          </div>
-        </div>
-
-        {summaryError ? <div className="alert alert-error">{summaryError}</div> : null}
-        {summaryBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div> : null}
-
-        {summaryStatus ? (
-          <div className="subcard">
-            <div className="kv">
-              <div className="k">status</div>
-              <div className="v">{String(summaryStatus.status || '')}</div>
-            </div>
-            <div className="kv">
-              <div className="k">progress</div>
-              <div className="v">{fmtPct(typeof summaryStatus.progress === 'number' ? summaryStatus.progress : 0)}</div>
-            </div>
-            <div className="kv">
-              <div className="k">message</div>
-              <div className="v" style={{ wordBreak: 'break-word' }}>{String(summaryStatus.message || '')}</div>
-            </div>
-            <div className="kv">
-              <div className="k">is_stale</div>
-              <div className="v">{String(Boolean(summaryStatus.is_stale))}</div>
-            </div>
-            {summaryStatus.error_code || summaryStatus.error_message ? (
-              <div className="muted" style={{ marginTop: 8 }}>
-                error: {String(summaryStatus.error_code || '')} {String(summaryStatus.error_message || '')}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        {summaryStatus && String(summaryStatus.status || '') === 'completed' ? (
-          <div className="subcard">
-            <div className="row" style={{ marginTop: 0, justifyContent: 'space-between' }}>
-              <div style={{ fontWeight: 700 }}>{'markdown'}</div>
-              <button className="btn" onClick={() => setSummaryShowFull((v) => !v)} disabled={busy}>
-                {summaryShowFull ? '\u6536\u8d77' : '\u5c55\u5f00'}
-              </button>
-            </div>
-            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflow: 'auto' }}>
-              {summaryShowFull
-                ? String((summaryStatus as any).summary_markdown || '')
-                : String((summaryStatus as any).summary_markdown || '').slice(0, 4000)}
-            </div>
-          </div>
-        ) : null}
-
-        {outlineShow ? (
-          <div className="subcard">
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>{'\u5927\u7eb2'}</div>
-            {outlineError ? <div className="alert alert-error">{outlineError}</div> : null}
-            {outlineBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div> : null}
-            {alignedKeyframesError ? <div className="alert alert-error">{alignedKeyframesError}</div> : null}
-            {alignedKeyframesBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d\u5173\u952e\u5e27...'} </div> : null}
-
-            {String(outlineError || '').includes('SUMMARY_NOT_FOUND') ? (
-              <div className="subcard">
-                <div className="muted">{'\u672a\u627e\u5230\u6458\u8981\uff0c\u8bf7\u5148\u751f\u6210\u6458\u8981\u540e\u518d\u67e5\u770b\u5927\u7eb2\u3002'}</div>
-                <div className="row" style={{ marginTop: 10 }}>
-                  <button className="btn primary" onClick={() => startJob('summarize')} disabled={busy}>
-                    {'\u751f\u6210\u6458\u8981'}
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {String(alignedKeyframesError || '').includes('SUMMARY_NOT_FOUND') ? (
-              <div className="subcard">
-                <div className="muted">{'\u5bf9\u9f50\u5173\u952e\u5e27\u9700\u8981\u5927\u7eb2\u3002\u8bf7\u5148\u751f\u6210\u6458\u8981\u3002'}</div>
-              </div>
-            ) : null}
-
-            {String(alignedKeyframesError || '').includes('UNSUPPORTED_KEYFRAMES_METHOD') ? (
-              <div className="subcard">
-                <div className="muted">{'\u5f53\u524d\u65b9\u5f0f\u4e0d\u652f\u6301\u5bf9\u9f50\u3002\u8bf7\u9009\u62e9 interval \u6216 scene \u7c7b\u578b\u7684\u5173\u952e\u5e27\u3002'}</div>
-              </div>
-            ) : null}
-
-            {!alignedKeyframesBusy && !alignedKeyframesError && outlineRes && !hasAnyAlignedKeyframes ? (
-              <div className="subcard">
-                <div className="muted">{'\u672a\u627e\u5230\u5bf9\u9f50\u5173\u952e\u5e27\uff0c\u8bf7\u5148\u751f\u6210\u5173\u952e\u5e27\uff08\u6216\u8005\u5207\u6362\u540e\u91cd\u8bd5\uff09\u3002'}</div>
-                <div className="row" style={{ marginTop: 10 }}>
-                  <button className="btn" onClick={() => startJob('keyframes')} disabled={busy}>
-                    {'\u751f\u6210\u5173\u952e\u5e27'}
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {!outlineBusy && outlineRes ? (
-              <div style={{ maxHeight: 320, overflow: 'auto' }}>
-                {Array.isArray((outlineRes as any).outline) ? (
-                  ((outlineRes as any).outline as any[]).map((it: any, idx: number) => {
-                    const title = String(it?.title || `#${idx + 1}`)
-                    const start = typeof it?.start_time === 'number' ? it.start_time : Number(it?.start_time || 0)
-                    const end = typeof it?.end_time === 'number' ? it.end_time : Number(it?.end_time || 0)
-                    const bullets = Array.isArray(it?.bullets) ? (it.bullets as any[]) : []
-                    const aligned = Array.isArray(alignedKeyframesItems) ? (alignedKeyframesItems[idx] as any) : null
-                    const kfs = Array.isArray(aligned?.keyframes) ? (aligned.keyframes as any[]) : []
-                    return (
-                      <div
-                        key={idx}
-                        onClick={() => seekToSeconds(start, { play: true })}
-                        style={{
-                          padding: 10,
-                          border: '1px solid rgba(255,255,255,0.06)',
-                          borderRadius: 8,
-                          marginBottom: 10,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <div style={{ fontWeight: 700, marginBottom: 4 }}>{title}</div>
-                        <div className="muted" style={{ marginBottom: bullets.length ? 6 : 0 }}>
-                          {fmtTime(start)}{end > 0 ? ` - ${fmtTime(end)}` : ''}
-                        </div>
-                        {bullets.length ? (
-                          <div style={{ marginLeft: 14 }}>
-                            {bullets.slice(0, 12).map((b, j) => (
-                              <div key={j} style={{ marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                                {'- '}
-                                {String(b || '')}
-                              </div>
-                            ))}
-                          </div>
-                        ) : null}
-
-                        {kfs.length ? (
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                            {kfs.slice(0, 3).map((kf: any) => {
-                              const img = kf?.image_url ? `${API_BASE}${String(kf.image_url)}` : ''
-                              const tsMs = typeof kf?.timestamp_ms === 'number' ? kf.timestamp_ms : Number(kf?.timestamp_ms || 0)
-                              const sec = tsMs / 1000
-                              return (
-                                <div key={String(kf?.id || tsMs)}>
-                                  {img ? (
-                                    <img
-                                      src={img}
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        seekToSeconds(sec, { play: true })
-                                      }}
-                                      style={{ width: 120, height: 72, objectFit: 'cover', borderRadius: 6, display: 'block' }}
-                                    />
-                                  ) : null}
-                                  <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>
-                                    {fmtTime(sec)}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        ) : null}
-                      </div>
-                    )
-                  })
-                ) : (
-                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 260, overflow: 'auto' }}>
-                    {JSON.stringify((outlineRes as any).outline, null, 2)}
-                  </pre>
-                )}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <h3 style={{ margin: 0 }}>{'\u5173\u952e\u5e27\u9884\u89c8'}</h3>
           <div className="row" style={{ marginTop: 0 }}>
             <div className="muted">method</div>
@@ -1920,6 +1752,342 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             })}
           </div>
         ) : null}
+      </div>
+
+      </div>
+
+      <div
+        style={{
+          flex: '1 1 360px',
+          minWidth: 320,
+          maxWidth: 520,
+          position: 'sticky',
+          top: 16,
+          alignSelf: 'flex-start'
+        }}
+      >
+        <div className="card" style={{ maxHeight: 'calc(100vh - 32px)', overflow: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div className="muted">{'\u667a\u80fd\u4fa7\u8fb9\u680f'}</div>
+              <h3 style={{ margin: '6px 0 0' }}>{sidebarTab === 'notes' ? '\u6458\u8981/\u5927\u7eb2' : '\u0041\u0049 \u52a9\u624b'}</h3>
+            </div>
+            <div className="tabs">
+              <button
+                className={`tab ${sidebarTab === 'notes' ? 'active' : ''}`}
+                onClick={() => setSidebarTab('notes')}
+                disabled={busy}
+              >
+                {'\u6458\u8981/\u5927\u7eb2'}
+              </button>
+              <button
+                className={`tab ${sidebarTab === 'chat' ? 'active' : ''}`}
+                onClick={() => setSidebarTab('chat')}
+                disabled={busy}
+              >
+                {'\u0041\u0049 \u52a9\u624b'}
+              </button>
+            </div>
+          </div>
+
+          {sidebarTab === 'chat' ? (
+            <>
+              <div className="row" style={{ marginTop: 10 }}>
+                <div className="muted">top_k</div>
+                <input
+                  value={String(chatTopK)}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value || '0', 10)
+                    const v = Number.isFinite(n) ? n : 5
+                    setChatTopK(Math.max(1, Math.min(20, v)))
+                  }}
+                  style={{ width: 80 }}
+                  disabled={busy || chatBusy}
+                />
+                <button className="btn primary" onClick={sendChat} disabled={busy || chatBusy || !String(chatQuery || '').trim()}>
+                  {chatBusy ? '\u6b63\u5728\u751f\u6210...' : '\u53d1\u9001'}
+                </button>
+                <button className="btn" onClick={cancelChat} disabled={busy || !chatBusy}>
+                  {'\u53d6\u6d88'}
+                </button>
+              </div>
+
+              {chatError ? <div className="alert alert-error">{chatError}</div> : null}
+              {chatDetail ? <div className="alert alert-info">{chatDetail}</div> : null}
+              {chatWaitingIndex ? (
+                <div className="alert alert-info">{'\u6b63\u5728\u7b49\u5f85\u7d22\u5f15\u5b8c\u6210\uff0c\u5b8c\u6210\u540e\u5c06\u81ea\u52a8\u91cd\u8bd5...'} </div>
+              ) : null}
+
+              <div className="subcard">
+                <div className="muted" style={{ marginBottom: 6 }}>
+                  {'\u8bf7\u8f93\u5165\u4f60\u7684\u95ee\u9898\uff0c\u5982\uff1a\u8fd9\u4e2a\u89c6\u9891\u7684\u4e3b\u8981\u7ed3\u8bba\u662f\u4ec0\u4e48\uff1f'}
+                </div>
+                {chatNeedsConfirm ? (
+                  <div className="alert alert-info">{'\u9700\u8981\u786e\u8ba4\u5411\u5916\u90e8\u6a21\u578b\u63d0\u4ea4\u8bf7\u6c42\u3002\u8bf7\u52fe\u9009\u786e\u8ba4\u540e\u518d\u53d1\u9001\u3002'}</div>
+                ) : null}
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={chatConfirmSend}
+                    onChange={(e) => setChatConfirmSend(e.target.checked)}
+                    disabled={busy || chatBusy}
+                  />
+                  <span className="muted">{'\u786e\u8ba4\u53d1\u9001\uff08confirm_send\uff09'}</span>
+                </label>
+                <textarea
+                  value={chatQuery}
+                  onChange={(e) => setChatQuery(e.target.value)}
+                  rows={6}
+                  style={{ width: '100%', resize: 'vertical' }}
+                  disabled={busy || chatBusy}
+                />
+              </div>
+
+              {chatAnswer ? (
+                <div className="subcard">
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>{'\u56de\u7b54'}</div>
+                  <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{chatAnswer}</div>
+                </div>
+              ) : null}
+
+              {chatCitations.length ? (
+                <div className="subcard">
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>{'\u5f15\u7528'}</div>
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {chatCitations.slice(0, 8).map((c, idx) => {
+                      const start = typeof (c as any).start_time === 'number' ? (c as any).start_time : Number((c as any).start_time || 0)
+                      const end = typeof (c as any).end_time === 'number' ? (c as any).end_time : Number((c as any).end_time || 0)
+                      const score = typeof (c as any).score === 'number' ? (c as any).score : Number((c as any).score || 0)
+                      const text = String((c as any).text || '')
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => seekToSeconds(start, { play: true })}
+                          style={{
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            borderRadius: 8,
+                            padding: 10,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <div className="muted" style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                            <div>
+                              {fmtTime(start)}{end > 0 ? ` - ${fmtTime(end)}` : ''}
+                            </div>
+                            <div>{'score '} {fmtScore(score)}</div>
+                          </div>
+                          <div style={{ marginTop: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text.slice(0, 360)}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginTop: 10 }}>
+                <div className="row" style={{ marginTop: 0 }}>
+                  <button className="btn" onClick={() => loadSummary({ force: true })} disabled={busy || summaryBusy}>
+                    {'\u5237\u65b0\u9884\u89c8'}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      const next = !outlineShow
+                      setOutlineShow(next)
+                      if (next) {
+                        void loadOutline({ force: true })
+                        void loadAlignedKeyframes({ force: true })
+                      }
+                    }}
+                    disabled={busy}
+                  >
+                    {outlineShow ? '\u9690\u85cf\u5927\u7eb2' : '\u663e\u793a\u5927\u7eb2'}
+                  </button>
+                </div>
+
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={notesAutoExpandOutline}
+                    onChange={(e) => setNotesAutoExpandOutline(e.target.checked)}
+                    disabled={busy}
+                  />
+                  <span className="muted">{'\u81ea\u52a8\u5c55\u5f00\u5927\u7eb2'}</span>
+                </label>
+              </div>
+
+              {summaryError ? <div className="alert alert-error">{summaryError}</div> : null}
+              {summaryBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div> : null}
+
+              {summaryStatus ? (
+                <div className="subcard">
+                  <div className="kv">
+                    <div className="k">status</div>
+                    <div className="v">{String(summaryStatus.status || '')}</div>
+                  </div>
+                  <div className="kv">
+                    <div className="k">progress</div>
+                    <div className="v">{fmtPct(typeof summaryStatus.progress === 'number' ? summaryStatus.progress : 0)}</div>
+                  </div>
+                  <div className="kv">
+                    <div className="k">message</div>
+                    <div className="v" style={{ wordBreak: 'break-word' }}>{String(summaryStatus.message || '')}</div>
+                  </div>
+                  <div className="kv">
+                    <div className="k">is_stale</div>
+                    <div className="v">{String(Boolean(summaryStatus.is_stale))}</div>
+                  </div>
+                  {summaryStatus.error_code || summaryStatus.error_message ? (
+                    <div className="muted" style={{ marginTop: 8 }}>
+                      error: {String(summaryStatus.error_code || '')} {String(summaryStatus.error_message || '')}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {summaryStatus && String(summaryStatus.status || '') === 'completed' ? (
+                <div className="subcard">
+                  <div className="row" style={{ marginTop: 0, justifyContent: 'space-between' }}>
+                    <div style={{ fontWeight: 700 }}>{'markdown'}</div>
+                    <button className="btn" onClick={() => setSummaryShowFull((v) => !v)} disabled={busy}>
+                      {summaryShowFull ? '\u6536\u8d77' : '\u5c55\u5f00'}
+                    </button>
+                  </div>
+                  <div
+                    style={{
+                      maxHeight: summaryShowFull ? 520 : 180,
+                      overflow: summaryShowFull ? 'auto' : 'hidden',
+                      fontSize: 13.5,
+                      lineHeight: 1.75
+                    }}
+                  >
+                    {summaryMarkdownNodes}
+                  </div>
+                </div>
+              ) : null}
+
+              {outlineShow ? (
+                <div className="subcard">
+                  <div style={{ fontWeight: 700, marginBottom: 8 }}>{'\u5927\u7eb2'}</div>
+                  {outlineError ? <div className="alert alert-error">{outlineError}</div> : null}
+                  {outlineBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div> : null}
+                  {alignedKeyframesError ? <div className="alert alert-error">{alignedKeyframesError}</div> : null}
+                  {alignedKeyframesBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d\u5173\u952e\u5e27...'} </div> : null}
+
+                  {String(outlineError || '').includes('SUMMARY_NOT_FOUND') ? (
+                    <div className="subcard">
+                      <div className="muted">{'\u672a\u627e\u5230\u6458\u8981\uff0c\u8bf7\u5148\u751f\u6210\u6458\u8981\u540e\u518d\u67e5\u770b\u5927\u7eb2\u3002'}</div>
+                      <div className="row" style={{ marginTop: 10 }}>
+                        <button className="btn primary" onClick={() => startJob('summarize')} disabled={busy}>
+                          {'\u751f\u6210\u6458\u8981'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {String(alignedKeyframesError || '').includes('SUMMARY_NOT_FOUND') ? (
+                    <div className="subcard">
+                      <div className="muted">{'\u5bf9\u9f50\u5173\u952e\u5e27\u9700\u8981\u5927\u7eb2\u3002\u8bf7\u5148\u751f\u6210\u6458\u8981\u3002'}</div>
+                    </div>
+                  ) : null}
+
+                  {String(alignedKeyframesError || '').includes('UNSUPPORTED_KEYFRAMES_METHOD') ? (
+                    <div className="subcard">
+                      <div className="muted">{'\u5f53\u524d\u65b9\u5f0f\u4e0d\u652f\u6301\u5bf9\u9f50\u3002\u8bf7\u9009\u62e9 interval \u6216 scene \u7c7b\u578b\u7684\u5173\u952e\u5e27\u3002'}</div>
+                    </div>
+                  ) : null}
+
+                  {!alignedKeyframesBusy && !alignedKeyframesError && outlineRes && !hasAnyAlignedKeyframes ? (
+                    <div className="subcard">
+                      <div className="muted">{'\u672a\u627e\u5230\u5bf9\u9f50\u5173\u952e\u5e27\uff0c\u8bf7\u5148\u751f\u6210\u5173\u952e\u5e27\uff08\u6216\u8005\u5207\u6362\u540e\u91cd\u8bd5\uff09\u3002'}</div>
+                      <div className="row" style={{ marginTop: 10 }}>
+                        <button className="btn" onClick={() => startJob('keyframes')} disabled={busy}>
+                          {'\u751f\u6210\u5173\u952e\u5e27'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {!outlineBusy && outlineRes ? (
+                    <div style={{ maxHeight: 420, overflow: 'auto' }}>
+                      {Array.isArray((outlineRes as any).outline) ? (
+                        ((outlineRes as any).outline as any[]).map((it: any, idx: number) => {
+                          const title = String(it?.title || `#${idx + 1}`)
+                          const start = typeof it?.start_time === 'number' ? it.start_time : Number(it?.start_time || 0)
+                          const end = typeof it?.end_time === 'number' ? it.end_time : Number(it?.end_time || 0)
+                          const bullets = Array.isArray(it?.bullets) ? (it.bullets as any[]) : []
+                          const aligned = Array.isArray(alignedKeyframesItems) ? (alignedKeyframesItems[idx] as any) : null
+                          const kfs = Array.isArray(aligned?.keyframes) ? (aligned.keyframes as any[]) : []
+                          return (
+                            <div
+                              key={idx}
+                              onClick={() => seekToSeconds(start, { play: true })}
+                              style={{
+                                padding: 10,
+                                border: '1px solid rgba(255,255,255,0.06)',
+                                borderRadius: 8,
+                                marginBottom: 10,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <div style={{ fontWeight: 700, marginBottom: 4 }}>{title}</div>
+                              <div className="muted" style={{ marginBottom: bullets.length ? 6 : 0 }}>
+                                {fmtTime(start)}{end > 0 ? ` - ${fmtTime(end)}` : ''}
+                              </div>
+                              {bullets.length ? (
+                                <div style={{ marginLeft: 14 }}>
+                                  {bullets.slice(0, 12).map((b, j) => (
+                                    <div key={j} style={{ marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                      {'- '}
+                                      {String(b || '')}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+
+                              {kfs.length ? (
+                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                                  {kfs.slice(0, 3).map((kf: any) => {
+                                    const img = kf?.image_url ? `${API_BASE}${String(kf.image_url)}` : ''
+                                    const tsMs = typeof kf?.timestamp_ms === 'number' ? kf.timestamp_ms : Number(kf?.timestamp_ms || 0)
+                                    const sec = tsMs / 1000
+                                    return (
+                                      <div key={String(kf?.id || tsMs)}>
+                                        {img ? (
+                                          <img
+                                            src={img}
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              seekToSeconds(sec, { play: true })
+                                            }}
+                                            style={{ width: 120, height: 72, objectFit: 'cover', borderRadius: 6, display: 'block' }}
+                                          />
+                                        ) : null}
+                                        <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>
+                                          {fmtTime(sec)}
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
+                          )
+                        })
+                      ) : (
+                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 260, overflow: 'auto' }}>
+                          {JSON.stringify((outlineRes as any).outline, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
