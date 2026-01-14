@@ -60,6 +60,7 @@ from .paths import audio_wav_path, keyframes_dir
 from .runtime import (
     apply_runtime_preferences,
     get_effective_runtime_preferences,
+    get_llm_concurrency_timeout_seconds,
     limit_llm,
     refresh_runtime_preferences,
 )
@@ -1654,23 +1655,28 @@ def chat_api(req: ChatRequest) -> Response:
         },
     ]
 
-    if req.stream:
+    if bool(req.stream):
 
         def gen():
             parts: list[str] = []
             try:
                 try:
-                    with limit_llm():
+                    with limit_llm(
+                        timeout_seconds=get_llm_concurrency_timeout_seconds()
+                    ):
                         for part in provider.stream_generate(
                             messages=messages,
                             prefs=prefs,
                             confirm_send=bool(req.confirm_send),
                         ):
-                            parts.append(part)
-                            yield f"event: token\ndata: {part}\n\n"
+                            if part:
+                                parts.append(part)
+                                yield f"event: token\ndata: {part}\n\n"
                 except RuntimeError as e:
                     if str(e) == "LLM_CONCURRENCY_TIMEOUT":
-                        yield "event: error\ndata: LLM_CONCURRENCY_TIMEOUT\n\n"
+                        yield (
+                            "event: error\ndata: LLM_CONCURRENCY_TIMEOUT\n\n"
+                        )
                         return
                     raise
             except Exception as e:
@@ -1693,7 +1699,7 @@ def chat_api(req: ChatRequest) -> Response:
         return StreamingResponse(gen(), media_type="text/event-stream")
 
     try:
-        with limit_llm():
+        with limit_llm(timeout_seconds=get_llm_concurrency_timeout_seconds()):
             answer = provider.generate(
                 messages=messages,
                 prefs=prefs,
@@ -1960,7 +1966,7 @@ def cloud_summary(req: CloudSummaryRequest) -> Dict[str, Any]:
     stored = get_default_llm_preferences()
     output_language = str(stored.get("output_language") or "zh")
     try:
-        with limit_llm():
+        with limit_llm(timeout_seconds=get_llm_concurrency_timeout_seconds()):
             result = summarize(
                 req.text,
                 api_key=api_key,

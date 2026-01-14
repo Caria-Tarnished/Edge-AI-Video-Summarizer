@@ -44,6 +44,10 @@ from .repo import (
     update_job,
 )
 from .runtime import limit_asr, limit_llm
+from .runtime import (
+    get_asr_concurrency_timeout_seconds,
+    get_llm_concurrency_timeout_seconds,
+)
 from .settings import settings
 from .transcript_store import (
     append_segments,
@@ -196,13 +200,19 @@ class JobWorker:
                     continue
 
                 detail = str(e)
+                timeout_err = detail in (
+                    "ASR_CONCURRENCY_TIMEOUT",
+                    "LLM_CONCURRENCY_TIMEOUT",
+                )
                 update_job(
                     job_id,
                     status="failed",
                     progress=0.0,
                     message="failed",
                     error_code=(
-                        "E_ASR_FAILED"
+                        "E_CONCURRENCY_TIMEOUT"
+                        if timeout_err
+                        else "E_ASR_FAILED"
                         if job_type == "transcribe"
                         else "E_JOB_FAILED"
                     ),
@@ -484,7 +494,9 @@ class JobWorker:
 
                 self._ensure_same_run(job_id, claimed_started_at)
 
-                with limit_asr():
+                with limit_asr(
+                    timeout_seconds=get_asr_concurrency_timeout_seconds()
+                ):
                     segments, info = self._asr.transcribe_wav(wav_path)
 
                 self._ensure_same_run(job_id, claimed_started_at)
@@ -1042,7 +1054,9 @@ class JobWorker:
                     "content": seg_user,
                 },
             ]
-            with limit_llm():
+            with limit_llm(
+                timeout_seconds=get_llm_concurrency_timeout_seconds()
+            ):
                 part = provider.generate(
                     messages=messages,
                     prefs=prefs,
@@ -1115,7 +1129,7 @@ class JobWorker:
                 "content": reduce_user,
             },
         ]
-        with limit_llm():
+        with limit_llm(timeout_seconds=get_llm_concurrency_timeout_seconds()):
             summary_md = provider.generate(
                 messages=messages_reduce,
                 prefs=reduce_prefs,
@@ -1165,7 +1179,7 @@ class JobWorker:
                 "content": outline_user,
             },
         ]
-        with limit_llm():
+        with limit_llm(timeout_seconds=get_llm_concurrency_timeout_seconds()):
             outline_raw = provider.generate(
                 messages=messages_outline,
                 prefs=outline_prefs,
@@ -1203,7 +1217,9 @@ class JobWorker:
                     "content": fix_user,
                 },
             ]
-            with limit_llm():
+            with limit_llm(
+                timeout_seconds=get_llm_concurrency_timeout_seconds()
+            ):
                 fixed_raw = provider.generate(
                     messages=messages_fix,
                     prefs=outline_prefs,

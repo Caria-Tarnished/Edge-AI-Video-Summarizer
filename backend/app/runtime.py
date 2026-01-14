@@ -55,6 +55,22 @@ _asr_limiter = DynamicSemaphore(1)
 _llm_limiter = DynamicSemaphore(1)
 
 
+def get_llm_concurrency_timeout_seconds() -> float:
+    try:
+        raw = os.getenv("LLM_CONCURRENCY_TIMEOUT_SECONDS", "3")
+        return max(0.0, float(raw))
+    except Exception:
+        return 3.0
+
+
+def get_asr_concurrency_timeout_seconds() -> float:
+    try:
+        raw = os.getenv("ASR_CONCURRENCY_TIMEOUT_SECONDS", "3")
+        return max(0.0, float(raw))
+    except Exception:
+        return 3.0
+
+
 def get_profile_defaults(profile: str) -> Dict[str, Any]:
     name = str(profile or "").strip().lower() or "balanced"
     if name == "cpu":
