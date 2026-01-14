@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   API_BASE,
   api,
@@ -82,6 +82,12 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   const [keyframesLimit, setKeyframesLimit] = useState<number>(24)
   const [keyframesMethod, setKeyframesMethod] = useState<'interval' | 'scene' | 'all'>('interval')
   const [autoKeyframesLoadedForJobId, setAutoKeyframesLoadedForJobId] = useState<string | null>(null)
+
+  const indexStatusInFlightRef = useRef<boolean>(false)
+  const summaryInFlightRef = useRef<boolean>(false)
+  const outlineInFlightRef = useRef<boolean>(false)
+  const keyframesIndexInFlightRef = useRef<boolean>(false)
+  const keyframesListInFlightRef = useRef<boolean>(false)
 
   const isTerminalJobStatus = useCallback((status: string | null | undefined): boolean => {
     const s = String(status || '')
@@ -182,7 +188,8 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
 
   const loadIndexStatus = useCallback(
     async (opts?: { force?: boolean }) => {
-      if (!opts?.force && indexStatusBusy) return
+      if (indexStatusInFlightRef.current) return
+      indexStatusInFlightRef.current = true
       setIndexStatusBusy(true)
       setIndexStatusError(null)
       try {
@@ -194,14 +201,16 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
         setIndexStatus(null)
       } finally {
         setIndexStatusBusy(false)
+        indexStatusInFlightRef.current = false
       }
     },
-    [indexStatusBusy, videoId]
+    [videoId]
   )
 
   const loadSummary = useCallback(
     async (opts?: { force?: boolean }) => {
-      if (!opts?.force && summaryBusy) return
+      if (summaryInFlightRef.current) return
+      summaryInFlightRef.current = true
       setSummaryBusy(true)
       setSummaryError(null)
       try {
@@ -213,14 +222,16 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
         setSummaryStatus(null)
       } finally {
         setSummaryBusy(false)
+        summaryInFlightRef.current = false
       }
     },
-    [summaryBusy, videoId]
+    [videoId]
   )
 
   const loadOutline = useCallback(
     async (opts?: { force?: boolean }) => {
-      if (!opts?.force && outlineBusy) return
+      if (outlineInFlightRef.current) return
+      outlineInFlightRef.current = true
       setOutlineBusy(true)
       setOutlineError(null)
       try {
@@ -232,14 +243,16 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
         setOutlineRes(null)
       } finally {
         setOutlineBusy(false)
+        outlineInFlightRef.current = false
       }
     },
-    [outlineBusy, videoId]
+    [videoId]
   )
 
   const loadKeyframesIndex = useCallback(
     async (opts?: { force?: boolean }) => {
-      if (!opts?.force && keyframesIndexBusy) return
+      if (keyframesIndexInFlightRef.current) return
+      keyframesIndexInFlightRef.current = true
       setKeyframesIndexBusy(true)
       setKeyframesIndexError(null)
       try {
@@ -251,14 +264,16 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
         setKeyframesIndex(null)
       } finally {
         setKeyframesIndexBusy(false)
+        keyframesIndexInFlightRef.current = false
       }
     },
-    [keyframesIndexBusy, videoId]
+    [videoId]
   )
 
   const loadKeyframesList = useCallback(
     async (opts?: { force?: boolean }) => {
-      if (!opts?.force && keyframesListBusy) return
+      if (keyframesListInFlightRef.current) return
+      keyframesListInFlightRef.current = true
       setKeyframesListBusy(true)
       setKeyframesListError(null)
       try {
@@ -271,17 +286,27 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
         setKeyframesItems([])
       } finally {
         setKeyframesListBusy(false)
+        keyframesListInFlightRef.current = false
       }
     },
-    [keyframesLimit, keyframesListBusy, keyframesMethod, videoId]
+    [keyframesLimit, keyframesMethod, videoId]
   )
 
   useEffect(() => {
     void loadIndexStatus({ force: true })
+  }, [loadIndexStatus])
+
+  useEffect(() => {
     void loadSummary({ force: true })
+  }, [loadSummary])
+
+  useEffect(() => {
     void loadKeyframesIndex({ force: true })
+  }, [loadKeyframesIndex])
+
+  useEffect(() => {
     void loadKeyframesList({ force: true })
-  }, [loadIndexStatus, loadKeyframesIndex, loadKeyframesList, loadSummary])
+  }, [loadKeyframesList])
 
   const loadTranscriptPreview = useCallback(
     async (opts?: { force?: boolean }) => {
