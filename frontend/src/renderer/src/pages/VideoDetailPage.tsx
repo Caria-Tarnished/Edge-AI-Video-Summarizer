@@ -74,6 +74,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   const [outlineError, setOutlineError] = useState<string | null>(null)
   const [outlineRes, setOutlineRes] = useState<OutlineResponse | null>(null)
   const [outlineShow, setOutlineShow] = useState<boolean>(false)
+  const [outlineCollapsed, setOutlineCollapsed] = useState<Record<number, boolean>>({})
   const [autoSummaryLoadedForJobId, setAutoSummaryLoadedForJobId] = useState<string | null>(null)
 
   const [alignedKeyframesBusy, setAlignedKeyframesBusy] = useState<boolean>(false)
@@ -117,6 +118,9 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   const keyframesIndexInFlightRef = useRef<boolean>(false)
   const keyframesListInFlightRef = useRef<boolean>(false)
   const alignedKeyframesInFlightRef = useRef<boolean>(false)
+  const alignedKeyframesLastOkKeyRef = useRef<string>('')
+  const alignedKeyframesLastOkAtRef = useRef<number>(0)
+  const alignedKeyframesPendingForceRef = useRef<boolean>(false)
 
   const isTerminalJobStatus = useCallback((status: string | null | undefined): boolean => {
     const s = String(status || '')
@@ -158,13 +162,26 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
 
   const loadAlignedKeyframes = useCallback(
     async (opts?: { force?: boolean }) => {
-      if (alignedKeyframesInFlightRef.current) return
+      const method = keyframesMethod === 'scene' ? 'scene' : 'interval'
+      const fallback = method === 'scene' ? 'nearest' : 'none'
+      const reqKey = `${videoId}|${method}|2|2|${fallback}`
+      const now = Date.now()
+
+      if (!opts?.force) {
+        if (reqKey === alignedKeyframesLastOkKeyRef.current && now - alignedKeyframesLastOkAtRef.current < 1500) {
+          return
+        }
+      }
+
+      if (alignedKeyframesInFlightRef.current) {
+        if (opts?.force) alignedKeyframesPendingForceRef.current = true
+        return
+      }
+
       alignedKeyframesInFlightRef.current = true
       setAlignedKeyframesBusy(true)
       setAlignedKeyframesError(null)
       try {
-        const method = keyframesMethod === 'scene' ? 'scene' : 'interval'
-        const fallback = method === 'scene' ? 'nearest' : 'none'
         const res = await api.getAlignedKeyframes(videoId, {
           method,
           per_section: 2,
@@ -172,6 +189,8 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
           fallback
         })
         setAlignedKeyframesItems(Array.isArray((res as any).items) ? ((res as any).items as any[]) : [])
+        alignedKeyframesLastOkKeyRef.current = reqKey
+        alignedKeyframesLastOkAtRef.current = Date.now()
       } catch (e: any) {
         const msg = e && e.message ? String(e.message) : String(e)
         setAlignedKeyframesError(msg)
@@ -179,6 +198,11 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
       } finally {
         setAlignedKeyframesBusy(false)
         alignedKeyframesInFlightRef.current = false
+
+        if (alignedKeyframesPendingForceRef.current) {
+          alignedKeyframesPendingForceRef.current = false
+          void loadAlignedKeyframes({ force: true })
+        }
       }
     },
     [keyframesMethod, videoId]
@@ -442,7 +466,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
 
   useEffect(() => {
     if (!outlineShow) return
-    void loadAlignedKeyframes({ force: true })
+    void loadAlignedKeyframes()
   }, [keyframesMethod, loadAlignedKeyframes, outlineShow])
 
   useEffect(() => {
@@ -646,13 +670,40 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   )
 
   useEffect(() => {
+    if (!outlineShow) return
+    setOutlineCollapsed({})
+  }, [outlineRes, outlineShow])
+
+  const toggleOutlineCollapsed = useCallback((idx: number) => {
+    setOutlineCollapsed((prev) => {
+      const v = !!prev[idx]
+      return { ...prev, [idx]: !v }
+    })
+  }, [])
+
+  const setAllOutlineCollapsed = useCallback(
+    (collapsed: boolean) => {
+      const arr = outlineRes && Array.isArray((outlineRes as any).outline) ? ((outlineRes as any).outline as any[]) : []
+      if (!arr.length) {
+        setOutlineCollapsed({})
+        return
+      }
+      const next: Record<number, boolean> = {}
+      for (let i = 0; i < arr.length; i++) {
+        next[i] = collapsed
+      }
+      setOutlineCollapsed(next)
+    },
+    [outlineRes]
+  )
+
+  useEffect(() => {
     if (sidebarTab !== 'notes') return
     if (!notesAutoExpandOutline) return
     if (outlineShow) return
     setOutlineShow(true)
     void loadOutline({ force: true })
-    void loadAlignedKeyframes({ force: true })
-  }, [loadAlignedKeyframes, loadOutline, notesAutoExpandOutline, outlineShow, sidebarTab])
+  }, [loadOutline, notesAutoExpandOutline, outlineShow, sidebarTab])
 
   const loadKeyframesIndex = useCallback(
     async (opts?: { force?: boolean }) => {
@@ -1898,7 +1949,6 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
                       setOutlineShow(next)
                       if (next) {
                         void loadOutline({ force: true })
-                        void loadAlignedKeyframes({ force: true })
                       }
                     }}
                     disabled={busy}
@@ -1970,7 +2020,19 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
 
               {outlineShow ? (
                 <div className="subcard">
-                  <div style={{ fontWeight: 700, marginBottom: 8 }}>{'\u5927\u7eb2'}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                    <div style={{ fontWeight: 700 }}>{'\u5927\u7eb2'}</div>
+                    {outlineRes && Array.isArray((outlineRes as any).outline) && ((outlineRes as any).outline as any[]).length ? (
+                      <div className="row" style={{ marginTop: 0 }}>
+                        <button className="btn" onClick={() => setAllOutlineCollapsed(false)} disabled={busy}>
+                          {'\u5168\u90e8\u5c55\u5f00'}
+                        </button>
+                        <button className="btn" onClick={() => setAllOutlineCollapsed(true)} disabled={busy}>
+                          {'\u5168\u90e8\u6536\u8d77'}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                   {outlineError ? <div className="alert alert-error">{outlineError}</div> : null}
                   {outlineBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div> : null}
                   {alignedKeyframesError ? <div className="alert alert-error">{alignedKeyframesError}</div> : null}
@@ -2020,58 +2082,137 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
                           const bullets = Array.isArray(it?.bullets) ? (it.bullets as any[]) : []
                           const aligned = Array.isArray(alignedKeyframesItems) ? (alignedKeyframesItems[idx] as any) : null
                           const kfs = Array.isArray(aligned?.keyframes) ? (aligned.keyframes as any[]) : []
+                          const collapsed = !!outlineCollapsed[idx]
                           return (
                             <div
                               key={idx}
-                              onClick={() => seekToSeconds(start, { play: true })}
                               style={{
                                 padding: 10,
                                 border: '1px solid rgba(255,255,255,0.06)',
                                 borderRadius: 8,
                                 marginBottom: 10,
-                                cursor: 'pointer'
+                                background: 'rgba(255,255,255,0.02)'
                               }}
                             >
-                              <div style={{ fontWeight: 700, marginBottom: 4 }}>{title}</div>
-                              <div className="muted" style={{ marginBottom: bullets.length ? 6 : 0 }}>
-                                {fmtTime(start)}{end > 0 ? ` - ${fmtTime(end)}` : ''}
-                              </div>
-                              {bullets.length ? (
-                                <div style={{ marginLeft: 14 }}>
-                                  {bullets.slice(0, 12).map((b, j) => (
-                                    <div key={j} style={{ marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                                      {'- '}
-                                      {String(b || '')}
-                                    </div>
-                                  ))}
+                              <div
+                                onClick={() => seekToSeconds(start, { play: true })}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: 10,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      toggleOutlineCollapsed(idx)
+                                    }}
+                                    disabled={busy}
+                                    style={{
+                                      width: 22,
+                                      height: 22,
+                                      borderRadius: 6,
+                                      border: '1px solid rgba(255,255,255,0.12)',
+                                      background: 'rgba(255,255,255,0.04)',
+                                      color: 'inherit',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      flex: '0 0 auto'
+                                    }}
+                                    aria-label={collapsed ? 'expand' : 'collapse'}
+                                  >
+                                    {collapsed ? '>' : 'v'}
+                                  </button>
+                                  <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {title}
+                                  </div>
                                 </div>
-                              ) : null}
 
-                              {kfs.length ? (
-                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                                  {kfs.slice(0, 3).map((kf: any) => {
-                                    const img = kf?.image_url ? `${API_BASE}${String(kf.image_url)}` : ''
-                                    const tsMs = typeof kf?.timestamp_ms === 'number' ? kf.timestamp_ms : Number(kf?.timestamp_ms || 0)
-                                    const sec = tsMs / 1000
-                                    return (
-                                      <div key={String(kf?.id || tsMs)}>
-                                        {img ? (
-                                          <img
-                                            src={img}
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              seekToSeconds(sec, { play: true })
-                                            }}
-                                            style={{ width: 120, height: 72, objectFit: 'cover', borderRadius: 6, display: 'block' }}
-                                          />
-                                        ) : null}
-                                        <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>
-                                          {fmtTime(sec)}
-                                        </div>
-                                      </div>
-                                    )
-                                  })}
+                                <div className="muted" style={{ flex: '0 0 auto' }}>
+                                  {fmtTime(start)}{end > 0 ? ` - ${fmtTime(end)}` : ''}
                                 </div>
+                              </div>
+
+                              {!collapsed ? (
+                                <>
+                                  {bullets.length ? (
+                                    <div style={{ marginLeft: 14, marginTop: 8 }}>
+                                      {bullets.slice(0, 12).map((b, j) => (
+                                        <div key={j} style={{ marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.65 }}>
+                                          {'- '}
+                                          {String(b || '')}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : null}
+
+                                  {kfs.length ? (
+                                    <>
+                                      <div className="muted" style={{ marginTop: 10, fontSize: 12 }}>
+                                        {'\u5173\u952e\u5e27'} {`(${kfs.length})`}
+                                      </div>
+                                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                                        {kfs.slice(0, 4).map((kf: any) => {
+                                          const rawUrl = kf?.image_url ? String(kf.image_url) : ''
+                                          const img = rawUrl ? (rawUrl.startsWith('http') ? rawUrl : `${API_BASE}${rawUrl}`) : ''
+                                          const tsMs = typeof kf?.timestamp_ms === 'number' ? kf.timestamp_ms : Number(kf?.timestamp_ms || 0)
+                                          const sec = tsMs / 1000
+                                          return (
+                                            <div key={String(kf?.id || tsMs)} style={{ width: 120 }}>
+                                              <div style={{ position: 'relative', width: 120, height: 72 }}>
+                                                {img ? (
+                                                  <img
+                                                    src={img}
+                                                    onClick={(e) => {
+                                                      e.stopPropagation()
+                                                      seekToSeconds(sec, { play: true })
+                                                    }}
+                                                    style={{ width: 120, height: 72, objectFit: 'cover', borderRadius: 6, display: 'block', cursor: 'pointer' }}
+                                                  />
+                                                ) : (
+                                                  <div
+                                                    style={{
+                                                      width: 120,
+                                                      height: 72,
+                                                      borderRadius: 6,
+                                                      background: 'rgba(255,255,255,0.06)',
+                                                      border: '1px solid rgba(255,255,255,0.08)'
+                                                    }}
+                                                  />
+                                                )}
+                                                <div
+                                                  style={{
+                                                    position: 'absolute',
+                                                    right: 6,
+                                                    bottom: 6,
+                                                    padding: '2px 6px',
+                                                    borderRadius: 999,
+                                                    background: 'rgba(0,0,0,0.55)',
+                                                    fontSize: 12,
+                                                    lineHeight: 1.2
+                                                  }}
+                                                >
+                                                  {fmtTime(sec)}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    </>
+                                  ) : null}
+
+                                  {!kfs.length && !alignedKeyframesBusy && hasAnyAlignedKeyframes ? (
+                                    <div className="muted" style={{ marginTop: 10, fontSize: 12 }}>
+                                      {'\u65e0\u5bf9\u9f50\u5173\u952e\u5e27'}
+                                    </div>
+                                  ) : null}
+                                </>
                               ) : null}
                             </div>
                           )
