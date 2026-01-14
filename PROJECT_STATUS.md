@@ -108,9 +108,22 @@
 - Electron-Vite：显式配置 main/preload/renderer entry 与 build 输出，renderer dev server 绑定 `127.0.0.1`
 - Electron main：
   - dev 模式等待 renderer dev server ready 后再加载
-  - preload 输出兼容 `.js` / `.mjs`
+  - preload 输出兼容 `.js` / `.mjs`（当前 dev 使用 CommonJS `index.js`）
   - dev 模式关闭 `webSecurity`（仅开发期）以规避 CORS 阻断导致的 `Failed to fetch`
-- Renderer：Settings 页已联通后端 API（runtime profile / LLM preferences / llama-server status），并将中文 UI 文案替换为 Unicode escape，避免源码文件被 GBK/GB2312 编码保存时出现乱码
+- Renderer：
+  - Settings 页已联通后端 API（runtime profile / LLM preferences / llama-server status），并将中文 UI 文案替换为 Unicode escape，避免源码文件被 GBK/GB2312 编码保存时出现乱码
+  - Library（视频库）：
+    - `GET /videos` 视频列表 + 刷新
+    - Electron 文件选择器导入视频（`POST /videos/import`），导入后自动刷新列表
+    - 点击视频进入详情页
+  - Video Detail（视频详情）：
+    - 展示基础视频信息
+    - 转写（transcribe）：参数面板（segment_seconds/overlap_seconds/from_scratch）+ SSE 进度订阅 + transcript 预览（`GET /videos/{id}/transcript`）
+    - 索引/摘要/关键帧：SSE 进度订阅 + 结果预览
+      - index：`GET /videos/{id}/index`
+      - summary：`GET /videos/{id}/summary` + outline（可选）`GET /videos/{id}/outline`
+      - keyframes：`GET /videos/{id}/keyframes/index` + 缩略图列表 `GET /videos/{id}/keyframes`
+    - 修复：避免预览区因 React effect 依赖导致的重复请求风暴与偶发 “Failed to fetch”
 
 ## API 一览（MVP-1 + MVP-2 + MVP-3 + MVP-4）
 
@@ -167,10 +180,13 @@
 	  - 最小 pytest 覆盖与稳定性回归：覆盖 `/summarize`、`/keyframes`（interval/scene/aligned）关键分支与错误码
 	  - 自动化脚本补齐（可选）：新增 keyframes 端到端验证脚本（类比 `index_search_chat_test.ps1`）
 	- 桌面端（Electron/React）：开发联调与基础功能（下一步）
-	  - 视频库（Library）：视频列表 + 导入入口（Electron 文件选择器）
-	  - 视频详情：转写/索引/摘要/关键帧的触发与结果展示（含进度）
-	  - 任务进度：SSE/WS 实时订阅 + 断线重连 + 状态恢复
-	  - Chat：streaming 输出 + citations 展示
+	  - 完成：视频库（Library）：视频列表 + 导入入口（Electron 文件选择器）
+	  - 完成：视频详情：转写/索引/摘要/关键帧的触发与结果展示（含 SSE 进度与预览）
+	  - 下一步（体验优先，按 Architecture_Design）：
+	    - 播放器：在详情页集成视频播放（含 seek），并支持从 transcript/outline/citations 点击时间戳跳转
+	    - Chat：streaming 输出 + citations 展示（对接 `/chat` SSE），并支持点击引用跳转到视频时间戳
+	    - 章节侧栏：摘要/大纲 tab + 关键帧对齐展示（优先对接 `/videos/{id}/keyframes/aligned`）
+	    - 任务中心（可选）：全局 jobs 列表 + 取消/重试 + 进度订阅
 	- 打包与分发：PyInstaller + Electron Builder；模型下载/导入向导；数据目录迁移/备份
 
 ## 备忘 / 待验证事项（重要）
@@ -461,3 +477,4 @@ powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\
 - 2026-01-13：MVP-3：新增 `summarize` job + summary/outline/export API；增强 JSON 大纲解析与修复逻辑；提高 reduce/outline 阶段 `max_tokens` 默认值，避免导出 Markdown/大纲被截断；端到端验证通过（outline 为结构化数组，export/markdown 成功落盘）。
 - 2026-01-13：MVP-4：新增 `keyframes` job 与 SQLite 落盘（interval/scene）；scene 模式写入 `score`；aligned 支持 scene 优先高分并可返回 `score`，可选 `fallback=nearest`。
 - 2026-01-13：桌面端开发环境跑通：一键启动/停止脚本完善（含默认启动 llama-server）；修复 Electron-Vite entry/host 与 dev server 等待逻辑；dev 模式 CORS 绕过；前端中文 UI 文案改为 Unicode escape，避免 GBK/GB2312 编码导致乱码。
+- 2026-01-14：桌面端联调：完成 Library/Video Detail 页面（导入/列表/导航）；转写参数面板 + SSE 进度 + transcript 预览；索引/摘要/关键帧 SSE 进度订阅与结果预览；修复预览区重复请求风暴导致的后端日志刷屏与偶发 “Failed to fetch”。

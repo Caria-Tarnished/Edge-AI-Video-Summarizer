@@ -70,7 +70,7 @@
 ## 目录结构
 
 - `backend/`：FastAPI 后端源码、测试与开发工具配置
-- `frontend/`：Electron + Vite + React 桌面端（开发中）
+- `frontend/`：Electron + Vite + React 桌面端（开发中；已实现视频库/导入/详情页与任务进度预览）
 - `scripts/`：PowerShell 自动化验证/质量检查脚本
 - `artifacts/`：脚本输出与导出文件（默认忽略）
 - `start_dev.cmd`：桌面端开发一键启动（llama-server + backend + Electron 前端）
@@ -142,6 +142,13 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```
 
 > 说明：llama-server 的状态由后端探测 `LLM_LOCAL_BASE_URL + /models`。如果 Settings 里显示无法连接，优先确认 `http://127.0.0.1:8080/v1/models` 是否可访问，以及查看 `artifacts/logs/llama_server_*.stderr.log`。
+
+桌面端当前已联通的功能：
+
+- 视频库（Library）：视频列表（`GET /videos`）+ 导入（Electron 文件选择器 → `POST /videos/import`）
+- 视频详情（Video Detail）：
+  - 转写：参数面板 + SSE 进度订阅（`GET /jobs/{job_id}/events`）+ transcript 预览（`GET /videos/{id}/transcript`）
+  - 索引/摘要/关键帧：SSE 进度订阅 + 结果预览（index/summary/outline/keyframes）
 
 ### 3) 健康检查
 
@@ -219,9 +226,13 @@ curl.exe http://127.0.0.1:8001/health
 
 ## 下一步（建议顺序）
 
-- 桌面端：视频库（Library）页（列表 + 导入入口）
-- 桌面端：视频详情页（转写/索引/摘要/关键帧）与进度展示（SSE/WS）
-- 桌面端：Chat 页（streaming + citations）
+- 完成：桌面端视频库（Library）页（列表 + 导入入口）
+- 完成：桌面端视频详情页（转写/索引/摘要/关键帧）与进度展示（SSE）+ 结果预览
+- 进行中 / 下一步（按 `Architecture_Design.md` 的 UI 目标）：
+  - 详情页集成播放器（seek/倍速等基础能力），并支持从 transcript/outline/citations 点击时间戳跳转
+  - 桌面端 Chat 页（对接 `/chat` SSE streaming）+ citations 展示与跳转
+  - 摘要/大纲侧栏（Tab）与关键帧对齐展示（优先对接 `/videos/{id}/keyframes/aligned`）
+  - 打包与分发：PyInstaller + Electron Builder；模型下载/导入向导；数据目录迁移/备份
 
 ---
 
