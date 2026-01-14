@@ -1,5 +1,6 @@
 import asyncio
 import json
+import mimetypes
 import os
 import threading
 from typing import Any, Dict, Optional
@@ -347,6 +348,28 @@ def get_video_api(video_id: str) -> Dict[str, Any]:
     if not video:
         raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
     return video
+
+
+@app.get("/videos/{video_id}/file")
+def get_video_file_api(video_id: str) -> Response:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
+
+    path = str(video.get("file_path") or "")
+    if not path:
+        raise HTTPException(status_code=404, detail="VIDEO_FILE_NOT_FOUND")
+
+    abspath = os.path.abspath(path)
+    if not os.path.exists(abspath):
+        raise HTTPException(status_code=404, detail="VIDEO_FILE_NOT_FOUND")
+
+    media_type = mimetypes.guess_type(abspath)[0] or "application/octet-stream"
+    return FileResponse(
+        path=abspath,
+        media_type=media_type,
+        headers={"Accept-Ranges": "bytes"},
+    )
 
 
 @app.get("/videos")

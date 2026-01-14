@@ -24,6 +24,9 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
 
+  const videoElRef = useRef<HTMLVideoElement | null>(null)
+  const pendingSeekRef = useRef<{ seconds: number; play: boolean } | null>(null)
+
   const [lastTranscribeJob, setLastTranscribeJob] = useState<JobItem | null>(null)
   const [transcribeJobId, setTranscribeJobId] = useState<string | null>(null)
   const [transcribeJob, setTranscribeJob] = useState<JobItem | null>(null)
@@ -115,6 +118,52 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     const v = typeof p === 'number' && Number.isFinite(p) ? p : 0
     const pct = Math.max(0, Math.min(100, Math.round(v * 100)))
     return `${pct}%`
+  }, [])
+
+  const videoFileUrl = useMemo(() => {
+    return `${API_BASE}/videos/${encodeURIComponent(videoId)}/file`
+  }, [videoId])
+
+  const seekToSeconds = useCallback((seconds: number, opts?: { play?: boolean }) => {
+    const el = videoElRef.current
+    if (!el) return
+
+    const s = typeof seconds === 'number' && Number.isFinite(seconds) ? seconds : 0
+    const t = Math.max(0, s)
+    const play = opts?.play !== false
+
+    if (el.readyState >= 1) {
+      try {
+        el.currentTime = t
+      } catch {
+      }
+      if (play) {
+        void el.play().catch(() => {})
+      }
+      return
+    }
+
+    pendingSeekRef.current = { seconds: t, play }
+    try {
+      el.currentTime = t
+    } catch {
+    }
+  }, [])
+
+  const onVideoLoadedMetadata = useCallback(() => {
+    const el = videoElRef.current
+    if (!el) return
+    const pending = pendingSeekRef.current
+    if (!pending) return
+
+    pendingSeekRef.current = null
+    try {
+      el.currentTime = pending.seconds
+    } catch {
+    }
+    if (pending.play) {
+      void el.play().catch(() => {})
+    }
   }, [])
 
   const load = useCallback(async () => {
@@ -892,6 +941,24 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
       </div>
 
       <div className="card">
+        <h3 style={{ margin: 0 }}>{'\u64ad\u653e\u5668'}</h3>
+        <div className="subcard" style={{ padding: 12 }}>
+          <video
+            key={videoId}
+            ref={videoElRef}
+            src={videoFileUrl}
+            controls
+            preload="metadata"
+            onLoadedMetadata={onVideoLoadedMetadata}
+            style={{ width: '100%', maxHeight: 520, background: 'rgba(0,0,0,0.35)', borderRadius: 8 }}
+          />
+          <div className="muted" style={{ marginTop: 8 }}>
+            {'\u652f\u6301\u70b9\u51fb\u8f6c\u5199\u6bb5\u843d\u6216\u5173\u952e\u5e27\u8df3\u8f6c\u5230\u5bf9\u5e94\u65f6\u95f4\u6233\u3002'}
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
         <h3 style={{ margin: 0 }}>{'\u64cd\u4f5c'}</h3>
         <div className="subcard">
           <div style={{ fontWeight: 700, marginBottom: 8 }}>{'\u8f6c\u5199\u53c2\u6570'}</div>
@@ -1207,10 +1274,20 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             {keyframesItems.map((it) => {
               const img = (it as any).image_url ? `${API_BASE}${String((it as any).image_url)}` : ''
               const ts = typeof it.timestamp_ms === 'number' ? it.timestamp_ms : Number((it as any).timestamp_ms || 0)
+              const seconds = ts / 1000
               return (
-                <div key={String(it.id)} style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: 8 }}>
+                <div
+                  key={String(it.id)}
+                  onClick={() => seekToSeconds(seconds, { play: true })}
+                  style={{
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: 8,
+                    padding: 8,
+                    cursor: 'pointer'
+                  }}
+                >
                   <div className="muted" style={{ marginBottom: 6 }}>
-                    {fmtTime(ts / 1000)}
+                    {fmtTime(seconds)}
                   </div>
                   {img ? (
                     <img
@@ -1262,7 +1339,15 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
               const end = typeof (seg as any).end === 'number' ? (seg as any).end : Number((seg as any).end || 0)
               const text = String((seg as any).text || (seg as any).content || '')
               return (
-                <div key={idx} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div
+                  key={idx}
+                  onClick={() => seekToSeconds(start, { play: true })}
+                  style={{
+                    padding: '8px 0',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    cursor: 'pointer'
+                  }}
+                >
                   <div className="muted" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>
                     [{fmtTime(start)} - {fmtTime(end)}]
                   </div>
