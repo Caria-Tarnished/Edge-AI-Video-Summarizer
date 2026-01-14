@@ -127,6 +127,47 @@ export type ListKeyframesResponse = {
   items: KeyframeItem[]
 }
 
+export type AlignedKeyframeItem = {
+  id: string
+  timestamp_ms: number
+  image_url: string
+  score?: number | null
+  [k: string]: any
+}
+
+export type AlignedKeyframesSection = {
+  title?: string | null
+  start_time?: number
+  end_time?: number
+  keyframes: AlignedKeyframeItem[]
+  [k: string]: any
+}
+
+export type AlignedKeyframesResponse = {
+  video_id: string
+  items: AlignedKeyframesSection[]
+}
+
+export type ChatCitationItem = {
+  chunk_id?: string
+  score?: number
+  start_time?: number | null
+  end_time?: number | null
+  text?: string
+  metadata?: any
+  [k: string]: any
+}
+
+export type ChatResult = {
+  status: number
+  detail: string
+  job_id: string | null
+  video_id: string
+  answer?: string
+  citations?: ChatCitationItem[]
+  raw: any
+}
+
 export type CreateVideoJobResult = {
   status: number
   detail: string
@@ -254,6 +295,23 @@ export const api = {
         offset: params?.offset ?? 0
       })}`
     ),
+  getAlignedKeyframes: (
+    video_id: string,
+    params?: {
+      method?: 'interval' | 'scene'
+      per_section?: number
+      min_gap_seconds?: number
+      fallback?: 'none' | 'nearest'
+    }
+  ) =>
+    fetchJson<AlignedKeyframesResponse>(
+      `/videos/${encodeURIComponent(video_id)}/keyframes/aligned${toQuery({
+        method: params?.method || 'interval',
+        per_section: params?.per_section ?? 2,
+        min_gap_seconds: params?.min_gap_seconds ?? 2,
+        fallback: params?.fallback || 'none'
+      })}`
+    ),
   createTranscribeJob: (payload: {
     video_id: string
     segment_seconds?: number
@@ -317,5 +375,34 @@ export const api = {
       video_id: obj?.video_id ? String(obj.video_id) : String(video_id),
       raw: obj
     } satisfies CreateVideoJobResult
+  },
+
+  chat: async (payload: {
+    video_id: string
+    query: string
+    top_k?: number
+    stream?: boolean
+    confirm_send?: boolean
+  }) => {
+    const res = await fetchJsonWithStatus<any>('/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        video_id: payload.video_id,
+        query: payload.query,
+        top_k: typeof payload.top_k === 'number' ? payload.top_k : 5,
+        stream: Boolean(payload.stream),
+        confirm_send: Boolean(payload.confirm_send)
+      })
+    })
+    const obj = res.data as any
+    return {
+      status: res.status,
+      detail: String(obj?.detail || obj?.mode || ''),
+      job_id: obj?.job_id ? String(obj.job_id) : null,
+      video_id: obj?.video_id ? String(obj.video_id) : String(payload.video_id),
+      answer: obj?.answer ? String(obj.answer) : undefined,
+      citations: Array.isArray(obj?.citations) ? (obj.citations as ChatCitationItem[]) : undefined,
+      raw: obj
+    } satisfies ChatResult
   }
 }

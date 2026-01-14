@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   API_BASE,
   api,
+  type ChatCitationItem,
   type CreateVideoJobResult,
   type JobItem,
   type KeyframeItem,
@@ -26,6 +27,9 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
 
   const videoElRef = useRef<HTMLVideoElement | null>(null)
   const pendingSeekRef = useRef<{ seconds: number; play: boolean } | null>(null)
+  const [activeTranscriptIndex, setActiveTranscriptIndex] = useState<number>(-1)
+  const activeTranscriptIndexRef = useRef<number>(-1)
+  const activeTranscriptElRef = useRef<HTMLDivElement | null>(null)
 
   const [lastTranscribeJob, setLastTranscribeJob] = useState<JobItem | null>(null)
   const [transcribeJobId, setTranscribeJobId] = useState<string | null>(null)
@@ -72,6 +76,10 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   const [outlineShow, setOutlineShow] = useState<boolean>(false)
   const [autoSummaryLoadedForJobId, setAutoSummaryLoadedForJobId] = useState<string | null>(null)
 
+  const [alignedKeyframesBusy, setAlignedKeyframesBusy] = useState<boolean>(false)
+  const [alignedKeyframesError, setAlignedKeyframesError] = useState<string | null>(null)
+  const [alignedKeyframesItems, setAlignedKeyframesItems] = useState<any[]>([])
+
   const [keyframesJobId, setKeyframesJobId] = useState<string | null>(null)
   const [keyframesJob, setKeyframesJob] = useState<JobItem | null>(null)
   const [keyframesSseState, setKeyframesSseState] = useState<'idle' | 'connecting' | 'open' | 'error' | 'closed'>('idle')
@@ -86,11 +94,26 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   const [keyframesMethod, setKeyframesMethod] = useState<'interval' | 'scene' | 'all'>('interval')
   const [autoKeyframesLoadedForJobId, setAutoKeyframesLoadedForJobId] = useState<string | null>(null)
 
+  const [chatQuery, setChatQuery] = useState<string>('')
+  const [chatTopK, setChatTopK] = useState<number>(5)
+  const [chatBusy, setChatBusy] = useState<boolean>(false)
+  const [chatError, setChatError] = useState<string | null>(null)
+  const [chatDetail, setChatDetail] = useState<string | null>(null)
+  const [chatAnswer, setChatAnswer] = useState<string>('')
+  const [chatCitations, setChatCitations] = useState<ChatCitationItem[]>([])
+  const [chatConfirmSend, setChatConfirmSend] = useState<boolean>(false)
+  const [chatNeedsConfirm, setChatNeedsConfirm] = useState<boolean>(false)
+  const [chatWaitingIndex, setChatWaitingIndex] = useState<boolean>(false)
+
+  const chatAbortRef = useRef<AbortController | null>(null)
+  const chatPendingAfterIndexRef = useRef<{ query: string; top_k: number; confirm_send: boolean } | null>(null)
+
   const indexStatusInFlightRef = useRef<boolean>(false)
   const summaryInFlightRef = useRef<boolean>(false)
   const outlineInFlightRef = useRef<boolean>(false)
   const keyframesIndexInFlightRef = useRef<boolean>(false)
   const keyframesListInFlightRef = useRef<boolean>(false)
+  const alignedKeyframesInFlightRef = useRef<boolean>(false)
 
   const isTerminalJobStatus = useCallback((status: string | null | undefined): boolean => {
     const s = String(status || '')
@@ -120,9 +143,60 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     return `${pct}%`
   }, [])
 
+  const fmtScore = useCallback((s: number | null | undefined): string => {
+    const v = typeof s === 'number' && Number.isFinite(s) ? s : 0
+    const pct = Math.max(0, Math.min(100, Math.round(v * 100)))
+    return `${pct}%`
+  }, [])
+
   const videoFileUrl = useMemo(() => {
     return `${API_BASE}/videos/${encodeURIComponent(videoId)}/file`
   }, [videoId])
+
+  const loadAlignedKeyframes = useCallback(
+    async (opts?: { force?: boolean }) => {
+      if (alignedKeyframesInFlightRef.current) return
+      alignedKeyframesInFlightRef.current = true
+      setAlignedKeyframesBusy(true)
+      setAlignedKeyframesError(null)
+      try {
+        const method = keyframesMethod === 'scene' ? 'scene' : 'interval'
+        const fallback = method === 'scene' ? 'nearest' : 'none'
+        const res = await api.getAlignedKeyframes(videoId, {
+          method,
+          per_section: 2,
+          min_gap_seconds: 2,
+          fallback
+        })
+        setAlignedKeyframesItems(Array.isArray((res as any).items) ? ((res as any).items as any[]) : [])
+      } catch (e: any) {
+        const msg = e && e.message ? String(e.message) : String(e)
+        setAlignedKeyframesError(msg)
+        setAlignedKeyframesItems([])
+      } finally {
+        setAlignedKeyframesBusy(false)
+        alignedKeyframesInFlightRef.current = false
+      }
+    },
+    [keyframesMethod, videoId]
+  )
+
+  const subtitlesVttUrl = useMemo(() => {
+    return `${API_BASE}/videos/${encodeURIComponent(videoId)}/subtitles/vtt`
+  }, [videoId])
+
+  useEffect(() => {
+    return () => {
+      if (chatAbortRef.current) {
+        try {
+          chatAbortRef.current.abort()
+        } catch {
+        }
+      }
+      chatAbortRef.current = null
+      chatPendingAfterIndexRef.current = null
+    }
+  }, [])
 
   const seekToSeconds = useCallback((seconds: number, opts?: { play?: boolean }) => {
     const el = videoElRef.current
@@ -165,6 +239,270 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
       void el.play().catch(() => {})
     }
   }, [])
+
+  const doChat = useCallback(
+    async (q: string, opts?: { topK?: number; confirmSend?: boolean; fromRetry?: boolean }) => {
+      const query = String(q || '').trim()
+      if (!query) return
+
+      const topK = typeof opts?.topK === 'number' ? opts?.topK : chatTopK
+      const confirmSend = typeof opts?.confirmSend === 'boolean' ? opts?.confirmSend : chatConfirmSend
+
+      if (!opts?.fromRetry) {
+        chatPendingAfterIndexRef.current = null
+      }
+
+      if (chatAbortRef.current) {
+        try {
+          chatAbortRef.current.abort()
+        } catch {
+        }
+      }
+
+      const ac = new AbortController()
+      chatAbortRef.current = ac
+
+      setChatBusy(true)
+      setChatError(null)
+      setChatDetail(null)
+      setChatAnswer('')
+      setChatCitations([])
+      setChatNeedsConfirm(false)
+      setChatWaitingIndex(false)
+
+      try {
+        const res = await fetch(`${API_BASE}/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'text/event-stream'
+          },
+          body: JSON.stringify({
+            video_id: videoId,
+            query,
+            top_k: topK,
+            stream: true,
+            confirm_send: confirmSend
+          }),
+          signal: ac.signal
+        })
+
+        const ct = String(res.headers.get('content-type') || '')
+        const isEventStream = ct.includes('text/event-stream')
+        if (!res.ok) {
+          const txt = await res.text().catch(() => '')
+          let detail = res.statusText
+          try {
+            const obj = txt ? JSON.parse(txt) : null
+            detail = String((obj as any)?.detail || detail)
+          } catch {
+          }
+          if (String(detail) === 'CONFIRM_SEND_REQUIRED') {
+            setChatNeedsConfirm(true)
+          }
+          throw new Error(`${res.status} ${detail}`)
+        }
+
+        if (!isEventStream || !res.body) {
+          const txt = await res.text().catch(() => '')
+          const obj = txt ? (JSON.parse(txt) as any) : null
+          const detail = obj?.detail ? String(obj.detail) : null
+          setChatDetail(detail)
+          setChatAnswer(obj?.answer ? String(obj.answer) : '')
+          setChatCitations(Array.isArray(obj?.citations) ? (obj.citations as ChatCitationItem[]) : [])
+
+          if (res.status === 202) {
+            const jobId = obj?.job_id ? String(obj.job_id) : ''
+            if (jobId) {
+              setIndexJobId(jobId)
+              setIndexJob(null)
+              setAutoIndexLoadedForJobId(null)
+              setChatWaitingIndex(true)
+              chatPendingAfterIndexRef.current = {
+                query,
+                top_k: topK,
+                confirm_send: confirmSend
+              }
+            }
+          }
+          return
+        }
+
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder('utf-8')
+        let buf = ''
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+          buf += decoder.decode(value, { stream: true })
+
+          while (true) {
+            const sepIdx = buf.indexOf('\n\n')
+            if (sepIdx < 0) break
+            const raw = buf.slice(0, sepIdx)
+            buf = buf.slice(sepIdx + 2)
+
+            const lines = raw.split('\n')
+            let ev = 'message'
+            const dataLines: string[] = []
+            for (const line of lines) {
+              const s = String(line || '')
+              if (s.startsWith('event:')) {
+                ev = s.slice('event:'.length).trim() || 'message'
+                continue
+              }
+              if (s.startsWith('data:')) {
+                dataLines.push(s.slice('data:'.length).trimStart())
+                continue
+              }
+            }
+
+            const dataRaw = dataLines.join('\n').trim()
+            if (!dataRaw) continue
+            let payload: any = null
+            try {
+              payload = JSON.parse(dataRaw)
+            } catch {
+              payload = { raw: dataRaw }
+            }
+
+            if (ev === 'token') {
+              const delta = payload?.delta ? String(payload.delta) : ''
+              if (delta) setChatAnswer((prev) => prev + delta)
+              continue
+            }
+
+            if (ev === 'done') {
+              setChatDetail(payload?.mode ? String(payload.mode) : null)
+              if (payload?.answer) setChatAnswer(String(payload.answer))
+              setChatCitations(Array.isArray(payload?.citations) ? (payload.citations as ChatCitationItem[]) : [])
+              return
+            }
+
+            if (ev === 'error') {
+              const detail = payload?.detail ? String(payload.detail) : 'UNKNOWN_ERROR'
+              if (detail === 'CONFIRM_SEND_REQUIRED') {
+                setChatNeedsConfirm(true)
+              }
+              throw new Error(detail)
+            }
+          }
+        }
+      } catch (e: any) {
+        const msg = e && e.name === 'AbortError' ? null : e && e.message ? String(e.message) : String(e)
+        if (msg) setChatError(msg)
+      } finally {
+        if (chatAbortRef.current === ac) {
+          chatAbortRef.current = null
+        }
+        setChatBusy(false)
+      }
+    },
+    [API_BASE, chatConfirmSend, chatTopK, videoId]
+  )
+
+  const sendChat = useCallback(() => {
+    const q = String(chatQuery || '').trim()
+    if (!q) return
+    void doChat(q)
+  }, [chatQuery, doChat])
+
+  const cancelChat = useCallback(() => {
+    if (chatAbortRef.current) {
+      try {
+        chatAbortRef.current.abort()
+      } catch {
+      }
+    }
+    chatPendingAfterIndexRef.current = null
+    setChatWaitingIndex(false)
+  }, [])
+
+  useEffect(() => {
+    const pending = chatPendingAfterIndexRef.current
+    if (!pending) return
+    if (!indexJob) return
+
+    const st = String((indexJob as any).status || '')
+    if (st === 'completed') {
+      chatPendingAfterIndexRef.current = null
+      setChatWaitingIndex(false)
+      void doChat(pending.query, { topK: pending.top_k, confirmSend: pending.confirm_send, fromRetry: true })
+      return
+    }
+    if (st === 'failed' || st === 'cancelled') {
+      chatPendingAfterIndexRef.current = null
+      setChatWaitingIndex(false)
+      setChatError('INDEX_FAILED')
+    }
+  }, [doChat, indexJob])
+
+  useEffect(() => {
+    if (!outlineShow) return
+    void loadAlignedKeyframes({ force: true })
+  }, [keyframesMethod, loadAlignedKeyframes, outlineShow])
+
+  useEffect(() => {
+    if (!outlineShow) return
+    if (!summaryJobId) return
+    if (!summaryJob) return
+    if (String(summaryJob.status) !== 'completed') return
+    void loadAlignedKeyframes({ force: true })
+  }, [loadAlignedKeyframes, outlineShow, summaryJob, summaryJobId])
+
+  useEffect(() => {
+    if (!outlineShow) return
+    if (!keyframesJobId) return
+    if (!keyframesJob) return
+    if (String(keyframesJob.status) !== 'completed') return
+    void loadAlignedKeyframes({ force: true })
+  }, [keyframesJob, keyframesJobId, loadAlignedKeyframes, outlineShow])
+
+  useEffect(() => {
+    activeTranscriptIndexRef.current = -1
+    setActiveTranscriptIndex(-1)
+  }, [videoId, transcriptSegments])
+
+  useEffect(() => {
+    const el = videoElRef.current
+    if (!el) return
+
+    const onTimeUpdate = () => {
+      if (!transcriptSegments.length) return
+      const t = typeof el.currentTime === 'number' && Number.isFinite(el.currentTime) ? el.currentTime : 0
+
+      let idx = -1
+      for (let i = 0; i < transcriptSegments.length; i++) {
+        const seg: any = transcriptSegments[i]
+        const start = typeof seg?.start === 'number' ? seg.start : Number(seg?.start || 0)
+        const endRaw = typeof seg?.end === 'number' ? seg.end : Number(seg?.end || 0)
+        const end = endRaw > start ? endRaw : start + 0.001
+        if (t >= start && t < end) {
+          idx = i
+          break
+        }
+      }
+
+      if (idx !== activeTranscriptIndexRef.current) {
+        activeTranscriptIndexRef.current = idx
+        setActiveTranscriptIndex(idx)
+      }
+    }
+
+    el.addEventListener('timeupdate', onTimeUpdate)
+    return () => {
+      el.removeEventListener('timeupdate', onTimeUpdate)
+    }
+  }, [transcriptSegments])
+
+  useEffect(() => {
+    const el = activeTranscriptElRef.current
+    if (!el) return
+    try {
+      el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    } catch {
+    }
+  }, [activeTranscriptIndex])
 
   const load = useCallback(async () => {
     setBusy(true)
@@ -219,6 +557,9 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     setOutlineError(null)
     setOutlineRes(null)
     setOutlineShow(false)
+    setAlignedKeyframesBusy(false)
+    setAlignedKeyframesError(null)
+    setAlignedKeyframesItems([])
     setAutoSummaryLoadedForJobId(null)
 
     setLastKeyframesJob(null)
@@ -849,7 +1190,8 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             void loadSummary({ force: true })
           }
         } else {
-          const r = await api.createKeyframesJob(videoId, { from_scratch: false, mode: 'interval' })
+          const mode = keyframesMethod === 'scene' ? 'scene' : 'interval'
+          const r = await api.createKeyframesJob(videoId, { from_scratch: false, mode })
           setLastKeyframesJob(r)
           if (r.status === 202 && r.job_id) {
             setKeyframesJobId(r.job_id)
@@ -869,7 +1211,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
         setBusy(false)
       }
     },
-    [loadIndexStatus, loadKeyframesIndex, loadKeyframesList, loadSummary, startTranscribe, videoId]
+    [keyframesMethod, loadIndexStatus, loadKeyframesIndex, loadKeyframesList, loadSummary, startTranscribe, videoId]
   )
 
   const headerTitle = useMemo(() => {
@@ -896,6 +1238,11 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     if (!keyframesJob) return '-'
     return fmtPct(typeof keyframesJob.progress === 'number' ? keyframesJob.progress : 0)
   }, [fmtPct, keyframesJob])
+
+  const hasAnyAlignedKeyframes = useMemo(() => {
+    if (!Array.isArray(alignedKeyframesItems)) return false
+    return alignedKeyframesItems.some((it: any) => Array.isArray(it?.keyframes) && it.keyframes.length > 0)
+  }, [alignedKeyframesItems])
 
   return (
     <div className="stack">
@@ -951,7 +1298,15 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             preload="metadata"
             onLoadedMetadata={onVideoLoadedMetadata}
             style={{ width: '100%', maxHeight: 520, background: 'rgba(0,0,0,0.35)', borderRadius: 8 }}
-          />
+          >
+            <track
+              kind="subtitles"
+              src={subtitlesVttUrl}
+              srcLang="zh"
+              label={'\u4e2d\u6587'}
+              default
+            />
+          </video>
           <div className="muted" style={{ marginTop: 8 }}>
             {'\u652f\u6301\u70b9\u51fb\u8f6c\u5199\u6bb5\u843d\u6216\u5173\u952e\u5e27\u8df3\u8f6c\u5230\u5bf9\u5e94\u65f6\u95f4\u6233\u3002'}
           </div>
@@ -1119,6 +1474,101 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
 
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <h3 style={{ margin: 0 }}>{'\u0041\u0049 \u52a9\u624b'}</h3>
+          <div className="row" style={{ marginTop: 0 }}>
+            <div className="muted">top_k</div>
+            <input
+              value={String(chatTopK)}
+              onChange={(e) => {
+                const n = parseInt(e.target.value || '0', 10)
+                const v = Number.isFinite(n) ? n : 5
+                setChatTopK(Math.max(1, Math.min(20, v)))
+              }}
+              style={{ width: 80 }}
+              disabled={busy || chatBusy}
+            />
+            <button className="btn primary" onClick={sendChat} disabled={busy || chatBusy || !String(chatQuery || '').trim()}>
+              {chatBusy ? '\u6b63\u5728\u751f\u6210...' : '\u53d1\u9001'}
+            </button>
+            <button className="btn" onClick={cancelChat} disabled={busy || !chatBusy}>
+              {'\u53d6\u6d88'}
+            </button>
+          </div>
+        </div>
+
+        {chatError ? <div className="alert alert-error">{chatError}</div> : null}
+        {chatDetail ? <div className="alert alert-info">{chatDetail}</div> : null}
+        {chatWaitingIndex ? <div className="alert alert-info">{'\u6b63\u5728\u7b49\u5f85\u7d22\u5f15\u5b8c\u6210\uff0c\u5b8c\u6210\u540e\u5c06\u81ea\u52a8\u91cd\u8bd5...'} </div> : null}
+
+        <div className="subcard">
+          <div className="muted" style={{ marginBottom: 6 }}>
+            {'\u8bf7\u8f93\u5165\u4f60\u7684\u95ee\u9898\uff0c\u5982\uff1a\u8fd9\u4e2a\u89c6\u9891\u7684\u4e3b\u8981\u7ed3\u8bba\u662f\u4ec0\u4e48\uff1f'}
+          </div>
+          {chatNeedsConfirm ? (
+            <div className="alert alert-info">{'\u9700\u8981\u786e\u8ba4\u5411\u5916\u90e8\u6a21\u578b\u63d0\u4ea4\u8bf7\u6c42\u3002\u8bf7\u52fe\u9009\u786e\u8ba4\u540e\u518d\u53d1\u9001\u3002'}</div>
+          ) : null}
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <input
+              type="checkbox"
+              checked={chatConfirmSend}
+              onChange={(e) => setChatConfirmSend(e.target.checked)}
+              disabled={busy || chatBusy}
+            />
+            <span className="muted">{'\u786e\u8ba4\u53d1\u9001\uff08confirm_send\uff09'}</span>
+          </label>
+          <textarea
+            value={chatQuery}
+            onChange={(e) => setChatQuery(e.target.value)}
+            rows={4}
+            style={{ width: '100%', resize: 'vertical' }}
+            disabled={busy || chatBusy}
+          />
+        </div>
+
+        {chatAnswer ? (
+          <div className="subcard">
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>{'\u56de\u7b54'}</div>
+            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{chatAnswer}</div>
+          </div>
+        ) : null}
+
+        {chatCitations.length ? (
+          <div className="subcard">
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>{'\u5f15\u7528'}</div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {chatCitations.slice(0, 8).map((c, idx) => {
+                const start = typeof (c as any).start_time === 'number' ? (c as any).start_time : Number((c as any).start_time || 0)
+                const end = typeof (c as any).end_time === 'number' ? (c as any).end_time : Number((c as any).end_time || 0)
+                const score = typeof (c as any).score === 'number' ? (c as any).score : Number((c as any).score || 0)
+                const text = String((c as any).text || '')
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => seekToSeconds(start, { play: true })}
+                    style={{
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: 8,
+                      padding: 10,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <div className="muted" style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                      <div>
+                        {fmtTime(start)}{end > 0 ? ` - ${fmtTime(end)}` : ''}
+                      </div>
+                      <div>{'score '} {fmtScore(score)}</div>
+                    </div>
+                    <div style={{ marginTop: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text.slice(0, 360)}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <h3 style={{ margin: 0 }}>{'\u6458\u8981\u7ed3\u679c\u9884\u89c8'}</h3>
           <div className="row" style={{ marginTop: 0 }}>
             <button className="btn" onClick={() => loadSummary({ force: true })} disabled={busy || summaryBusy}>
@@ -1129,7 +1579,10 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
               onClick={() => {
                 const next = !outlineShow
                 setOutlineShow(next)
-                if (next) void loadOutline({ force: true })
+                if (next) {
+                  void loadOutline({ force: true })
+                  void loadAlignedKeyframes({ force: true })
+                }
               }}
               disabled={busy}
             >
@@ -1188,10 +1641,115 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             <div style={{ fontWeight: 700, marginBottom: 8 }}>{'\u5927\u7eb2'}</div>
             {outlineError ? <div className="alert alert-error">{outlineError}</div> : null}
             {outlineBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div> : null}
+            {alignedKeyframesError ? <div className="alert alert-error">{alignedKeyframesError}</div> : null}
+            {alignedKeyframesBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d\u5173\u952e\u5e27...'} </div> : null}
+
+            {String(outlineError || '').includes('SUMMARY_NOT_FOUND') ? (
+              <div className="subcard">
+                <div className="muted">{'\u672a\u627e\u5230\u6458\u8981\uff0c\u8bf7\u5148\u751f\u6210\u6458\u8981\u540e\u518d\u67e5\u770b\u5927\u7eb2\u3002'}</div>
+                <div className="row" style={{ marginTop: 10 }}>
+                  <button className="btn primary" onClick={() => startJob('summarize')} disabled={busy}>
+                    {'\u751f\u6210\u6458\u8981'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {String(alignedKeyframesError || '').includes('SUMMARY_NOT_FOUND') ? (
+              <div className="subcard">
+                <div className="muted">{'\u5bf9\u9f50\u5173\u952e\u5e27\u9700\u8981\u5927\u7eb2\u3002\u8bf7\u5148\u751f\u6210\u6458\u8981\u3002'}</div>
+              </div>
+            ) : null}
+
+            {String(alignedKeyframesError || '').includes('UNSUPPORTED_KEYFRAMES_METHOD') ? (
+              <div className="subcard">
+                <div className="muted">{'\u5f53\u524d\u65b9\u5f0f\u4e0d\u652f\u6301\u5bf9\u9f50\u3002\u8bf7\u9009\u62e9 interval \u6216 scene \u7c7b\u578b\u7684\u5173\u952e\u5e27\u3002'}</div>
+              </div>
+            ) : null}
+
+            {!alignedKeyframesBusy && !alignedKeyframesError && outlineRes && !hasAnyAlignedKeyframes ? (
+              <div className="subcard">
+                <div className="muted">{'\u672a\u627e\u5230\u5bf9\u9f50\u5173\u952e\u5e27\uff0c\u8bf7\u5148\u751f\u6210\u5173\u952e\u5e27\uff08\u6216\u8005\u5207\u6362\u540e\u91cd\u8bd5\uff09\u3002'}</div>
+                <div className="row" style={{ marginTop: 10 }}>
+                  <button className="btn" onClick={() => startJob('keyframes')} disabled={busy}>
+                    {'\u751f\u6210\u5173\u952e\u5e27'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
             {!outlineBusy && outlineRes ? (
-              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 260, overflow: 'auto' }}>
-                {JSON.stringify(outlineRes.outline, null, 2)}
-              </pre>
+              <div style={{ maxHeight: 320, overflow: 'auto' }}>
+                {Array.isArray((outlineRes as any).outline) ? (
+                  ((outlineRes as any).outline as any[]).map((it: any, idx: number) => {
+                    const title = String(it?.title || `#${idx + 1}`)
+                    const start = typeof it?.start_time === 'number' ? it.start_time : Number(it?.start_time || 0)
+                    const end = typeof it?.end_time === 'number' ? it.end_time : Number(it?.end_time || 0)
+                    const bullets = Array.isArray(it?.bullets) ? (it.bullets as any[]) : []
+                    const aligned = Array.isArray(alignedKeyframesItems) ? (alignedKeyframesItems[idx] as any) : null
+                    const kfs = Array.isArray(aligned?.keyframes) ? (aligned.keyframes as any[]) : []
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => seekToSeconds(start, { play: true })}
+                        style={{
+                          padding: 10,
+                          border: '1px solid rgba(255,255,255,0.06)',
+                          borderRadius: 8,
+                          marginBottom: 10,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, marginBottom: 4 }}>{title}</div>
+                        <div className="muted" style={{ marginBottom: bullets.length ? 6 : 0 }}>
+                          {fmtTime(start)}{end > 0 ? ` - ${fmtTime(end)}` : ''}
+                        </div>
+                        {bullets.length ? (
+                          <div style={{ marginLeft: 14 }}>
+                            {bullets.slice(0, 12).map((b, j) => (
+                              <div key={j} style={{ marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                {'- '}
+                                {String(b || '')}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {kfs.length ? (
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                            {kfs.slice(0, 3).map((kf: any) => {
+                              const img = kf?.image_url ? `${API_BASE}${String(kf.image_url)}` : ''
+                              const tsMs = typeof kf?.timestamp_ms === 'number' ? kf.timestamp_ms : Number(kf?.timestamp_ms || 0)
+                              const sec = tsMs / 1000
+                              return (
+                                <div key={String(kf?.id || tsMs)}>
+                                  {img ? (
+                                    <img
+                                      src={img}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        seekToSeconds(sec, { play: true })
+                                      }}
+                                      style={{ width: 120, height: 72, objectFit: 'cover', borderRadius: 6, display: 'block' }}
+                                    />
+                                  ) : null}
+                                  <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>
+                                    {fmtTime(sec)}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+                    )
+                  })
+                ) : (
+                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 260, overflow: 'auto' }}>
+                    {JSON.stringify((outlineRes as any).outline, null, 2)}
+                  </pre>
+                )}
+              </div>
             ) : null}
           </div>
         ) : null}
@@ -1338,14 +1896,19 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
               const start = typeof (seg as any).start === 'number' ? (seg as any).start : Number((seg as any).start || 0)
               const end = typeof (seg as any).end === 'number' ? (seg as any).end : Number((seg as any).end || 0)
               const text = String((seg as any).text || (seg as any).content || '')
+              const isActive = idx === activeTranscriptIndex
               return (
                 <div
                   key={idx}
                   onClick={() => seekToSeconds(start, { play: true })}
+                  ref={isActive ? activeTranscriptElRef : undefined}
                   style={{
                     padding: '8px 0',
                     borderBottom: '1px solid rgba(255,255,255,0.06)',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    background: isActive ? 'rgba(59, 130, 246, 0.14)' : 'transparent',
+                    borderLeft: isActive ? '3px solid rgba(59, 130, 246, 0.9)' : '3px solid transparent',
+                    paddingLeft: isActive ? 10 : 0
                   }}
                 >
                   <div className="muted" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>
