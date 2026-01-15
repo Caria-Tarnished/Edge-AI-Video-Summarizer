@@ -68,7 +68,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
         await navigator.clipboard.writeText(text);
         setInfo(okMsg);
       } catch {
-        window.prompt(uiLang === "en" ? "Copy the text:" : "¸´ÖÆÒÔÏÂÄÚÈİ£º", text);
+        window.prompt(uiLang === "en" ? "Copy the text:" : "å¤åˆ¶ä»¥ä¸‹å†…å®¹ï¼š", text);
       }
     },
     [uiLang]
@@ -546,7 +546,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
 
               {Array.isArray((asrStatus as any)?.local?.missing_files) && (asrStatus as any).local.missing_files.length ? (
                 <div className="subcard" style={{ marginTop: 8 }}>
-                  <div className="label">{uiLang === "en" ? "Missing files" : "È±Ê§ÎÄ¼ş"}</div>
+                  <div className="label">{uiLang === "en" ? "Missing files" : "ç¼ºå¤±æ–‡ä»¶"}</div>
                   <pre className="pre">{String(((asrStatus as any).local.missing_files as any[]).join("\n"))}</pre>
                 </div>
               ) : null}
@@ -568,7 +568,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
                       }}
                       disabled={!!busy}
                     >
-                      {uiLang === "en" ? "Open" : "´ò¿ª"}
+                      {uiLang === "en" ? "Open" : "æ‰“å¼€"}
                     </button>
                     <button
                       className="btn"
@@ -576,11 +576,11 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
                         const url = String(
                           asrStatus?.download?.repo_url || `https://huggingface.co/${String(asrStatus.repo_id || "")}`
                         );
-                        void copyText(url, uiLang === "en" ? "Copied" : "ÒÑ¸´ÖÆ");
+                        void copyText(url, uiLang === "en" ? "Copied" : "å·²å¤åˆ¶");
                       }}
                       disabled={!!busy}
                     >
-                      {uiLang === "en" ? "Copy" : "¸´ÖÆ"}
+                      {uiLang === "en" ? "Copy" : "å¤åˆ¶"}
                     </button>
                   </div>
                 </div>
@@ -599,25 +599,25 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
                       }}
                       disabled={!!busy || !asrStatus?.download?.url}
                     >
-                      {uiLang === "en" ? "Open" : "´ò¿ª"}
+                      {uiLang === "en" ? "Open" : "æ‰“å¼€"}
                     </button>
                     <button
                       className="btn"
                       onClick={() => {
                         const url = String(asrStatus?.download?.url || "");
                         if (!url) return;
-                        void copyText(url, uiLang === "en" ? "Copied" : "ÒÑ¸´ÖÆ");
+                        void copyText(url, uiLang === "en" ? "Copied" : "å·²å¤åˆ¶");
                       }}
                       disabled={!!busy || !asrStatus?.download?.url}
                     >
-                      {uiLang === "en" ? "Copy" : "¸´ÖÆ"}
+                      {uiLang === "en" ? "Copy" : "å¤åˆ¶"}
                     </button>
                   </div>
                 </div>
               </div>
 
               <div className="subcard" style={{ marginTop: 8 }}>
-                <div className="label">{uiLang === "en" ? "Download via Python" : "Ê¹ÓÃ Python ÏÂÔØ"}</div>
+                <div className="label">{uiLang === "en" ? "Download via Python" : "ä½¿ç”¨ Python ä¸‹è½½"}</div>
                 <pre className="pre">
                   {`python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='${String(asrStatus.repo_id || "Systran/faster-whisper-large-v3")}')"`}
                 </pre>
@@ -628,23 +628,23 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
                       const cmd = `python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='${String(
                         asrStatus.repo_id || "Systran/faster-whisper-large-v3"
                       )}')"`;
-                      void copyText(cmd, uiLang === "en" ? "Copied" : "ÒÑ¸´ÖÆ");
+                      void copyText(cmd, uiLang === "en" ? "Copied" : "å·²å¤åˆ¶");
                     }}
                     disabled={!!busy}
                   >
-                    {uiLang === "en" ? "Copy command" : "¸´ÖÆÃüÁî"}
+                    {uiLang === "en" ? "Copy command" : "å¤åˆ¶å‘½ä»¤"}
                   </button>
                 </div>
                 <div className="muted" style={{ marginTop: 6 }}>
                   {uiLang === "en"
                     ? "This downloads into the Hugging Face cache. If download is ERROR, check network/proxy or try from browser."
-                    : "¸ÃÃüÁî»áÏÂÔØµ½ Hugging Face »º´æÄ¿Â¼£»Èç download=ERROR£¬Í¨³£ÊÇÍøÂç/´úÀíÎÊÌâ£¬¿ÉÏÈÓÃä¯ÀÀÆ÷´ò¿ªÁ´½ÓÑéÖ¤¡£"}
+                    : "è¯¥å‘½ä»¤ä¼šä¸‹è½½åˆ° Hugging Face ç¼“å­˜ç›®å½•ï¼›å¦‚ download=ERRORï¼Œé€šå¸¸æ˜¯ç½‘ç»œ/ä»£ç†é—®é¢˜ï¼Œå¯å…ˆç”¨æµè§ˆå™¨æ‰“å¼€é“¾æ¥éªŒè¯ã€‚"}
                 </div>
               </div>
 
               {(asrStatus as any)?.local?.model_bin || (asrStatus as any)?.local?.config_json ? (
                 <div className="subcard" style={{ marginTop: 8 }}>
-                  <div className="label">{uiLang === "en" ? "Local cache" : "±¾µØ»º´æ"}</div>
+                  <div className="label">{uiLang === "en" ? "Local cache" : "æœ¬åœ°ç¼“å­˜"}</div>
                   {(asrStatus as any)?.local?.model_bin ? (
                     <div className="muted" style={{ wordBreak: "break-all" }}>
                       model.bin: {String((asrStatus as any).local.model_bin)}
@@ -659,7 +659,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
               ) : null}
 
               <details style={{ marginTop: 8 }}>
-                <summary className="muted">{uiLang === "en" ? "Raw status JSON" : "Ô­Ê¼×´Ì¬ JSON"}</summary>
+                <summary className="muted">{uiLang === "en" ? "Raw status JSON" : "åŸå§‹çŠ¶æ€ JSON"}</summary>
                 <pre className="pre">{JSON.stringify(asrStatus, null, 2)}</pre>
               </details>
             </div>
