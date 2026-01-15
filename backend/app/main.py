@@ -2089,3 +2089,30 @@ def cloud_summary(req: CloudSummaryRequest) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="TEXT_TOO_SHORT")
 
     return {"summary": result}
+
+
+def _get_env_int(keys: list[str], default: int) -> int:
+    for k in keys:
+        v = str(os.getenv(k, "") or "").strip()
+        if not v:
+            continue
+        try:
+            return int(v)
+        except Exception:
+            continue
+    return int(default)
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    host = str(os.getenv("EDGE_VIDEO_AGENT_HOST", "127.0.0.1") or "127.0.0.1")
+    port = _get_env_int(
+        [
+            "EDGE_VIDEO_AGENT_BACKEND_PORT",
+            "EDGE_VIDEO_AGENT_PORT",
+            "PORT",
+        ],
+        8001,
+    )
+    uvicorn.run(app, host=host, port=port)

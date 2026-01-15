@@ -1,5 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+const backendBaseUrl = String(process.env.EDGE_VIDEO_AGENT_BACKEND_BASE_URL || '').trim()
+const isPackaged = String(process.env.EDGE_VIDEO_AGENT_IS_PACKAGED || '').trim() === '1'
+
+contextBridge.exposeInMainWorld('edgeVideoAgent', {
+  backendBaseUrl,
+  isPackaged
+})
+
 contextBridge.exposeInMainWorld('electronAPI', {
   openVideoFile: async (): Promise<string | null> => {
     return await ipcRenderer.invoke('dialog:openVideo')

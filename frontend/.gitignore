@@ -4,3 +4,5 @@ dist
 out
 .vite
 .DS_Store
+
+resources/backend/

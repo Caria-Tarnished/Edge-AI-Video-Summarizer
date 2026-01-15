@@ -1,5 +1,6 @@
 /demo/
 
 /artifacts/
+/release/
 /backend/.venv/
 /backend/app/__pycache__/

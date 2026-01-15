@@ -2,6 +2,11 @@
 
 declare global {
   interface Window {
+    edgeVideoAgent?: {
+      backendBaseUrl?: string
+      isPackaged?: boolean
+      [k: string]: any
+    }
     electronAPI?: {
       openVideoFile: () => Promise<string | null>
       pickLlamaServerExe: () => Promise<string | null>

@@ -35,6 +35,7 @@ type DevConfigDraft = {
   llama_model_path?: string;
   llama_port?: number;
   local_llm_base_url?: string;
+  backend_base_url?: string;
 };
 
 function toNumberOrUndefined(v: string): number | undefined {
@@ -208,6 +209,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
               ? (cfg.llama_port as number)
               : undefined,
           local_llm_base_url: String(cfg.local_llm_base_url || ""),
+          backend_base_url: String(cfg.backend_base_url || ""),
         });
       }
     } catch (e: any) {
@@ -328,6 +330,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
         llama_port:
           typeof port === "number" && Number.isFinite(port) ? port : undefined,
         local_llm_base_url: baseUrl,
+        backend_base_url: String(devConfigDraft.backend_base_url || "").trim(),
       };
 
       const res = await window.electronAPI.setDevConfig(payload);
@@ -342,12 +345,13 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
             ? (cfg.llama_port as number)
             : undefined,
         local_llm_base_url: String(cfg.local_llm_base_url || ""),
+        backend_base_url: String(cfg.backend_base_url || ""),
       });
 
       setInfo(
         uiLang === "en"
-          ? "Local llama-server launch config saved"
-          : "\u672c\u5730 llama-server \u542f\u52a8\u914d\u7f6e\u5df2\u4fdd\u5b58"
+          ? "Local launch config saved (restart app to apply)"
+          : "\u672c\u5730\u542f\u52a8\u914d\u7f6e\u5df2\u4fdd\u5b58\uff08\u9700\u91cd\u542f\u5e94\u7528\u751f\u6548\uff09"
       );
     } catch (e: any) {
       setError(String(e?.message || e));
@@ -912,6 +916,21 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
                     }))
                   }
                   placeholder="http://127.0.0.1:8080/v1"
+                />
+              </label>
+
+              <label className="field">
+                <div className="label">backend_base_url</div>
+                <input
+                  className="input"
+                  value={devConfigDraft.backend_base_url ?? ""}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setDevConfigDraft((d) => ({
+                      ...d,
+                      backend_base_url: e.target.value,
+                    }))
+                  }
+                  placeholder="http://127.0.0.1:8001"
                 />
               </label>
             </div>
