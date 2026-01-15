@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import LibraryPage from './pages/LibraryPage'
 import SettingsPage from './pages/SettingsPage'
+import TaskCenterPage from './pages/TaskCenterPage'
 import VideoDetailPage from './pages/VideoDetailPage'
 
-type Route = 'settings' | 'library'
+type Route = 'settings' | 'library' | 'tasks'
 
 type UiLang = 'zh' | 'en'
 
@@ -32,12 +33,14 @@ export default function App() {
   }, [])
 
   const t = useCallback(
-    (key: 'settings' | 'workspace') => {
+    (key: 'settings' | 'workspace' | 'tasks') => {
       if (uiLang === 'en') {
         if (key === 'settings') return 'Settings'
         if (key === 'workspace') return 'Workspace'
+        if (key === 'tasks') return 'Tasks'
       }
       if (key === 'settings') return '\u8bbe\u7f6e'
+      if (key === 'tasks') return '\u4efb\u52a1'
       return '\u5de5\u4f5c\u533a'
     },
     [uiLang]
@@ -46,6 +49,17 @@ export default function App() {
   const content = useMemo(() => {
     if (route === 'settings') {
       return <SettingsPage uiLang={uiLang} />
+    }
+    if (route === 'tasks') {
+      return (
+        <TaskCenterPage
+          uiLang={uiLang}
+          onOpenVideo={(id) => {
+            setRoute('library')
+            setSelectedVideoId(id)
+          }}
+        />
+      )
     }
     if (selectedVideoId) {
       return <VideoDetailPage videoId={selectedVideoId} onBack={() => setSelectedVideoId(null)} />
@@ -66,6 +80,18 @@ export default function App() {
             }}
           >
             {t('workspace')}
+          </button>
+
+          <button
+            className={route === 'tasks' ? 'tab active' : 'tab'}
+            onClick={() => {
+              setRoute('tasks')
+              setSelectedVideoId(null)
+            }}
+            title={t('tasks')}
+            aria-label={t('tasks')}
+          >
+            {t('tasks')}
           </button>
 
           <button

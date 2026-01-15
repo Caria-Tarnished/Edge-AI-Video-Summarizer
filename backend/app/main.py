@@ -366,6 +366,19 @@ def asr_models_status_api() -> Dict[str, Any]:
     repo_id = "Systran/faster-whisper-large-v3"
     model_name = "large-v3"
 
+    required_files = [
+        "model.bin",
+        "config.json",
+    ]
+
+    optional_files = [
+        "tokenizer.json",
+        "vocabulary.json",
+        "tokenizer_config.json",
+        "special_tokens_map.json",
+        "preprocessor_config.json",
+    ]
+
     local: Dict[str, Any] = {"ok": False}
     download: Dict[str, Any] = {"ok": False}
     hub: Dict[str, Any] = {}
@@ -375,21 +388,38 @@ def asr_models_status_api() -> Dict[str, Any]:
         from huggingface_hub import try_to_load_from_cache  # type: ignore
 
         hub["version"] = str(getattr(huggingface_hub, "__version__", ""))
-        model_bin = try_to_load_from_cache(repo_id, "model.bin")
-        config_json = try_to_load_from_cache(repo_id, "config.json")
 
-        model_bin_path = (
-            os.fspath(model_bin)
-            if isinstance(model_bin, (str, os.PathLike))
-            else ""
-        )
-        config_json_path = (
-            os.fspath(config_json)
-            if isinstance(config_json, (str, os.PathLike))
-            else ""
-        )
+        files: Dict[str, Any] = {}
+        missing_files: list[str] = []
+        missing_required_files: list[str] = []
+        for fn in (required_files + optional_files):
+            cached = try_to_load_from_cache(repo_id, fn)
+            path = (
+                os.fspath(cached)
+                if isinstance(cached, (str, os.PathLike))
+                else ""
+            )
+            ok = bool(path) and os.path.exists(path)
+            files[fn] = {
+                "ok": ok,
+                "path": path or None,
+            }
+            if not ok:
+                missing_files.append(fn)
+                if fn in required_files:
+                    missing_required_files.append(fn)
 
         local["repo_id"] = repo_id
+        local["required_files"] = required_files
+        local["optional_files"] = optional_files
+        local["files"] = files
+        local["missing_files"] = missing_files
+        local["missing_required_files"] = missing_required_files
+
+        model_bin_path = str((files.get("model.bin") or {}).get("path") or "")
+        config_json_path = str(
+            (files.get("config.json") or {}).get("path") or ""
+        )
         local["has_model_bin"] = bool(model_bin_path) and os.path.exists(
             model_bin_path
         )
@@ -398,9 +428,7 @@ def asr_models_status_api() -> Dict[str, Any]:
         )
         local["model_bin"] = model_bin_path or None
         local["config_json"] = config_json_path or None
-        local["ok"] = bool(local["has_model_bin"]) and bool(
-            local["has_config_json"]
-        )
+        local["ok"] = len(missing_required_files) == 0
     except Exception as e:
         local["error"] = f"ERROR:{type(e).__name__}:{e}"
 
@@ -409,6 +437,7 @@ def asr_models_status_api() -> Dict[str, Any]:
     )
     download = {
         "url": url,
+        "repo_url": "https://huggingface.co/" + repo_id,
         **_probe_huggingface_resolve(url),
     }
 

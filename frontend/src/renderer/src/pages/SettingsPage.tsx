@@ -62,6 +62,18 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
+  const copyText = useCallback(
+    async (text: string, okMsg: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        setInfo(okMsg);
+      } catch {
+        window.prompt(uiLang === "en" ? "Copy the text:" : "复制以下内容：", text);
+      }
+    },
+    [uiLang]
+  );
+
   const t = useCallback(
     (
       key:
@@ -519,7 +531,138 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
             {t("asr_large_v3")} | local: {asrStatus?.local?.ok ? "OK" : "NOT_FOUND"} | download: {asrStatus?.download?.ok ? "OK" : "ERROR"}
           </div>
           {asrStatus ? (
-            <pre className="pre">{JSON.stringify(asrStatus, null, 2)}</pre>
+            <div style={{ marginTop: 8 }}>
+              {asrStatus?.huggingface_hub?.version ? (
+                <div className="muted">huggingface_hub: {String(asrStatus.huggingface_hub.version)}</div>
+              ) : null}
+
+              {asrStatus?.local?.error ? (
+                <div className="alert alert-error">{String(asrStatus.local.error)}</div>
+              ) : null}
+
+              {asrStatus?.download?.ok ? null : asrStatus?.download?.error ? (
+                <div className="alert alert-error">{String(asrStatus.download.error)}</div>
+              ) : null}
+
+              {Array.isArray((asrStatus as any)?.local?.missing_files) && (asrStatus as any).local.missing_files.length ? (
+                <div className="subcard" style={{ marginTop: 8 }}>
+                  <div className="label">{uiLang === "en" ? "Missing files" : "缺失文件"}</div>
+                  <pre className="pre">{String(((asrStatus as any).local.missing_files as any[]).join("\n"))}</pre>
+                </div>
+              ) : null}
+
+              <div className="grid" style={{ marginTop: 8 }}>
+                <div className="field">
+                  <div className="label">repo</div>
+                  <div className="muted" style={{ wordBreak: "break-all" }}>
+                    {String(asrStatus?.download?.repo_url || `https://huggingface.co/${String(asrStatus.repo_id || "")}`)}
+                  </div>
+                  <div className="row">
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        const url = String(
+                          asrStatus?.download?.repo_url || `https://huggingface.co/${String(asrStatus.repo_id || "")}`
+                        );
+                        window.open(url, "_blank");
+                      }}
+                      disabled={!!busy}
+                    >
+                      {uiLang === "en" ? "Open" : "打开"}
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        const url = String(
+                          asrStatus?.download?.repo_url || `https://huggingface.co/${String(asrStatus.repo_id || "")}`
+                        );
+                        void copyText(url, uiLang === "en" ? "Copied" : "已复制");
+                      }}
+                      disabled={!!busy}
+                    >
+                      {uiLang === "en" ? "Copy" : "复制"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="field">
+                  <div className="label">download_url</div>
+                  <div className="muted" style={{ wordBreak: "break-all" }}>
+                    {String(asrStatus?.download?.url || "")}
+                  </div>
+                  <div className="row">
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        const url = String(asrStatus?.download?.url || "");
+                        if (url) window.open(url, "_blank");
+                      }}
+                      disabled={!!busy || !asrStatus?.download?.url}
+                    >
+                      {uiLang === "en" ? "Open" : "打开"}
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        const url = String(asrStatus?.download?.url || "");
+                        if (!url) return;
+                        void copyText(url, uiLang === "en" ? "Copied" : "已复制");
+                      }}
+                      disabled={!!busy || !asrStatus?.download?.url}
+                    >
+                      {uiLang === "en" ? "Copy" : "复制"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="subcard" style={{ marginTop: 8 }}>
+                <div className="label">{uiLang === "en" ? "Download via Python" : "使用 Python 下载"}</div>
+                <pre className="pre">
+                  {`python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='${String(asrStatus.repo_id || "Systran/faster-whisper-large-v3")}')"`}
+                </pre>
+                <div className="row">
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      const cmd = `python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='${String(
+                        asrStatus.repo_id || "Systran/faster-whisper-large-v3"
+                      )}')"`;
+                      void copyText(cmd, uiLang === "en" ? "Copied" : "已复制");
+                    }}
+                    disabled={!!busy}
+                  >
+                    {uiLang === "en" ? "Copy command" : "复制命令"}
+                  </button>
+                </div>
+                <div className="muted" style={{ marginTop: 6 }}>
+                  {uiLang === "en"
+                    ? "This downloads into the Hugging Face cache. If download is ERROR, check network/proxy or try from browser."
+                    : "该命令会下载到 Hugging Face 缓存目录；如 download=ERROR，通常是网络/代理问题，可先用浏览器打开链接验证。"}
+                </div>
+              </div>
+
+              {(asrStatus as any)?.local?.model_bin || (asrStatus as any)?.local?.config_json ? (
+                <div className="subcard" style={{ marginTop: 8 }}>
+                  <div className="label">{uiLang === "en" ? "Local cache" : "本地缓存"}</div>
+                  {(asrStatus as any)?.local?.model_bin ? (
+                    <div className="muted" style={{ wordBreak: "break-all" }}>
+                      model.bin: {String((asrStatus as any).local.model_bin)}
+                    </div>
+                  ) : null}
+                  {(asrStatus as any)?.local?.config_json ? (
+                    <div className="muted" style={{ wordBreak: "break-all" }}>
+                      config.json: {String((asrStatus as any).local.config_json)}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <details style={{ marginTop: 8 }}>
+                <summary className="muted">{uiLang === "en" ? "Raw status JSON" : "原始状态 JSON"}</summary>
+                <pre className="pre">{JSON.stringify(asrStatus, null, 2)}</pre>
+              </details>
+            </div>
           ) : (
             <div className="muted" style={{ marginTop: 8 }}>
               {uiLang === "en" ? "ASR status not loaded" : "\u5c1a\u672a\u83b7\u53d6 ASR \u72b6\u6001"}
