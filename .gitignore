@@ -4,3 +4,4 @@
 /release/
 /backend/.venv/
 /backend/app/__pycache__/
+/logs/
