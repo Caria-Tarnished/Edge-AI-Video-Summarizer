@@ -12,6 +12,8 @@
 
 后端基于 **FastAPI + SQLite**，向量库使用 **ChromaDB**。
 
+同时提供 **Electron + Vite + React** 桌面端（Windows），用于本地视频库/详情页/任务进度与结果预览，并在发布态自动托管后端进程。
+
 > 说明：仓库中的 `demo/` 内容用于其他平台（如 ModelScope）展示，因此本 GitHub 仓库默认忽略 `demo/`（见根目录 `.gitignore`）。
 
 ---
@@ -74,6 +76,9 @@
 - `frontend/`：Electron + Vite + React 桌面端（开发中；已实现视频库/导入/详情页与任务进度预览）
 - `scripts/`：PowerShell 自动化验证/质量检查脚本
 - `artifacts/`：脚本输出与导出文件（默认忽略）
+- `release/`：桌面端打包产物输出目录（默认忽略）
+  - `release/stable/<version>/`：正式版产物
+  - `release/beta/<version>/`：预发布版产物（版本号包含 `-`）
 - `start_dev.cmd`：桌面端开发一键启动（llama-server + backend + Electron 前端）
 - `Architecture_Design.md`：架构与里程碑规划
 - `PROJECT_STATUS.md`：项目进度、测试备忘、变更记录
@@ -143,6 +148,32 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```
 
 > 说明：llama-server 的状态由后端探测 `LLM_LOCAL_BASE_URL + /models`。如果 Settings 里显示无法连接，优先确认 `http://127.0.0.1:8080/v1/models` 是否可访问，以及查看 `artifacts/logs/llama_server_*.stderr.log`。
+
+### 2.6) 桌面端打包与发布（Windows）
+
+在 `frontend/` 目录：
+
+```powershell
+npm run dist
+```
+
+- `dist` 会自动执行后端 staging、构建与 electron-builder 打包
+- 产物会根据版本号自动分流到：
+  - 版本号不包含 `-`：`release/stable/<version>/`
+  - 版本号包含 `-`：`release/beta/<version>/`
+
+如需手动指定渠道：
+
+```powershell
+npm run dist:stable
+npm run dist:beta
+```
+
+Windows 文件锁说明：若你曾从 `release/**/win-unpacked` 直接运行过程序，`resources/app.asar` 可能被占用导致删除/覆盖失败。构建脚本已在 `dist/pack` 前自动停止相关进程（见 `scripts/stop_release_apps.ps1`）。必要时可手动运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\stop_release_apps.ps1
+```
 
 桌面端当前已联通的功能：
 
@@ -249,8 +280,11 @@ curl.exe http://127.0.0.1:8001/health
 - 完成：桌面端视频库（Library）页（列表 + 导入入口）
 - 完成：桌面端视频详情页（转写/索引/摘要/关键帧）与进度展示（SSE）+ 结果预览
 - 完成：全局 UI 语言切换（中文/English）与 LLM 输出语言 `output_language`（`zh/en/auto`）全链路生效
-- 下一步（按 `Architecture_Design.md` 的 UI 目标）：
-  - 打包与分发：PyInstaller + Electron Builder；模型下载/导入向导；数据目录迁移/备份
+- 下一步（建议进入 P3）：
+  - Release 工程化：CI 构建 Windows 产物 + 自动创建/上传 GitHub Release（含 SHA256 校验文件）
+  - 自动更新策略（可选）：electron-updater / 手动检查更新（二选一）
+  - 首次运行向导：whisper 模型/llama-server/本地模型的可用性检查与下载指引
+  - 数据目录：选择/迁移/备份策略（避免升级覆盖与用户数据丢失）
   - 播放器增强（可选）：键盘快捷键、章节导航、画中画/全屏体验优化
   - 任务中心（可选）：全局 jobs 列表 + 取消/重试 + 进度订阅
 

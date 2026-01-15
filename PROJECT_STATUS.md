@@ -140,6 +140,19 @@
       - 快捷键：Ctrl/Cmd + Enter 发送；支持清空结果
     - 修复：避免预览区因 React effect 依赖导致的重复请求风暴与偶发 “Failed to fetch”
 
+### 桌面端打包与发布（Windows，已跑通）
+
+- 后端发布态：使用 PyInstaller 产出 onedir exe（含 `_internal/`），Electron 主进程优先启动 exe，并保留自动端口选择 + `/health` 探测 + 关闭时清理进程
+- 目录约定：后端发布物通过 staging 放入 `frontend/resources/backend/edge-video-agent-backend/`
+  - staging 脚本：`scripts/stage_backend_for_frontend.ps1`
+- 打包工具：`electron-builder`
+  - 将 `frontend/resources/backend/**` 作为 `extraResources` 打入 `win-unpacked/resources/backend/`
+  - 产物输出目录按版本号隔离，避免 Windows 文件锁导致的覆盖失败
+- Release 目录分流：根据版本号是否包含 `-`，自动输出到 `release/stable/<version>/` 或 `release/beta/<version>/`
+- Windows 文件锁规避：`npm run dist/pack` 前自动停止从 `release/**/win-unpacked` 运行的进程（避免 `resources/app.asar` 被占用）
+  - 脚本：`scripts/stop_release_apps.ps1`
+- 已发布：`v0.0.1-beta.1` 预发布版（GitHub Releases，Windows installer + portable zip）
+
 ## API 一览（MVP-1 + MVP-2 + MVP-3 + MVP-4）
 
 - `GET /health`
@@ -188,7 +201,11 @@
     - 自动化脚本补齐（可选）：新增 keyframes 端到端验证脚本（类比 `index_search_chat_test.ps1`）
   - 桌面端（可选增强）：
     - 任务中心（全局 jobs 列表 + 取消/重试 + 进度订阅）
-  - 打包与分发：PyInstaller + Electron Builder；模型下载/导入向导；数据目录迁移/备份
+  - 打包与分发（下一步，建议进入 P3）：
+    - Release 工程化：CI 构建产物（Windows）+ 自动发布 GitHub Release（含校验文件）
+    - 自动更新策略（可选）：electron-updater / 手动检查更新（二选一）
+    - 安装包体验：数据目录选择/迁移、首次运行向导（模型/llama-server/whisper 模型可用性检测）
+    - 多平台（可选）：macOS/Linux 打包与签名（如需要）
 
 ## 备忘 / 待验证事项（重要）
 
@@ -481,3 +498,4 @@ powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\
 - 2026-01-14：桌面端联调：完成 Library/Video Detail 页面（导入/列表/导航）；转写参数面板 + SSE 进度 + transcript 预览；索引/摘要/关键帧 SSE 进度订阅与结果预览；修复预览区重复请求风暴导致的后端日志刷屏与偶发 “Failed to fetch”。
 - 2026-01-14：桌面端体验增强（Video Detail）：Notes/Chat 侧栏 Tab 落地并优化阅读体验（摘要 markdown 渲染、大纲可折叠与自动展开开关、aligned keyframes 缩略图与去重）；Chat 支持答案 markdown、引用跳转与快捷键；播放器增加 `-15s/+15s`、倍速、复制时间戳与自动字幕开关，并优化转录高亮与自动滚动。
 - 2026-01-14：国际化与输出语言：新增全局 UI 语言切换（中文/English，localStorage 持久化）；Settings 新增 LLM 输出语言 `output_language`（`zh/en/auto`），并在 Chat/摘要/大纲/云摘要全链路生效；修复 `SettingsPage.tsx` 文件编码为 UTF-8 以便继续迭代 UI 文案。
+- 2026-01-15：Windows 打包与发布：后端 PyInstaller onedir exe 集成到 Electron；引入 electron-builder 并将后端作为 extraResources；release 目录按 stable/beta 分流并按版本隔离输出；增加构建前自动停止 release/win-unpacked 进程以规避 `app.asar` 文件锁；已创建并上传 `v0.0.1-beta.1` GitHub 预发布版资产。
