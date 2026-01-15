@@ -5,11 +5,6 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag name (e.g. v0.0.1-beta.1). If empty, build only."
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -19,7 +14,7 @@ jobs:
     runs-on: windows-latest
 
     env:
-      RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag }}
+      RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
 
     steps:
       - name: Checkout
@@ -124,7 +119,7 @@ jobs:
             ${{ steps.prep.outputs.out_dir || 'release' }}
 
       - name: Create/Update GitHub Release (gh)
-        if: ${{ steps.prep.outputs.tag != '' }}
+        if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && steps.prep.outputs.tag != '' }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
