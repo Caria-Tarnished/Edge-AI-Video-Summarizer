@@ -28,7 +28,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "20"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -123,16 +123,36 @@ jobs:
           path: |
             ${{ steps.prep.outputs.out_dir || 'release' }}
 
-      - name: Create/Update GitHub Release
+      - name: Create/Update GitHub Release (gh)
         if: ${{ steps.prep.outputs.tag != '' }}
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.prep.outputs.tag }}
-          name: ${{ steps.prep.outputs.tag }}
-          prerelease: ${{ steps.prep.outputs.prerelease }}
-          generate_release_notes: false
-          files: |
-            ${{ steps.prep.outputs.out_dir }}/Edge Video Agent Setup ${{ steps.prep.outputs.version }}.exe
-            ${{ steps.prep.outputs.out_dir }}/Edge Video Agent Setup ${{ steps.prep.outputs.version }}.exe.blockmap
-            ${{ steps.prep.outputs.out_dir }}/Edge Video Agent-${{ steps.prep.outputs.version }}-win.zip
-            ${{ steps.prep.outputs.out_dir }}/SHA256SUMS.txt
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.prep.outputs.tag }}"
+          $ver = "${{ steps.prep.outputs.version }}"
+          $outDir = "${{ steps.prep.outputs.out_dir }}"
+          $isPre = "${{ steps.prep.outputs.prerelease }}" -eq "true"
+
+          $setupExe = Join-Path $outDir "Edge Video Agent Setup $ver.exe"
+          $blockmap = "$setupExe.blockmap"
+          $zip = Join-Path $outDir "Edge Video Agent-$ver-win.zip"
+          $sha = Join-Path $outDir "SHA256SUMS.txt"
+
+          $notes = "Automated release for $tag."
+
+          $exists = $false
+          try {
+            gh release view $tag --repo "${{ github.repository }}" 1>$null 2>$null
+            $exists = $true
+          } catch {
+            $exists = $false
+          }
+
+          if (-not $exists) {
+            $args = @("release","create",$tag,$setupExe,$blockmap,$zip,$sha,"--repo","${{ github.repository }}","--title",$tag,"--notes",$notes)
+            if ($isPre) { $args += "--prerelease" }
+            gh @args
+          } else {
+            gh release upload $tag $setupExe $blockmap $zip $sha --repo "${{ github.repository }}" --clobber
+          }
