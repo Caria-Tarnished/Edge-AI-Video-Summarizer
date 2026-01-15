@@ -1279,7 +1279,37 @@ def search_api(
     top_k = max(1, min(int(top_k), 20))
     embed_model = str(idx.get("embed_model") or settings.embedding_model)
     embed_dim = int(idx.get("embed_dim") or settings.embedding_dim)
-    q_emb = embed_texts([q], model=embed_model, dim=embed_dim)[0]
+    try:
+        q_emb = embed_texts([q], model=embed_model, dim=embed_dim)[0]
+    except Exception:
+        if str(embed_model or "").lower().startswith("fastembed"):
+            if not transcript_exists(video_id):
+                raise HTTPException(
+                    status_code=404,
+                    detail="TRANSCRIPT_NOT_FOUND",
+                )
+            segs = load_segments(video_id, limit=1)
+            if not segs:
+                raise HTTPException(
+                    status_code=404,
+                    detail="TRANSCRIPT_NOT_FOUND",
+                )
+
+            params: Dict[str, Any] = {
+                "from_scratch": True,
+                "embed_model": "hash",
+                "embed_dim": int(embed_dim),
+            }
+            job = create_job(video_id, "index", params)
+            return UTF8JSONResponse(
+                status_code=202,
+                content={
+                    "detail": "INDEXING_STARTED",
+                    "job_id": job["id"],
+                    "video_id": video_id,
+                },
+            )
+        raise
 
     collection_name = chunks_collection_name(embed_model, embed_dim)
 
@@ -1495,7 +1525,37 @@ def chat_api(req: ChatRequest) -> Response:
     top_k = max(1, min(int(req.top_k), 20))
     embed_model = str(idx.get("embed_model") or settings.embedding_model)
     embed_dim = int(idx.get("embed_dim") or settings.embedding_dim)
-    q_emb = embed_texts([q], model=embed_model, dim=embed_dim)[0]
+    try:
+        q_emb = embed_texts([q], model=embed_model, dim=embed_dim)[0]
+    except Exception:
+        if str(embed_model or "").lower().startswith("fastembed"):
+            if not transcript_exists(video_id):
+                raise HTTPException(
+                    status_code=404,
+                    detail="TRANSCRIPT_NOT_FOUND",
+                )
+            segs = load_segments(video_id, limit=1)
+            if not segs:
+                raise HTTPException(
+                    status_code=404,
+                    detail="TRANSCRIPT_NOT_FOUND",
+                )
+
+            params: Dict[str, Any] = {
+                "from_scratch": True,
+                "embed_model": "hash",
+                "embed_dim": int(embed_dim),
+            }
+            job = create_job(video_id, "index", params)
+            return UTF8JSONResponse(
+                status_code=202,
+                content={
+                    "detail": "INDEXING_STARTED",
+                    "job_id": job["id"],
+                    "video_id": video_id,
+                },
+            )
+        raise
 
     collection_name = chunks_collection_name(embed_model, embed_dim)
 

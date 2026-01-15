@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+import os
 import json
 import uuid
 
@@ -181,6 +182,199 @@ def test_search_stale_index_triggers_reindex_from_scratch(
     job = client.get(f"/jobs/{job_id}").json()
     params = json.loads(job.get("params_json") or "{}")
     assert params.get("from_scratch") is True
+
+
+def test_summarize_requires_transcript(client, tmp_path) -> None:
+    v = _create_video(tmp_path)
+    video_id = v["id"]
+
+    r = client.post(
+        f"/videos/{video_id}/summarize",
+        json={"from_scratch": False},
+    )
+    assert r.status_code == 404
+    assert r.json().get("detail") == "TRANSCRIPT_NOT_FOUND"
+
+
+def test_summarize_triggers_job_and_dedupes(client, tmp_path) -> None:
+    v = _create_video(tmp_path)
+    video_id = v["id"]
+    _write_transcript(video_id)
+
+    r1 = client.post(
+        f"/videos/{video_id}/summarize",
+        json={"from_scratch": False},
+    )
+    assert r1.status_code == 202
+    job_id = r1.json().get("job_id")
+    assert isinstance(job_id, str) and job_id
+
+    r2 = client.post(
+        f"/videos/{video_id}/summarize",
+        json={"from_scratch": False},
+    )
+    assert r2.status_code == 202
+    assert r2.json().get("detail") == "SUMMARIZING_IN_PROGRESS"
+    assert r2.json().get("job_id") == job_id
+
+
+def test_summarize_200_when_completed_and_fresh(client, tmp_path) -> None:
+    from app.repo import upsert_video_summary
+    from app.transcript_store import get_transcript_hash
+
+    v = _create_video(tmp_path)
+    video_id = v["id"]
+    _write_transcript(video_id)
+    transcript_hash = get_transcript_hash(video_id)
+
+    upsert_video_summary(
+        video_id=video_id,
+        status="completed",
+        progress=1.0,
+        message="completed",
+        transcript_hash=transcript_hash,
+        params_json=json.dumps({"from_scratch": False}, ensure_ascii=False),
+        summary_markdown="# ok",
+        outline_json="[]",
+        segment_summaries_json="[]",
+    )
+
+    r = client.post(
+        f"/videos/{video_id}/summarize",
+        json={"from_scratch": False},
+    )
+    assert r.status_code == 200
+    assert r.json().get("detail") == "SUMMARY_ALREADY_COMPLETED"
+
+
+def test_summarize_stale_triggers_from_scratch(client, tmp_path) -> None:
+    from app.repo import upsert_video_summary
+
+    v = _create_video(tmp_path)
+    video_id = v["id"]
+    _write_transcript(video_id)
+
+    upsert_video_summary(
+        video_id=video_id,
+        status="completed",
+        progress=1.0,
+        message="completed",
+        transcript_hash="stale",
+        params_json=json.dumps({"from_scratch": False}, ensure_ascii=False),
+        summary_markdown="# stale",
+        outline_json="[]",
+        segment_summaries_json="[]",
+    )
+
+    r = client.post(
+        f"/videos/{video_id}/summarize",
+        json={"from_scratch": False},
+    )
+    assert r.status_code == 202
+    job_id = r.json().get("job_id")
+    assert isinstance(job_id, str) and job_id
+
+    job = client.get(f"/jobs/{job_id}").json()
+    params = json.loads(job.get("params_json") or "{}")
+    assert params.get("from_scratch") is True
+
+
+def test_keyframes_triggers_job_and_dedupes(client, tmp_path) -> None:
+    v = _create_video(tmp_path)
+    video_id = v["id"]
+
+    r1 = client.post(
+        f"/videos/{video_id}/keyframes",
+        json={"from_scratch": False, "mode": "interval"},
+    )
+    assert r1.status_code == 202
+    job_id = r1.json().get("job_id")
+    assert isinstance(job_id, str) and job_id
+
+    r2 = client.post(
+        f"/videos/{video_id}/keyframes",
+        json={"from_scratch": False, "mode": "interval"},
+    )
+    assert r2.status_code == 202
+    assert r2.json().get("detail") == "KEYFRAMES_IN_PROGRESS"
+    assert r2.json().get("job_id") == job_id
+
+
+def test_keyframes_200_when_completed_params_match(client, tmp_path) -> None:
+    from app.repo import upsert_video_keyframe_index
+
+    v = _create_video(tmp_path)
+    video_id = v["id"]
+
+    upsert_video_keyframe_index(
+        video_id=video_id,
+        status="completed",
+        progress=1.0,
+        message="completed",
+        params_json=json.dumps({"mode": "interval"}, ensure_ascii=False),
+        frame_count=1,
+    )
+
+    r = client.post(
+        f"/videos/{video_id}/keyframes",
+        json={"from_scratch": False, "mode": "interval"},
+    )
+    assert r.status_code == 200
+    assert r.json().get("detail") == "KEYFRAMES_ALREADY_COMPLETED"
+
+
+def test_keyframes_completed_but_params_change_triggers_new_job(
+    client,
+    tmp_path,
+) -> None:
+    from app.repo import upsert_video_keyframe_index
+
+    v = _create_video(tmp_path)
+    video_id = v["id"]
+
+    upsert_video_keyframe_index(
+        video_id=video_id,
+        status="completed",
+        progress=1.0,
+        message="completed",
+        params_json=json.dumps({"mode": "interval"}, ensure_ascii=False),
+        frame_count=1,
+    )
+
+    r = client.post(
+        f"/videos/{video_id}/keyframes",
+        json={
+            "from_scratch": False,
+            "mode": "scene",
+            "scene_threshold": 0.3,
+        },
+    )
+    assert r.status_code == 202
+    assert r.json().get("detail") == "KEYFRAMES_STARTED"
+
+
+def test_keyframes_from_scratch_deletes_jpg_files(client, tmp_path) -> None:
+    from app.paths import keyframes_dir
+
+    v = _create_video(tmp_path)
+    video_id = v["id"]
+
+    d = keyframes_dir(video_id)
+    os.makedirs(d, exist_ok=True)
+    jpg_path = os.path.join(d, "dummy.jpg")
+    txt_path = os.path.join(d, "dummy.txt")
+    with open(jpg_path, "wb") as f:
+        f.write(b"x")
+    with open(txt_path, "wb") as f:
+        f.write(b"y")
+
+    r = client.post(
+        f"/videos/{video_id}/keyframes",
+        json={"from_scratch": True, "mode": "interval"},
+    )
+    assert r.status_code == 202
+    assert not os.path.exists(jpg_path)
+    assert os.path.exists(txt_path)
 
 
 def test_index_endpoint_is_idempotent_when_fresh(client, tmp_path) -> None:

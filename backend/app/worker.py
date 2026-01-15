@@ -47,6 +47,7 @@ from .runtime import limit_asr, limit_llm
 from .runtime import (
     get_asr_concurrency_timeout_seconds,
     get_llm_concurrency_timeout_seconds,
+    refresh_runtime_preferences,
 )
 from .settings import settings
 from .transcript_store import (
@@ -74,6 +75,17 @@ class JobWorker:
     def __init__(self) -> None:
         self._stop = False
         self._asr = ASR()
+        self._last_runtime_refresh_ts = 0.0
+
+    def _maybe_refresh_runtime_preferences(self) -> None:
+        now = time.monotonic()
+        if now - float(self._last_runtime_refresh_ts) < 2.0:
+            return
+        self._last_runtime_refresh_ts = now
+        try:
+            refresh_runtime_preferences()
+        except Exception:
+            pass
 
     def _ensure_same_run(self, job_id: str, started_at: str) -> Dict[str, Any]:
         job = get_job(job_id)
@@ -92,7 +104,9 @@ class JobWorker:
         self._stop = True
 
     def run_forever(self) -> None:
+        self._maybe_refresh_runtime_preferences()
         while not self._stop:
+            self._maybe_refresh_runtime_preferences()
             job = fetch_next_pending_job()
             if not job:
                 time.sleep(0.5)
@@ -101,6 +115,8 @@ class JobWorker:
             job_id = job["id"]
             video_id = job["video_id"]
             job_type = str(job.get("job_type") or "")
+
+            self._maybe_refresh_runtime_preferences()
 
             if not claim_pending_job(job_id, job_type):
                 continue
@@ -119,6 +135,8 @@ class JobWorker:
                 if job_type == "transcribe":
                     set_video_status(video_id, "error")
                 continue
+
+            self._maybe_refresh_runtime_preferences()
 
             update_job(
                 job_id,
@@ -578,9 +596,10 @@ class JobWorker:
         }
         chunk_params_json = json.dumps(chunk_params, ensure_ascii=False)
 
+        from_scratch = bool(params.get("from_scratch"))
         collection_name = chunks_collection_name(embed_model, embed_dim)
 
-        if bool(params.get("from_scratch")):
+        if from_scratch:
             delete_chunks_for_video(video_id)
             try:
                 delete_video_vectors(
@@ -791,11 +810,59 @@ class JobWorker:
             indexed_count=0,
         )
 
-        embeddings = embed_texts(
-            texts_for_embed,
-            model=embed_model,
-            dim=embed_dim,
-        )
+        try:
+            embeddings = embed_texts(
+                texts_for_embed,
+                model=embed_model,
+                dim=embed_dim,
+            )
+        except Exception as e:
+            if str(embed_model or "").lower().startswith("fastembed"):
+                embed_model = "hash"
+                collection_name = chunks_collection_name(
+                    embed_model,
+                    embed_dim,
+                )
+                for md in metadatas:
+                    try:
+                        md["embed_model"] = embed_model
+                    except Exception:
+                        pass
+
+                if from_scratch:
+                    try:
+                        delete_video_vectors(
+                            collection_name=collection_name,
+                            video_id=video_id,
+                        )
+                    except VectorStoreUnavailable:
+                        pass
+
+                update_job(
+                    job_id,
+                    progress=0.3,
+                    message=f"embedding_fallback_hash 0/{len(ids)}",
+                )
+                upsert_video_index(
+                    video_id=video_id,
+                    status="running",
+                    progress=0.3,
+                    message=f"embedding_fallback_hash 0/{len(ids)}",
+                    embed_model=embed_model,
+                    embed_dim=embed_dim,
+                    chunk_params_json=chunk_params_json,
+                    transcript_hash=transcript_hash,
+                    chunk_count=len(ids),
+                    indexed_count=0,
+                )
+
+                embeddings = embed_texts(
+                    texts_for_embed,
+                    model=embed_model,
+                    dim=embed_dim,
+                )
+            else:
+                raise e
 
         try:
             upsert_vectors(

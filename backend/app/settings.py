@@ -36,7 +36,10 @@ class Settings:
         os.getenv("INDEX_OVERLAP_SECONDS", "5")
     )
 
-    embedding_model: str = os.getenv("EMBEDDING_MODEL", "hash")
+    embedding_model: str = os.getenv(
+        "EMBEDDING_MODEL",
+        "fastembed:BAAI/bge-small-en-v1.5",
+    )
     embedding_dim: int = int(os.getenv("EMBEDDING_DIM", "384"))
 
     enable_cloud_summary: bool = os.getenv("ENABLE_CLOUD_SUMMARY", "0") in (
