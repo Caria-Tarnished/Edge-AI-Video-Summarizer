@@ -75,6 +75,7 @@
 ```mermaid
 graph LR
     subgraph Desktop["Windows Desktop App (Electron)"]
+        style Desktop fill:#f9f,stroke:#333,stroke-width:2px
         Renderer["Renderer (React)"]
         Main["Main Process"]
     end
@@ -86,19 +87,12 @@ graph LR
     Llama["llama-server"]
     Models[("Models: Whisper / LLM")]
 
-    %% 1. 修复双向箭头：改为单向，符合 v8.8.0 解析规则
-    %% HTTP 通信通常由前端发起请求，单向箭头语义清晰且稳定
     Renderer -- HTTP API --> Backend
-
-    %% 2. 统一箭头标签格式
     Main -- spawn backend exe + health --> Backend
 
-    %% 内部组件连接
     Backend --> SQLite
     Backend --> Chroma
     Backend --> FFmpeg
-  
-    %% 3. 修复双向箭头
     Backend -- HTTP --> Llama
 
     Llama --> Models

@@ -1,0 +1,138 @@
+name: Build & Release (Windows)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name (e.g. v0.0.1-beta.1). If empty, build only."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+
+    env:
+      RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Create backend venv
+        shell: pwsh
+        run: |
+          python -m venv backend/.venv
+
+      - name: Install backend dependencies (incl. PyInstaller)
+        shell: pwsh
+        run: |
+          backend\.venv\Scripts\python.exe -m pip install -U pip
+          backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt -r backend\requirements-dev.txt
+
+      - name: Build backend (PyInstaller)
+        shell: pwsh
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_backend.ps1 -NoInstallDeps
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npm ci
+
+      - name: Build desktop distributables (electron-builder)
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npm run dist
+
+      - name: Prepare artifacts + SHA256
+        id: prep
+        shell: pwsh
+        run: |
+          $tag = "${{ env.RELEASE_TAG }}"
+          $pkgVer = node -p "require('./frontend/package.json').version"
+
+          $ver = $pkgVer
+          if ($tag) {
+            $ver = $tag
+            if ($ver.StartsWith('v')) { $ver = $ver.Substring(1) }
+            if ($pkgVer -ne $ver) {
+              throw "Tag version ($ver) does not match frontend/package.json version ($pkgVer). Please bump version then create the tag."
+            }
+          }
+
+          $channel = $ver.Contains('-') ? 'beta' : 'stable'
+          $outDir = "release/$channel/$ver"
+
+          if (-not (Test-Path -LiteralPath $outDir -PathType Container)) {
+            throw "Output dir not found: $outDir"
+          }
+
+          $setupExe = Join-Path $outDir "Edge Video Agent Setup $ver.exe"
+          $blockmap = "$setupExe.blockmap"
+          $zip = Join-Path $outDir "Edge Video Agent-$ver-win.zip"
+          $shaPath = Join-Path $outDir "SHA256SUMS.txt"
+
+          foreach ($p in @($setupExe, $blockmap, $zip)) {
+            if (-not (Test-Path -LiteralPath $p -PathType Leaf)) {
+              throw "Missing artifact: $p"
+            }
+          }
+
+          Get-FileHash -Algorithm SHA256 $setupExe, $blockmap, $zip |
+            ForEach-Object { "$($_.Hash)  $($_.Path | Split-Path -Leaf)" } |
+            Set-Content -Encoding ASCII $shaPath
+
+          $isPre = $ver.Contains('-')
+          $isPreStr = $isPre.ToString().ToLowerInvariant()
+
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "version=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "channel=$channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "out_dir=$outDir" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "prerelease=$isPreStr" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Upload build artifacts (workflow)
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ steps.prep.outputs.version || 'build' }}
+          path: |
+            ${{ steps.prep.outputs.out_dir || 'release' }}
+
+      - name: Create/Update GitHub Release
+        if: ${{ steps.prep.outputs.tag != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.prep.outputs.tag }}
+          name: ${{ steps.prep.outputs.tag }}
+          prerelease: ${{ steps.prep.outputs.prerelease }}
+          generate_release_notes: false
+          files: |
+            ${{ steps.prep.outputs.out_dir }}/Edge Video Agent Setup ${{ steps.prep.outputs.version }}.exe
+            ${{ steps.prep.outputs.out_dir }}/Edge Video Agent Setup ${{ steps.prep.outputs.version }}.exe.blockmap
+            ${{ steps.prep.outputs.out_dir }}/Edge Video Agent-${{ steps.prep.outputs.version }}-win.zip
+            ${{ steps.prep.outputs.out_dir }}/SHA256SUMS.txt
