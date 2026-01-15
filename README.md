@@ -70,6 +70,42 @@
 
 ---
 
+## 系统架构（简图）
+
+```mermaid
+graph LR
+    subgraph Desktop["Windows Desktop App (Electron)"]
+        Renderer["Renderer (React)"]
+        Main["Main Process"]
+    end
+
+    Backend["Backend (FastAPI)"]
+    SQLite[("SQLite WAL")]
+    Chroma[("ChromaDB")]
+    FFmpeg["ffmpeg"]
+    Llama["llama-server"]
+    Models[("Models: Whisper / LLM")]
+
+    %% 1. 修复双向箭头：改为单向，符合 v8.8.0 解析规则
+    %% HTTP 通信通常由前端发起请求，单向箭头语义清晰且稳定
+    Renderer -- HTTP API --> Backend
+
+    %% 2. 统一箭头标签格式
+    Main -- spawn backend exe + health --> Backend
+
+    %% 内部组件连接
+    Backend --> SQLite
+    Backend --> Chroma
+    Backend --> FFmpeg
+  
+    %% 3. 修复双向箭头
+    Backend -- HTTP --> Llama
+
+    Llama --> Models
+    Backend --> Models
+
+```
+
 ## 目录结构
 
 - `backend/`：FastAPI 后端源码、测试与开发工具配置
@@ -258,6 +294,80 @@ curl.exe http://127.0.0.1:8001/health
 - pytest
 
 ---
+
+## 发布与版本策略（桌面端，维护者）
+
+### 版本与渠道
+
+- `x.y.z`：stable（正式版）
+- `x.y.z-...`：beta（预发布版，例如 `0.0.1-beta.1`）
+- Git tag：建议使用 `v<version>`（例如 `v0.0.1-beta.1`）
+
+桌面端打包产物输出目录：
+
+- stable：`release/stable/<version>/`
+- beta：`release/beta/<version>/`
+
+### 推荐上传的 Release 资产（Windows）
+
+- `Edge Video Agent Setup <version>.exe`
+- `Edge Video Agent Setup <version>.exe.blockmap`
+- `Edge Video Agent-<version>-win.zip`
+- `SHA256SUMS.txt`（推荐）
+
+不建议上传：
+
+- `win-unpacked/`（体积大且在 Windows 上更容易出现文件占用导致删除/覆盖失败）
+- `builder-debug.yml` / `builder-effective-config.yaml`
+
+### 生成 SHA256SUMS（PowerShell）
+
+在仓库根目录：
+
+```powershell
+$ver = "0.0.1-beta.1"
+$dir = "release\beta\$ver"
+
+Get-FileHash -Algorithm SHA256 `
+  "$dir\Edge Video Agent Setup $ver.exe", `
+  "$dir\Edge Video Agent Setup $ver.exe.blockmap", `
+  "$dir\Edge Video Agent-$ver-win.zip" |
+  ForEach-Object { "$($_.Hash)  $($_.Path | Split-Path -Leaf)" } |
+  Set-Content -Encoding ASCII "$dir\SHA256SUMS.txt"
+```
+
+### 创建/上传 GitHub 预发布版（PowerShell）
+
+```powershell
+$ver = "0.0.1-beta.1"
+$tag = "v$ver"
+$dir = "release\beta\$ver"
+
+gh release create $tag `
+  "$dir\Edge Video Agent Setup $ver.exe" `
+  "$dir\Edge Video Agent Setup $ver.exe.blockmap" `
+  "$dir\Edge Video Agent-$ver-win.zip" `
+  "$dir\SHA256SUMS.txt" `
+  --repo "Caria-Tarnished/Edge-AI-Video-Summarizer" `
+  --title "$tag" `
+  --notes "Beta prerelease ($tag). Windows installer + portable zip." `
+  --prerelease
+```
+
+若 release 已存在，改用 `upload`：
+
+```powershell
+$ver = "0.0.1-beta.1"
+$dir = "release\beta\$ver"
+
+gh release upload "v$ver" `
+  "$dir\Edge Video Agent Setup $ver.exe" `
+  "$dir\Edge Video Agent Setup $ver.exe.blockmap" `
+  "$dir\Edge Video Agent-$ver-win.zip" `
+  "$dir\SHA256SUMS.txt" `
+  --repo "Caria-Tarnished/Edge-AI-Video-Summarizer" `
+  --clobber
+```
 
 ## 环境变量（部分）
 

@@ -485,6 +485,39 @@ powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\
 
 ---
 
+## 发布与更新说明模板（维护者）
+
+### Release Notes（模板）
+
+- Version：`vX.Y.Z`（stable）或 `vX.Y.Z-beta.N`（beta）
+- Date：YYYY-MM-DD
+- Channel：stable / beta
+- Highlights：
+  - 
+- Breaking changes（如有）：
+  - 
+- Known issues（如有）：
+  - 
+- Assets（Windows，推荐上传）：
+  - `Edge Video Agent Setup <version>.exe`
+  - `Edge Video Agent Setup <version>.exe.blockmap`
+  - `Edge Video Agent-<version>-win.zip`
+  - `SHA256SUMS.txt`
+
+### 升级 / 回滚指引（模板）
+
+- 升级：
+  - 建议先关闭正在运行的应用程序后再安装新版
+  - 若涉及数据目录变更/迁移，需在此说明迁移步骤
+- 数据目录与兼容性：
+  - 说明默认数据目录位置与是否向后兼容
+  - 说明是否需要一次性迁移、是否可回滚
+- 回滚：
+  - 若新版存在问题，可卸载并安装旧版本
+  - 若数据目录有变更，需在此说明如何恢复旧数据目录
+
+---
+
 ## 变更记录（手动维护）
 
 - 2026-01-09：新增 SSE/WS job 进度推送；新增 PROJECT_STATUS 文档与更详细测试步骤。
