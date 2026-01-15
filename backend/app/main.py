@@ -4,6 +4,7 @@ import mimetypes
 import os
 import shutil
 import threading
+from contextlib import asynccontextmanager
 from typing import Any, Dict, Optional
 
 from urllib.error import HTTPError, URLError
@@ -221,9 +222,19 @@ class RetryJobRequest(BaseModel):
     from_scratch: bool = False
 
 
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
+    _startup()
+    try:
+        yield
+    finally:
+        _shutdown()
+
+
 app = FastAPI(
     title="Edge Video Agent Backend",
     default_response_class=UTF8JSONResponse,
+    lifespan=_lifespan,
 )
 
 _cors_raw = str(os.getenv("EDGE_VIDEO_AGENT_CORS_ORIGINS", "") or "").strip()
@@ -244,7 +255,6 @@ _worker: Optional[JobWorker] = None
 _worker_thread: Optional[threading.Thread] = None
 
 
-@app.on_event("startup")
 def _startup() -> None:
     global _worker
     global _worker_thread
@@ -266,7 +276,6 @@ def _startup() -> None:
     _worker_thread.start()
 
 
-@app.on_event("shutdown")
 def _shutdown() -> None:
     if _worker is not None:
         _worker.stop()
