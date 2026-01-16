@@ -59,6 +59,43 @@ export type TranscriptSegment = {
   [k: string]: any;
 };
 
+export type DiagnosticsResponse = {
+  backend: {
+    data_dir: string;
+    db_path: string;
+    disk?: {
+      total?: number;
+      used?: number;
+      free?: number;
+      error?: string;
+      [k: string]: any;
+    };
+    [k: string]: any;
+  };
+  ffmpeg?: {
+    ok: boolean;
+    ffmpeg?: string;
+    ffprobe?: string | null;
+    error?: string;
+    [k: string]: any;
+  };
+  huggingface?: {
+    HF_HOME?: string;
+    HF_HUB_CACHE?: string;
+    huggingface_hub_version?: string;
+    default_hub_cache?: string;
+    [k: string]: any;
+  };
+  asr: AsrModelStatusResponse;
+  llm_local: LlmLocalStatusResponse;
+  hints?: {
+    move_hf_cache_powershell?: string;
+    move_hf_cache_cmd?: string;
+    [k: string]: any;
+  };
+  [k: string]: any;
+};
+
 export type TranscriptResponse = {
   video_id: string;
   segments: TranscriptSegment[];
@@ -240,6 +277,7 @@ export type AsrModelStatusResponse = {
     >;
     missing_files?: string[];
     missing_required_files?: string[];
+    missing_optional_files?: string[];
     has_model_bin?: boolean;
     has_config_json?: boolean;
     model_bin?: string | null;
@@ -338,6 +376,8 @@ export const api = {
 
   getAsrModelStatus: () =>
     fetchJson<AsrModelStatusResponse>("/asr/models/status"),
+
+  getDiagnostics: () => fetchJson<DiagnosticsResponse>("/diagnostics"),
 
   listVideos: (params?: { status?: string; limit?: number; offset?: number }) =>
     fetchJson<ListVideosResponse>(

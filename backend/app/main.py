@@ -18,7 +18,11 @@ from pydantic import BaseModel
 
 from .cloud_summary import summarize
 from .db import init_db
-from .ffmpeg_util import get_duration_seconds
+from .ffmpeg_util import (
+    get_duration_seconds,
+    resolve_ffmpeg_bin,
+    resolve_ffprobe_bin,
+)
 from .hashing import sha256_file
 from .llm_provider import (
     ChatMessage,
@@ -58,7 +62,7 @@ from .repo import (
     set_default_runtime_preferences,
     set_video_status,
 )
-from .paths import audio_wav_path, keyframes_dir
+from .paths import audio_wav_path, db_path, keyframes_dir
 from .runtime import (
     apply_runtime_preferences,
     get_effective_runtime_preferences,
@@ -301,6 +305,78 @@ def health() -> Dict[str, Any]:
     }
 
 
+@app.get("/diagnostics")
+def diagnostics() -> Dict[str, Any]:
+    disk: Dict[str, Any] = {}
+    try:
+        du = shutil.disk_usage(settings.data_dir)
+        disk = {
+            "total": int(du.total),
+            "used": int(du.used),
+            "free": int(du.free),
+        }
+    except Exception as e:
+        disk = {
+            "error": f"ERROR:{type(e).__name__}:{e}",
+        }
+
+    ff: Dict[str, Any] = {}
+    try:
+        ffmpeg = resolve_ffmpeg_bin()
+        ffprobe = resolve_ffprobe_bin()
+        ff = {
+            "ok": True,
+            "ffmpeg": str(ffmpeg or ""),
+            "ffprobe": str(ffprobe or "") if ffprobe else None,
+        }
+    except Exception as e:
+        ff = {
+            "ok": False,
+            "error": f"ERROR:{type(e).__name__}:{e}",
+        }
+
+    hf: Dict[str, Any] = {
+        "HF_HOME": os.getenv("HF_HOME", ""),
+        "HF_HUB_CACHE": os.getenv("HF_HUB_CACHE", ""),
+    }
+    try:
+        import huggingface_hub  # type: ignore
+        from huggingface_hub.constants import HF_HUB_CACHE  # type: ignore
+
+        hf["huggingface_hub_version"] = str(
+            getattr(huggingface_hub, "__version__", "")
+        )
+        hf["default_hub_cache"] = str(HF_HUB_CACHE)
+    except Exception:
+        pass
+
+    drive, _ = os.path.splitdrive(settings.data_dir)
+    hint_drive = drive or "F:"
+    hints: Dict[str, Any] = {
+        "move_hf_cache_powershell": (
+            f"$env:HF_HOME=\"{hint_drive}\\HF\"; "
+            f"$env:HF_HUB_CACHE=\"{hint_drive}\\HF\\hub\""
+        ),
+        "move_hf_cache_cmd": (
+            f"setx HF_HOME \"{hint_drive}\\HF\"\r\n"
+            f"setx HF_HUB_CACHE \"{hint_drive}\\HF\\hub\""
+        ),
+    }
+
+    return {
+        "backend": {
+            "data_dir": settings.data_dir,
+            "db_path": db_path(),
+            "disk": disk,
+        },
+        "ffmpeg": ff,
+        "huggingface": hf,
+        "asr": asr_models_status_api(),
+        "llm_local": llm_local_status_api(),
+        "hints": hints,
+    }
+
+
 @app.get("/llm/preferences/default")
 def get_llm_default_preferences_api() -> Dict[str, Any]:
     return {
@@ -469,8 +545,8 @@ def asr_models_status_api() -> Dict[str, Any]:
         hub["version"] = str(getattr(huggingface_hub, "__version__", ""))
 
         files: Dict[str, Any] = {}
-        missing_files: list[str] = []
         missing_required_files: list[str] = []
+        missing_optional_files: list[str] = []
         for fn in (required_files + optional_files):
             cached = try_to_load_from_cache(repo_id, fn)
             path = (
@@ -484,16 +560,20 @@ def asr_models_status_api() -> Dict[str, Any]:
                 "path": path or None,
             }
             if not ok:
-                missing_files.append(fn)
                 if fn in required_files:
                     missing_required_files.append(fn)
+                else:
+                    missing_optional_files.append(fn)
 
         local["repo_id"] = repo_id
         local["required_files"] = required_files
         local["optional_files"] = optional_files
         local["files"] = files
-        local["missing_files"] = missing_files
         local["missing_required_files"] = missing_required_files
+        local["missing_optional_files"] = missing_optional_files
+        local["missing_files"] = list(missing_required_files) + list(
+            missing_optional_files
+        )
 
         model_bin_path = str((files.get("model.bin") or {}).get("path") or "")
         config_json_path = str(

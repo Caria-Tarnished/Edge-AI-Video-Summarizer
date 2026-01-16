@@ -206,6 +206,85 @@ body {
   color: #fca5a5;
 }
 
+.wizard-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-top: 10px;
+}
+
+.wizard-stepper-item {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.wizard-stepper-btn {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wizard-stepper-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.wizard-stepper-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.wizard-stepper-dot.active {
+  border-color: rgba(99, 102, 241, 0.8);
+  background: rgba(99, 102, 241, 0.25);
+}
+
+.wizard-stepper-dot.done {
+  border-color: rgba(34, 197, 94, 0.75);
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.wizard-stepper-label {
+  font-size: 12px;
+  opacity: 0.8;
+  text-align: center;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wizard-stepper-label.active {
+  opacity: 1;
+}
+
+.wizard-stepper-line {
+  height: 2px;
+  flex: 1;
+  margin: 0 10px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.wizard-stepper-line.done {
+  background: rgba(34, 197, 94, 0.55);
+}
+
 @media (max-width: 860px) {
   .grid {
     grid-template-columns: 1fr;

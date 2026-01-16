@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import LibraryPage from './pages/LibraryPage'
+import FirstRunWizardPage from './pages/FirstRunWizardPage'
 import SettingsPage from './pages/SettingsPage'
 import TaskCenterPage from './pages/TaskCenterPage'
 import VideoDetailPage from './pages/VideoDetailPage'
 
-type Route = 'settings' | 'library' | 'tasks'
+type Route = 'wizard' | 'settings' | 'library' | 'tasks'
 
 type UiLang = 'zh' | 'en'
 
@@ -22,6 +23,33 @@ export default function App() {
   const [route, setRoute] = useState<Route>('library')
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
   const [uiLang, setUiLang] = useState<UiLang>(() => loadUiLang())
+
+  useEffect(() => {
+    try {
+      const override = String(localStorage.getItem('route_override') || '')
+        .trim()
+        .toLowerCase()
+      if (override === 'wizard') {
+        try {
+          localStorage.removeItem('route_override')
+        } catch {
+        }
+        setRoute('wizard')
+        return
+      }
+
+      const done = String(
+        localStorage.getItem('first_run_wizard_completed') || ''
+      )
+        .trim()
+        .toLowerCase()
+      if (!done || done === '0' || done === 'false' || done === 'no') {
+        setRoute('wizard')
+      }
+    } catch {
+      setRoute('wizard')
+    }
+  }, [])
 
   const setUiLangAndPersist = useCallback((next: UiLang) => {
     setUiLang(next)
@@ -47,6 +75,22 @@ export default function App() {
   )
 
   const content = useMemo(() => {
+    if (route === 'wizard') {
+      return (
+        <FirstRunWizardPage
+          uiLang={uiLang}
+          onDone={() => {
+            try {
+              localStorage.setItem('first_run_wizard_completed', '1')
+            } catch {
+              // ignore
+            }
+            setRoute('library')
+            setSelectedVideoId(null)
+          }}
+        />
+      )
+    }
     if (route === 'settings') {
       return <SettingsPage uiLang={uiLang} />
     }

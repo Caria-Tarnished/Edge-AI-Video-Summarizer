@@ -216,6 +216,34 @@
 - SSE/WS 相关：
   - SSE 建议用浏览器或 `curl.exe -N` 验证；WS 建议用 Node/Python 客户端脚本验证。
 
+### P3-3：模型热替换 / 管理（待验证，暂不阻塞 P3-4）
+
+> 目标：支持在不重启后端的情况下切换 ASR 模型（以及切换默认 LLM 模型偏好），并具备“可回滚”的数据结构。
+
+- **后端已实现**：
+  - `PUT /runtime/profile` 支持 `asr_model`，并通过环境变量 `ASR_MODEL` 驱动 ASR 加载。
+  - ASR 加载逻辑支持热切换：当 `asr_model / asr_device / asr_compute_type` 变化时会自动卸载并在下一次转写时重载。
+  - `GET/PUT /models/manifest`：模型清单（落盘到 `${data_dir}/models/manifest.json`）。
+  - `POST /models/activate`：切换 `asr_model` / `llm_model`，返回 `previous` 和 `current`，用于回滚。
+
+- **建议验证步骤**：
+  - **ASR 状态**：
+    - Settings -> Runtime Profile：填写 `asr_model=small` 或 `asr_model=large-v3` 并保存。
+    - 点击 “刷新 ASR 状态”，确认显示的 `model/repo_id` 跟随变化。
+  - **ASR 真正热切换**：
+    - 切换 `asr_model` 后，创建一次 `transcribe` job（任意视频）。
+    - 预期：任务可正常完成，且切换后首次转写会触发 ASR 模型按新配置重载。
+  - **LLM 模型候选（本地 llama-server）**：
+    - Settings -> “本地 llama-server 状态”：刷新。
+    - 若 `/v1/models` 返回 `models` 列表，Default LLM Preferences 里应出现下拉，选择后保存生效。
+  - **回滚**：
+    - 调用 `POST /models/activate` 得到 `previous`。
+    - 将 `previous.runtime.asr_model` 与 `previous.llm.model` 再提交一次，确认可回到上一状态。
+
+- **备注（ASR 缓存文件）**：
+  - Faster-Whisper 运行通常只需要 `model.bin + config.json`。
+  - UI 若显示缺失 `tokenizer.json/vocabulary.json/...` 等文件，多数属于“可选文件”，不应阻止使用。
+
 ### MVP-4：scene_threshold 调参备忘（场景切换抽帧）
 
 - `scene_threshold` 的含义：`ffmpeg` 的 `scene` 检测是一个 0~1 的“镜头切换强度”评分，过滤条件是 `scene_score > scene_threshold`。

@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import {
   api,
   AsrModelStatusResponse,
+  DiagnosticsResponse,
   LlmLocalStatusResponse,
   RuntimeProfileResponse,
 } from "../api/backend";
@@ -56,6 +57,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
   );
 
   const [asrStatus, setAsrStatus] = useState<AsrModelStatusResponse | null>(null);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsResponse | null>(null);
 
   const [devConfigPath, setDevConfigPath] = useState<string | null>(null);
   const [devConfigDraft, setDevConfigDraft] = useState<DevConfigDraft>({});
@@ -63,6 +65,20 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  const openFirstRunWizard = useCallback(
+    (resetCompletedFlag: boolean) => {
+      try {
+        localStorage.setItem("route_override", "wizard");
+        if (resetCompletedFlag) {
+          localStorage.setItem("first_run_wizard_completed", "0");
+        }
+      } catch {
+      }
+      window.location.reload();
+    },
+    []
+  );
 
   const copyText = useCallback(
     async (text: string, okMsg: string) => {
@@ -97,6 +113,8 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
         | "asr_model_status"
         | "refresh_asr_status"
         | "asr_large_v3"
+        | "diagnostics"
+        | "refresh_diagnostics"
     ) => {
       if (uiLang === "en") {
         if (key === "settings") return "Settings";
@@ -121,6 +139,8 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
         if (key === "asr_model_status") return "ASR model status";
         if (key === "refresh_asr_status") return "Refresh ASR status";
         if (key === "asr_large_v3") return "large-v3";
+        if (key === "diagnostics") return "Diagnostics";
+        if (key === "refresh_diagnostics") return "Refresh diagnostics";
       }
       if (key === "settings") return "\u8bbe\u7f6e";
       if (key === "backend_hint")
@@ -147,6 +167,9 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
       if (key === "asr_model_status") return "ASR \u6a21\u578b\u72b6\u6001";
       if (key === "refresh_asr_status") return "\u5237\u65b0 ASR \u72b6\u6001";
       if (key === "asr_large_v3") return "large-v3";
+      if (key === "diagnostics") return "\u81ea\u68c0 / \u6392\u969c";
+      if (key === "refresh_diagnostics")
+        return "\u5237\u65b0\u81ea\u68c0\u4fe1\u606f";
       return "\u5c1a\u672a\u83b7\u53d6\u72b6\u6001\uff08\u70b9\u51fb\u201c\u5237\u65b0\u72b6\u6001\u201d\uff09";
     },
     [uiLang]
@@ -157,12 +180,13 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
     setInfo(null);
     setBusy("loading");
     try {
-      const [rt, llm, prov, status, asr, devCfg] = await Promise.all([
+      const [rt, llm, prov, status, asr, diag, devCfg] = await Promise.all([
         api.getRuntimeProfile(),
         api.getDefaultLlmPreferences(),
         api.listLlmProviders(),
         api.getLocalLlmStatus().catch(() => null),
         api.getAsrModelStatus().catch(() => null),
+        api.getDiagnostics().catch(() => null),
         window.electronAPI?.getDevConfig
           ? window.electronAPI.getDevConfig().catch(() => null)
           : Promise.resolve(null),
@@ -199,6 +223,10 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
         setAsrStatus(asr as AsrModelStatusResponse);
       }
 
+      if (diag && typeof diag === "object") {
+        setDiagnostics(diag as DiagnosticsResponse);
+      }
+
       if (devCfg && typeof devCfg === "object") {
         const p = String((devCfg as any).path || "");
         const cfg = ((devCfg as any).config || {}) as Record<string, unknown>;
@@ -214,6 +242,20 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           backend_base_url: String(cfg.backend_base_url || ""),
         });
       }
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setBusy(null);
+    }
+  }, []);
+
+  const refreshDiagnostics = useCallback(async () => {
+    setError(null);
+    setInfo(null);
+    setBusy("refreshing_diagnostics");
+    try {
+      const d = await api.getDiagnostics();
+      setDiagnostics(d);
     } catch (e: any) {
       setError(String(e?.message || e));
     } finally {
@@ -563,43 +605,81 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
                 <div className="alert alert-error">{String(asrStatus.download.error)}</div>
               ) : null}
 
-              {Array.isArray((asrStatus as any)?.local?.missing_files) && (asrStatus as any).local.missing_files.length ? (
-                <div className="subcard" style={{ marginTop: 8 }}>
-                  <div className="label">{uiLang === "en" ? "Missing files" : "缺失文件"}</div>
-                  <pre className="pre">{String(((asrStatus as any).local.missing_files as any[]).join("\n"))}</pre>
+              {Array.isArray((asrStatus as any)?.local?.missing_required_files) &&
+              (asrStatus as any).local.missing_required_files.length ? (
+                <div className="alert alert-error" style={{ marginTop: 8 }}>
+                  {uiLang === "en"
+                    ? "Missing required files (model not usable)."
+                    : "\u7f3a\u5931\u5fc5\u9700\u6587\u4ef6\uff08\u6a21\u578b\u4e0d\u53ef\u7528\uff09\u3002"}
+                  <pre className="pre" style={{ marginTop: 8 }}>
+                    {String(
+                      (((asrStatus as any).local.missing_required_files as any[]) || []).join(
+                        "\n"
+                      )
+                    )}
+                  </pre>
                 </div>
+              ) : (
+                <div className="alert alert-info" style={{ marginTop: 8 }}>
+                  {uiLang === "en"
+                    ? "Required files are present (model should be usable)."
+                    : "\u5fc5\u9700\u6587\u4ef6\u5df2\u5c31\u7eea\uff08\u6a21\u578b\u5e94\u53ef\u7528\uff09\u3002"}
+                </div>
+              )}
+
+              {Array.isArray((asrStatus as any)?.local?.missing_optional_files) &&
+              (asrStatus as any).local.missing_optional_files.length ? (
+                <details style={{ marginTop: 8 }}>
+                  <summary className="muted">
+                    {uiLang === "en"
+                      ? "Optional missing files (usually non-blocking)"
+                      : "\u53ef\u9009\u7f3a\u5931\u6587\u4ef6\uff08\u901a\u5e38\u4e0d\u5f71\u54cd\u4f7f\u7528\uff09"}
+                  </summary>
+                  <pre className="pre">
+                    {String(
+                      (((asrStatus as any).local.missing_optional_files as any[]) || []).join(
+                        "\n"
+                      )
+                    )}
+                  </pre>
+                </details>
               ) : null}
 
               <div className="grid" style={{ marginTop: 8 }}>
                 <div className="field">
                   <div className="label">repo</div>
                   <div className="muted" style={{ wordBreak: "break-all" }}>
-                    {String(asrStatus?.download?.repo_url || `https://huggingface.co/${String(asrStatus.repo_id || "")}`)}
+                    {String(
+                      asrStatus?.download?.repo_url ||
+                        `https://huggingface.co/${String(asrStatus.repo_id || "")}`
+                    )}
                   </div>
                   <div className="row">
                     <button
                       className="btn"
                       onClick={() => {
                         const url = String(
-                          asrStatus?.download?.repo_url || `https://huggingface.co/${String(asrStatus.repo_id || "")}`
+                          asrStatus?.download?.repo_url ||
+                            `https://huggingface.co/${String(asrStatus.repo_id || "")}`
                         );
                         window.open(url, "_blank");
                       }}
                       disabled={!!busy}
                     >
-                      {uiLang === "en" ? "Open" : "打开"}
+                      {uiLang === "en" ? "Open" : "\u6253\u5f00"}
                     </button>
                     <button
                       className="btn"
                       onClick={() => {
                         const url = String(
-                          asrStatus?.download?.repo_url || `https://huggingface.co/${String(asrStatus.repo_id || "")}`
+                          asrStatus?.download?.repo_url ||
+                            `https://huggingface.co/${String(asrStatus.repo_id || "")}`
                         );
-                        void copyText(url, uiLang === "en" ? "Copied" : "已复制");
+                        void copyText(url, uiLang === "en" ? "Copied" : "\u5df2\u590d\u5236");
                       }}
                       disabled={!!busy}
                     >
-                      {uiLang === "en" ? "Copy" : "复制"}
+                      {uiLang === "en" ? "Copy" : "\u590d\u5236"}
                     </button>
                   </div>
                 </div>
@@ -618,48 +698,55 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
                       }}
                       disabled={!!busy || !asrStatus?.download?.url}
                     >
-                      {uiLang === "en" ? "Open" : "打开"}
+                      {uiLang === "en" ? "Open" : "\u6253\u5f00"}
                     </button>
                     <button
                       className="btn"
                       onClick={() => {
                         const url = String(asrStatus?.download?.url || "");
                         if (!url) return;
-                        void copyText(url, uiLang === "en" ? "Copied" : "已复制");
+                        void copyText(url, uiLang === "en" ? "Copied" : "\u5df2\u590d\u5236");
                       }}
                       disabled={!!busy || !asrStatus?.download?.url}
                     >
-                      {uiLang === "en" ? "Copy" : "复制"}
+                      {uiLang === "en" ? "Copy" : "\u590d\u5236"}
                     </button>
                   </div>
                 </div>
               </div>
 
-              <div className="subcard" style={{ marginTop: 8 }}>
-                <div className="label">{uiLang === "en" ? "Download via Python" : "使用 Python 下载"}</div>
-                <pre className="pre">
-                  {`python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='${String(asrStatus.repo_id || "Systran/faster-whisper-large-v3")}')"`}
-                </pre>
-                <div className="row">
-                  <button
-                    className="btn"
-                    onClick={() => {
-                      const cmd = `python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='${String(
-                        asrStatus.repo_id || "Systran/faster-whisper-large-v3"
-                      )}')"`;
-                      void copyText(cmd, uiLang === "en" ? "Copied" : "已复制");
-                    }}
-                    disabled={!!busy}
-                  >
-                    {uiLang === "en" ? "Copy command" : "复制命令"}
-                  </button>
+              {Array.isArray((asrStatus as any)?.local?.missing_required_files) &&
+              (asrStatus as any).local.missing_required_files.length ? (
+                <div className="subcard" style={{ marginTop: 8 }}>
+                  <div className="label">
+                    {uiLang === "en" ? "Download via Python" : "\u4f7f\u7528 Python \u4e0b\u8f7d"}
+                  </div>
+                  <pre className="pre">
+                    {`python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='${String(
+                      asrStatus.repo_id || "Systran/faster-whisper-large-v3"
+                    )}')"`}
+                  </pre>
+                  <div className="row">
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        const cmd = `python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='${String(
+                          asrStatus.repo_id || "Systran/faster-whisper-large-v3"
+                        )}')"`;
+                        void copyText(cmd, uiLang === "en" ? "Copied" : "\u5df2\u590d\u5236");
+                      }}
+                      disabled={!!busy}
+                    >
+                      {uiLang === "en" ? "Copy command" : "\u590d\u5236\u547d\u4ee4"}
+                    </button>
+                  </div>
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    {uiLang === "en"
+                      ? "This downloads into the Hugging Face cache."
+                      : "\u8be5\u547d\u4ee4\u4f1a\u4e0b\u8f7d\u5230 Hugging Face \u7f13\u5b58\u76ee\u5f55\u3002"}
+                  </div>
                 </div>
-                <div className="muted" style={{ marginTop: 6 }}>
-                  {uiLang === "en"
-                    ? "This downloads into the Hugging Face cache. If download is ERROR, check network/proxy or try from browser."
-                    : "该命令会下载到 Hugging Face 缓存目录；如 download=ERROR，通常是网络/代理问题，可先用浏览器打开链接验证。"}
-                </div>
-              </div>
+              ) : null}
 
               {(asrStatus as any)?.local?.model_bin || (asrStatus as any)?.local?.config_json ? (
                 <div className="subcard" style={{ marginTop: 8 }}>
@@ -983,6 +1070,105 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           </>
         ) : (
           <div className="muted">{t("not_electron")}</div>
+        )}
+      </div>
+
+      <div className="card">
+        <h3>{t("diagnostics")}</h3>
+        <div className="row">
+          <button className="btn" onClick={refreshDiagnostics} disabled={!!busy}>
+            {t("refresh_diagnostics")}
+          </button>
+          <button
+            className="btn"
+            onClick={() => openFirstRunWizard(false)}
+            disabled={!!busy}
+            title={
+              uiLang === "en"
+                ? "Open the first-run wizard"
+                : "\u91cd\u65b0\u6253\u5f00\u9996\u6b21\u8fd0\u884c\u5411\u5bfc"
+            }
+          >
+            {uiLang === "en" ? "Open Wizard" : "\u6253\u5f00\u5411\u5bfc"}
+          </button>
+          <button
+            className="btn"
+            onClick={() => openFirstRunWizard(true)}
+            disabled={!!busy}
+            title={
+              uiLang === "en"
+                ? "Reset wizard completion flag and open"
+                : "\u91cd\u7f6e\u5411\u5bfc\u5b8c\u6210\u72b6\u6001\u5e76\u6253\u5f00"
+            }
+          >
+            {uiLang === "en"
+              ? "Reset + Open"
+              : "\u91cd\u7f6e\u5e76\u6253\u5f00"}
+          </button>
+        </div>
+
+        {diagnostics ? (
+          <div className="subcard" style={{ marginTop: 8 }}>
+            <div className="kv">
+              <div className="k">data_dir</div>
+              <div className="v" style={{ wordBreak: "break-all" }}>{String(diagnostics.backend?.data_dir || "")}</div>
+            </div>
+            <div className="kv">
+              <div className="k">disk_free</div>
+              <div className="v">{String((diagnostics.backend as any)?.disk?.free ?? "")}</div>
+            </div>
+            <div className="kv">
+              <div className="k">ffmpeg</div>
+              <div className={(diagnostics.ffmpeg?.ok ? "v ok" : "v bad")}>{String(!!diagnostics.ffmpeg?.ok)}</div>
+            </div>
+            {diagnostics.ffmpeg?.ffmpeg ? (
+              <div className="muted" style={{ wordBreak: "break-all" }}>
+                ffmpeg: {String(diagnostics.ffmpeg.ffmpeg)}
+              </div>
+            ) : null}
+
+            <div className="subcard" style={{ marginTop: 8 }}>
+              <div className="label">HF cache</div>
+              <div className="muted" style={{ wordBreak: "break-all" }}>
+                HF_HOME: {String((diagnostics.huggingface as any)?.HF_HOME || "")}
+              </div>
+              <div className="muted" style={{ wordBreak: "break-all" }}>
+                HF_HUB_CACHE: {String((diagnostics.huggingface as any)?.HF_HUB_CACHE || "")}
+              </div>
+              {diagnostics.hints?.move_hf_cache_powershell ? (
+                <>
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    {uiLang === "en"
+                      ? "Tip: set HF cache to a larger drive (restart app after setting)"
+                      : "\u5efa\u8bae\u5c06 HF \u7f13\u5b58\u6307\u5411\u5927\u5bb9\u91cf\u78c1\u76d8\uff08\u8bbe\u7f6e\u540e\u9700\u91cd\u542f\u5e94\u7528\u751f\u6548\uff09"}
+                  </div>
+                  <pre className="pre" style={{ marginTop: 6 }}>
+                    {String(diagnostics.hints.move_hf_cache_powershell)}
+                  </pre>
+                  <div className="row">
+                    <button
+                      className="btn"
+                      onClick={() =>
+                        void copyText(
+                          String(diagnostics.hints?.move_hf_cache_powershell || ""),
+                          uiLang === "en" ? "Copied" : "\u5df2\u590d\u5236"
+                        )
+                      }
+                      disabled={!!busy}
+                    >
+                      {uiLang === "en" ? "Copy" : "\u590d\u5236"}
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div className="muted" style={{ marginTop: 8 }}>
+            {uiLang === "en"
+              ? "Diagnostics not loaded"
+              : "\u5c1a\u672a\u83b7\u53d6\u81ea\u68c0\u4fe1\u606f"}
+          </div>
         )}
       </div>
     </div>
