@@ -14,6 +14,13 @@
 
 It runs entirely on your local machine to convert long-form videos into structured knowledge (summaries, outlines, searchable chunks), without uploading your data to the cloud.
 
+### Quick Links
+
+- **Releases (Windows installer/zip)**: https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer/releases
+- **Documentation**: `docs/README.md`
+- **Architecture Design**: `Architecture_Design.md`
+- **Project Status / Roadmap**: `PROJECT_STATUS.md`
+
 ### Key Features
 
 - **Privacy first**: ASR, embedding, indexing, and RAG can run locally.
@@ -63,9 +70,15 @@ graph TD
 
 ### Installation
 
-See:
+Download from:
 
 - **GitHub Releases**: https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer/releases
+
+Notes:
+
+- **Installer**: `Edge.Video.Agent.Setup.<version>.exe`
+- **Portable**: `Edge.Video.Agent-<version>-win.zip`
+- **Integrity**: `SHA256SUMS.txt` contains checksums for the main assets
 
 ### Development
 
@@ -85,7 +98,7 @@ See:
 ```powershell
 cd backend
 python -m venv .venv
-\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
@@ -114,6 +127,13 @@ npm run dist
 **Edge AI Video Summarizer** 是一个本地优先（local-first）的视频处理与总结/检索助手。
 
 它完全在本地运行，将长视频转化为结构化知识（摘要、大纲、可检索文本块），无需上传数据到云端。
+
+### 快捷链接
+
+- **Releases（Windows 安装包/zip）**: https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer/releases
+- **文档索引**：`docs/README.md`
+- **架构设计**：`Architecture_Design.md`
+- **项目进度 / Roadmap**：`PROJECT_STATUS.md`
 
 ### 核心功能
 
@@ -164,9 +184,15 @@ graph TD
 
 ### 安装使用
 
-请前往：
+请前往下载：
 
 - **GitHub Releases**: https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer/releases
+
+说明：
+
+- **安装包**：`Edge.Video.Agent.Setup.<version>.exe`
+- **免安装版**：`Edge.Video.Agent-<version>-win.zip`
+- **校验文件**：`SHA256SUMS.txt`（包含主要资产的 SHA256）
 
 ### 开发者指南
 
@@ -186,7 +212,7 @@ graph TD
 ```powershell
 cd backend
 python -m venv .venv
-\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
@@ -209,6 +235,19 @@ npm run dist
 
 ---
 
+## Documentation
+
+- **Docs index**: `docs/README.md`
+- **Overview**: `docs/overview.md`
+- **Development**: `docs/development.md`
+- **API**: `docs/api.md`
+- **Release (Maintainers)**: `docs/release.md`
+
+## Roadmap
+
+- **Project Status / Roadmap**: `PROJECT_STATUS.md`
+
+<!--
 ## Detailed Documentation
 
 <details>
@@ -381,56 +420,6 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 
 > 说明：llama-server 的状态由后端探测 `LLM_LOCAL_BASE_URL + /models`。如果 Settings 里显示无法连接，优先确认 `http://127.0.0.1:8080/v1/models` 是否可访问，以及查看 `artifacts/logs/llama_server_*.stderr.log`。
 
-### 2.6) 桌面端打包与发布（Windows）
-
-在 `frontend/` 目录：
-
-```powershell
-npm run dist
-```
-
-- `dist` 会自动执行后端 staging、构建与 electron-builder 打包
-- 产物会根据版本号自动分流到：
-  - 版本号不包含 `-`：`release/stable/<version>/`
-  - 版本号包含 `-`：`release/beta/<version>/`
-
-如需手动指定渠道：
-
-```powershell
-npm run dist:stable
-npm run dist:beta
-```
-
-Windows 文件锁说明：若你曾从 `release/**/win-unpacked` 直接运行过程序，`resources/app.asar` 可能被占用导致删除/覆盖失败。构建脚本已在 `dist/pack` 前自动停止相关进程（见 `scripts/stop_release_apps.ps1`）。必要时可手动运行：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\stop_release_apps.ps1
-```
-
-桌面端当前已联通的功能：
-
-- 视频库（Library）：视频列表（`GET /videos`）+ 导入（Electron 文件选择器 → `POST /videos/import`）
-- 视频详情（Video Detail）：
-  - 转写：参数面板 + SSE 进度订阅（`GET /jobs/{job_id}/events`）+ transcript 预览（`GET /videos/{id}/transcript`）
-  - 索引/摘要/关键帧：SSE 进度订阅 + 结果预览（index/summary/outline/keyframes）
-  - 播放器：
-    - 视频播放（`/videos/{video_id}/file`）+ 可播放字幕（VTT track）
-    - 控件：`-15s/+15s`、倍速、复制当前时间戳
-    - 字幕开关：可关闭/开启“自动生成字幕”（避免与视频自带字幕冲突）
-    - 联动：点击转写段落/大纲节点/引用/关键帧可跳转到对应时间戳
-  - Notes（摘要/大纲侧栏）：
-    - 摘要 markdown 阅读优化（轻量渲染：标题/列表/代码块）+ 展开/收起（按高度折叠）
-    - 自动展开大纲开关（进入 Notes 可自动展开并加载）
-    - 大纲节点可折叠 + 全部展开/全部收起
-    - aligned keyframes：缩略图时间戳 overlay、数量展示、空态与加载态更清晰，并避免重复请求
-  - AI 助手（Chat 侧栏）：
-    - SSE streaming 输出、取消、confirm_send 确认提示、索引未就绪自动等待并重试
-    - 回答支持轻量 markdown 渲染；引用列表更清晰并支持“一键跳转”到视频时间戳
-    - 快捷键：Ctrl/Cmd + Enter 发送；支持清空结果
-- Settings：
-  - 全局 UI 语言切换（中文/English，localStorage 持久化）
-  - 默认 LLM 偏好新增 `output_language`（`zh/en/auto`）并持久化到 `/llm/preferences/default`
-
 ### 3) 健康检查
 
 ```powershell
@@ -587,20 +576,18 @@ gh release upload "v$ver" `
 - 完成：桌面端视频详情页（转写/索引/摘要/关键帧）与进度展示（SSE）+ 结果预览
 - 完成：全局 UI 语言切换（中文/English）与 LLM 输出语言 `output_language`（`zh/en/auto`）全链路生效
 - 下一步（建议进入 P3）：
-  - Release 工程化：CI 构建 Windows 产物 + 自动创建/上传 GitHub Release（含 SHA256 校验文件）
+  - 已完成：Release 工程化（CI 构建 Windows 产物 + 自动创建/上传 GitHub Release（含 SHA256 校验文件））
   - 自动更新策略（可选）：electron-updater / 手动检查更新（二选一）
   - 首次运行向导：whisper 模型/llama-server/本地模型的可用性检查与下载指引
   - 数据目录：选择/迁移/备份策略（避免升级覆盖与用户数据丢失）
   - 播放器增强（可选）：键盘快捷键、章节导航、画中画/全屏体验优化
   - 任务中心（可选）：全局 jobs 列表 + 取消/重试 + 进度订阅
 
----
-
-</details>
+-->
 
 ## License
 
-Copyright ? 2024 Caria-Tarnished.
+Copyright (c) 2024 Caria-Tarnished.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
