@@ -5,7 +5,7 @@ import time
 import traceback
 import uuid
 from dataclasses import replace
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from .asr import ASR
 from .chunking_v2 import (
@@ -19,7 +19,7 @@ from .ffmpeg_util import (
     extract_video_frame_jpg,
     get_jpg_dimensions,
 )
-from .llm_provider import LLMPreferences, get_provider
+from .llm_provider import ChatMessage, LLMPreferences, get_provider
 from .paths import keyframe_jpg_abspath, keyframe_jpg_relpath, keyframes_dir
 from .repo import (
     claim_pending_job,
@@ -1111,7 +1111,7 @@ class JobWorker:
                     "Task: write a short bullet-point summary."
                 )
 
-            messages = [
+            messages: List[ChatMessage] = [
                 {
                     "role": "system",
                     "content": seg_system,
@@ -1186,7 +1186,7 @@ class JobWorker:
                 f"Input JSON:\n{reduce_input[:18000]}"
             )
 
-        messages_reduce = [
+        messages_reduce: List[ChatMessage] = [
             {
                 "role": "system",
                 "content": reduce_system,
@@ -1236,7 +1236,7 @@ class JobWorker:
                 f"Input JSON:\n{reduce_input[:18000]}"
             )
 
-        messages_outline = [
+        messages_outline: List[ChatMessage] = [
             {
                 "role": "system",
                 "content": outline_system,
@@ -1274,7 +1274,7 @@ class JobWorker:
                     "Output JSON only.\n\n"
                     + raw_text[:12000]
                 )
-            messages_fix = [
+            messages_fix: List[ChatMessage] = [
                 {
                     "role": "system",
                     "content": fix_system,

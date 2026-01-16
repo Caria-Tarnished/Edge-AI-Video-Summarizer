@@ -907,18 +907,23 @@ def create_keyframes_job(
         out["mode"] = str(obj.get("mode") or "interval").strip() or "interval"
 
         if out["mode"] == "scene":
-            if obj.get("scene_threshold") is not None:
-                out["scene_threshold"] = float(obj.get("scene_threshold"))
-            if obj.get("min_gap_seconds") is not None:
-                out["min_gap_seconds"] = float(obj.get("min_gap_seconds"))
+            scene_threshold_val = obj.get("scene_threshold")
+            if scene_threshold_val is not None:
+                out["scene_threshold"] = float(scene_threshold_val)
+            min_gap_seconds_val = obj.get("min_gap_seconds")
+            if min_gap_seconds_val is not None:
+                out["min_gap_seconds"] = float(min_gap_seconds_val)
         else:
-            if obj.get("interval_seconds") is not None:
-                out["interval_seconds"] = float(obj.get("interval_seconds"))
+            interval_seconds_val = obj.get("interval_seconds")
+            if interval_seconds_val is not None:
+                out["interval_seconds"] = float(interval_seconds_val)
 
-        if obj.get("max_frames") is not None:
-            out["max_frames"] = int(obj.get("max_frames"))
-        if obj.get("target_width") is not None:
-            out["target_width"] = int(obj.get("target_width"))
+        max_frames_val = obj.get("max_frames")
+        if max_frames_val is not None:
+            out["max_frames"] = int(max_frames_val)
+        target_width_val = obj.get("target_width")
+        if target_width_val is not None:
+            out["target_width"] = int(target_width_val)
         return out
 
     params: Dict[str, Any] = {
@@ -1139,7 +1144,7 @@ def aligned_keyframes_api(
                     key=lambda f: float(f.get("score") or 0.0),
                     reverse=True,
                 )
-                sel = []
+                sel: list[Dict[str, Any]] = []
                 for f in ranked:
                     if len(sel) >= per_section:
                         break
@@ -1333,12 +1338,12 @@ def search_api(
                     detail="TRANSCRIPT_NOT_FOUND",
                 )
 
-            params: Dict[str, Any] = {
+            job_params: Dict[str, Any] = {
                 "from_scratch": True,
                 "embed_model": "hash",
                 "embed_dim": int(embed_dim),
             }
-            job = create_job(video_id, "index", params)
+            job = create_job(video_id, "index", job_params)
             return UTF8JSONResponse(
                 status_code=202,
                 content={
@@ -1579,12 +1584,12 @@ def chat_api(req: ChatRequest) -> Response:
                     detail="TRANSCRIPT_NOT_FOUND",
                 )
 
-            params: Dict[str, Any] = {
+            job_params: Dict[str, Any] = {
                 "from_scratch": True,
                 "embed_model": "hash",
                 "embed_dim": int(embed_dim),
             }
-            job = create_job(video_id, "index", params)
+            job = create_job(video_id, "index", job_params)
             return UTF8JSONResponse(
                 status_code=202,
                 content={
