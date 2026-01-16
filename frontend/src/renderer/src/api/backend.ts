@@ -307,6 +307,12 @@ export type DeleteVideoResponse = {
   [k: string]: any;
 };
 
+export type DeleteJobResponse = {
+  ok: boolean;
+  id: string;
+  [k: string]: any;
+};
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: {
@@ -492,6 +498,10 @@ export const api = {
       body: JSON.stringify({
         from_scratch: Boolean(payload?.from_scratch),
       }),
+    }),
+  deleteJob: (job_id: string) =>
+    fetchJson<DeleteJobResponse>(`/jobs/${encodeURIComponent(job_id)}`, {
+      method: "DELETE",
     }),
   createIndexJob: async (
     video_id: string,

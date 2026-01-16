@@ -209,6 +209,47 @@ export default function TaskCenterPage({ uiLang = 'zh', onOpenVideo }: Props) {
     [load, uiLang]
   )
 
+  const onDelete = useCallback(
+    async (job: JobItem) => {
+      setInfo(null)
+      setError(null)
+
+      const status = String(job.status || '')
+      if (!isTerminalJobStatus(status)) {
+        setInfo(
+          uiLang === 'en'
+            ? 'Job is active. Please cancel it first.'
+            : '\u4efb\u52a1\u6b63\u5728\u8fdb\u884c\u4e2d\uff0c\u8bf7\u5148\u53d6\u6d88\u8be5\u4efb\u52a1\u3002'
+        )
+        return
+      }
+
+      const ok = window.confirm(
+        uiLang === 'en'
+          ? 'Delete this job record?'
+          : '\u5220\u9664\u8be5\u4efb\u52a1\u8bb0\u5f55\uff1f'
+      )
+      if (!ok) return
+
+      setBusy(true)
+      try {
+        await api.deleteJob(String(job.id))
+        setInfo(uiLang === 'en' ? 'Deleted' : '\u5df2\u5220\u9664')
+        if (String(selectedJobId || '') === String(job.id)) {
+          setSelectedJobId(null)
+          setSelectedJob(null)
+        }
+        await load()
+      } catch (e: any) {
+        const msg = e && e.message ? String(e.message) : String(e)
+        setError(msg)
+      } finally {
+        setBusy(false)
+      }
+    },
+    [load, selectedJobId, uiLang]
+  )
+
   const onCancelActiveVisible = useCallback(async () => {
     const actives = items.filter((j) => isActiveJobStatus(j.status))
     if (actives.length === 0) {
@@ -384,6 +425,7 @@ export default function TaskCenterPage({ uiLang = 'zh', onOpenVideo }: Props) {
           <div>
             {items.map((j) => {
               const active = isActiveJobStatus(j.status)
+              const terminal = isTerminalJobStatus(j.status)
               const selected = String(selectedJobId || '') === String(j.id)
               return (
                 <div
@@ -435,6 +477,26 @@ export default function TaskCenterPage({ uiLang = 'zh', onOpenVideo }: Props) {
                           {uiLang === 'en' ? 'Retry' : '重试'}
                         </button>
                       )}
+
+                      <button
+                        className="btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void onDelete(j)
+                        }}
+                        disabled={busy || !terminal}
+                        title={
+                          terminal
+                            ? uiLang === 'en'
+                              ? 'Delete'
+                              : '\u5220\u9664'
+                            : uiLang === 'en'
+                              ? 'Cancel it first'
+                              : '\u8bf7\u5148\u53d6\u6d88'
+                        }
+                      >
+                        {uiLang === 'en' ? 'Delete' : '\u5220\u9664'}
+                      </button>
                     </div>
                   </div>
                   <div className="muted" style={{ marginTop: 6 }}>
@@ -527,6 +589,10 @@ export default function TaskCenterPage({ uiLang = 'zh', onOpenVideo }: Props) {
               <div className="row">
                 <button className="btn" onClick={() => void onRetry(selectedJob)} disabled={busy}>
                   {uiLang === 'en' ? 'Retry' : '重试'}
+                </button>
+
+                <button className="btn" onClick={() => void onDelete(selectedJob)} disabled={busy}>
+                  {uiLang === 'en' ? 'Delete' : '\u5220\u9664'}
                 </button>
               </div>
             )}

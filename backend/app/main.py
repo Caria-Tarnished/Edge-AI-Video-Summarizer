@@ -35,6 +35,7 @@ from .repo import (
     cancel_job,
     create_job,
     create_or_get_video,
+    delete_job,
     delete_video,
     delete_chunks_for_video,
     delete_video_keyframe_index,
@@ -2106,6 +2107,29 @@ def cancel_job_api(job_id: str) -> Dict[str, Any]:
     if str(job.get("job_type") or "") == "transcribe":
         set_video_status(job["video_id"], "pending")
     return get_job(job_id) or {"id": job_id}
+
+
+@app.delete("/jobs/{job_id}")
+def delete_job_api(job_id: str) -> Dict[str, Any]:
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(
+            status_code=404,
+            detail="JOB_NOT_FOUND",
+        )
+
+    status = str(job.get("status") or "")
+    if status in ("pending", "running"):
+        raise HTTPException(status_code=409, detail="JOB_ACTIVE")
+
+    ok = delete_job(job_id)
+    if not ok:
+        raise HTTPException(status_code=400, detail="JOB_DELETE_FAILED")
+
+    return {
+        "ok": True,
+        "id": job_id,
+    }
 
 
 @app.post("/jobs/{job_id}/retry")

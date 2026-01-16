@@ -112,6 +112,15 @@ def get_job(job_id: str) -> Optional[Dict[str, Any]]:
         return dict(row) if row else None
 
 
+def delete_job(job_id: str) -> bool:
+    with connect() as conn:
+        cur = conn.execute(
+            "DELETE FROM jobs WHERE id=?",
+            (job_id,),
+        )
+        return bool(cur.rowcount)
+
+
 def fetch_next_pending_job(
     job_type: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
