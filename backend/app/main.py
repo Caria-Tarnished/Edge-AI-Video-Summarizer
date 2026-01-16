@@ -26,6 +26,7 @@ from .llm_provider import (
     get_provider,
     list_providers,
 )
+from .model_manifest import load_manifest, save_manifest
 from .repo import (
     cancel_job,
     create_job,
@@ -214,8 +215,18 @@ class RuntimeProfileRequest(BaseModel):
     asr_concurrency: Optional[int] = None
     llm_concurrency: Optional[int] = None
     llm_timeout_seconds: Optional[int] = None
+    asr_model: Optional[str] = None
     asr_device: Optional[str] = None
     asr_compute_type: Optional[str] = None
+
+
+class ModelManifestRequest(BaseModel):
+    manifest: Dict[str, Any]
+
+
+class ActivateModelsRequest(BaseModel):
+    asr_model: Optional[str] = None
+    llm_model: Optional[str] = None
 
 
 class RetryJobRequest(BaseModel):
@@ -357,6 +368,8 @@ def set_runtime_profile_api(req: RuntimeProfileRequest) -> Dict[str, Any]:
         prefs["llm_concurrency"] = int(req.llm_concurrency)
     if req.llm_timeout_seconds is not None:
         prefs["llm_timeout_seconds"] = int(req.llm_timeout_seconds)
+    if req.asr_model is not None:
+        prefs["asr_model"] = str(req.asr_model or "").strip()
     if req.asr_device is not None:
         prefs["asr_device"] = str(req.asr_device or "").strip()
     if req.asr_compute_type is not None:
@@ -370,10 +383,67 @@ def set_runtime_profile_api(req: RuntimeProfileRequest) -> Dict[str, Any]:
     }
 
 
+@app.get("/models/manifest")
+def get_model_manifest_api() -> Dict[str, Any]:
+    return {
+        "manifest": load_manifest(),
+    }
+
+
+@app.put("/models/manifest")
+def set_model_manifest_api(req: ModelManifestRequest) -> Dict[str, Any]:
+    return {
+        "manifest": save_manifest(req.manifest),
+    }
+
+
+@app.post("/models/activate")
+def activate_models_api(req: ActivateModelsRequest) -> Dict[str, Any]:
+    prev_runtime = dict(get_default_runtime_preferences())
+    prev_llm = dict(get_default_llm_preferences())
+
+    runtime_prefs: Dict[str, Any] = dict(prev_runtime)
+    llm_prefs: Dict[str, Any] = dict(prev_llm)
+
+    if req.asr_model is not None:
+        runtime_prefs["asr_model"] = str(req.asr_model or "").strip()
+
+    if req.llm_model is not None:
+        raw = str(req.llm_model or "").strip()
+        llm_prefs["model"] = raw if raw else None
+
+    stored_runtime = set_default_runtime_preferences(runtime_prefs)
+    effective_runtime = apply_runtime_preferences(stored_runtime)
+    stored_llm = set_default_llm_preferences(llm_prefs)
+
+    return {
+        "previous": {
+            "runtime": prev_runtime,
+            "llm": prev_llm,
+        },
+        "current": {
+            "runtime": stored_runtime,
+            "runtime_effective": effective_runtime,
+            "llm": stored_llm,
+        },
+    }
+
+
 @app.get("/asr/models/status")
 def asr_models_status_api() -> Dict[str, Any]:
-    repo_id = "Systran/faster-whisper-large-v3"
-    model_name = "large-v3"
+    selected = str(os.getenv("ASR_MODEL", settings.asr_model) or "").strip()
+    model_name = selected or "small"
+
+    known_repo = {
+        "large-v3": "Systran/faster-whisper-large-v3",
+        "large": "Systran/faster-whisper-large-v3",
+        "small": "Systran/faster-whisper-small",
+        "medium": "Systran/faster-whisper-medium",
+        "base": "Systran/faster-whisper-base",
+        "tiny": "Systran/faster-whisper-tiny",
+    }
+
+    repo_id = str(known_repo.get(model_name, "") or "")
 
     required_files = [
         "model.bin",
@@ -441,14 +511,20 @@ def asr_models_status_api() -> Dict[str, Any]:
     except Exception as e:
         local["error"] = f"ERROR:{type(e).__name__}:{e}"
 
-    url = (
-        "https://huggingface.co/" + repo_id + "/resolve/main/config.json"
-    )
-    download = {
-        "url": url,
-        "repo_url": "https://huggingface.co/" + repo_id,
-        **_probe_huggingface_resolve(url),
-    }
+    if repo_id:
+        url = (
+            "https://huggingface.co/" + repo_id + "/resolve/main/config.json"
+        )
+        download = {
+            "url": url,
+            "repo_url": "https://huggingface.co/" + repo_id,
+            **_probe_huggingface_resolve(url),
+        }
+    else:
+        download = {
+            "ok": False,
+            "error": "UNKNOWN_MODEL",
+        }
 
     return {
         "model": model_name,

@@ -147,6 +147,10 @@ def get_effective_runtime_preferences(prefs: Dict[str, Any]) -> Dict[str, Any]:
         merged.get("asr_compute_type") or base["asr_compute_type"]
     ).strip()
 
+    merged["asr_model"] = str(
+        merged.get("asr_model") or os.getenv("ASR_MODEL", "small")
+    ).strip()
+
     return merged
 
 
@@ -165,6 +169,13 @@ def apply_runtime_preferences(prefs: Dict[str, Any]) -> Dict[str, Any]:
         os.environ["ASR_COMPUTE_TYPE"] = str(
             eff.get("asr_compute_type") or ""
         ).strip()
+
+    if isinstance(prefs, dict) and "asr_model" in prefs:
+        raw_model = str(prefs.get("asr_model") or "").strip()
+        if raw_model:
+            os.environ["ASR_MODEL"] = raw_model
+        else:
+            os.environ.pop("ASR_MODEL", None)
 
     return eff
 

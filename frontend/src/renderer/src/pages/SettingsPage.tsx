@@ -18,6 +18,7 @@ type RuntimeDraft = {
   asr_concurrency?: number;
   llm_concurrency?: number;
   llm_timeout_seconds?: number;
+  asr_model?: string;
   asr_device?: string;
   asr_compute_type?: string;
 };
@@ -176,6 +177,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
         asr_concurrency: (rt.preferences as any)?.asr_concurrency,
         llm_concurrency: (rt.preferences as any)?.llm_concurrency,
         llm_timeout_seconds: (rt.preferences as any)?.llm_timeout_seconds,
+        asr_model: String((rt.preferences as any)?.asr_model ?? ""),
         asr_device: (rt.preferences as any)?.asr_device,
         asr_compute_type: (rt.preferences as any)?.asr_compute_type,
       });
@@ -233,6 +235,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
         asr_concurrency: runtimeDraft.asr_concurrency,
         llm_concurrency: runtimeDraft.llm_concurrency,
         llm_timeout_seconds: runtimeDraft.llm_timeout_seconds,
+        asr_model: String(runtimeDraft.asr_model ?? "").trim() || undefined,
         asr_device: runtimeDraft.asr_device,
         asr_compute_type: runtimeDraft.asr_compute_type,
       };
@@ -448,6 +451,18 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           </label>
 
           <label className="field">
+            <div className="label">asr_model</div>
+            <input
+              className="input"
+              value={runtimeDraft.asr_model ?? ""}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setRuntimeDraft((d) => ({ ...d, asr_model: e.target.value }))
+              }
+              placeholder="small / medium / large-v3"
+            />
+          </label>
+
+          <label className="field">
             <div className="label">llm_concurrency</div>
             <input
               className="input"
@@ -532,7 +547,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
             </button>
           </div>
           <div className="muted" style={{ marginTop: 8 }}>
-            {t("asr_large_v3")} | local: {asrStatus?.local?.ok ? "OK" : "NOT_FOUND"} | download: {asrStatus?.download?.ok ? "OK" : "ERROR"}
+            {String(asrStatus?.model || t("asr_large_v3"))} | local: {asrStatus?.local?.ok ? "OK" : "NOT_FOUND"} | download: {asrStatus?.download?.ok ? "OK" : "ERROR"}
           </div>
           {asrStatus ? (
             <div style={{ marginTop: 8 }}>
@@ -713,6 +728,27 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
               placeholder="e.g. Qwen2.5-7B-Instruct"
             />
           </label>
+
+          {localStatus?.models?.length ? (
+            <label className="field">
+              <div className="label">model (from local server)</div>
+              <select
+                className="input"
+                value={llmDraft.model ?? ""}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                  const v = String(e.target.value || "").trim();
+                  setLlmDraft((d) => ({ ...d, model: v ? v : null }));
+                }}
+              >
+                <option value="">{uiLang === "en" ? "(use default)" : "\u4f7f\u7528\u9ed8\u8ba4"}</option>
+                {(localStatus.models || []).map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
 
           <label className="field">
             <div className="label">temperature</div>
