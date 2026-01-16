@@ -9,6 +9,8 @@ type Route = 'wizard' | 'settings' | 'library' | 'tasks'
 
 type UiLang = 'zh' | 'en'
 
+type UiTheme = 'dark' | 'light'
+
 function loadUiLang(): UiLang {
   try {
     const v = String(localStorage.getItem('ui_lang') || '').trim().toLowerCase()
@@ -19,10 +21,35 @@ function loadUiLang(): UiLang {
   return 'zh'
 }
 
+function loadUiTheme(): UiTheme {
+  try {
+    const v = String(localStorage.getItem('ui_theme') || '').trim().toLowerCase()
+    if (v === 'light') return 'light'
+    if (v === 'dark') return 'dark'
+  } catch {
+    // ignore
+  }
+  return 'dark'
+}
+
 export default function App() {
   const [route, setRoute] = useState<Route>('library')
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
   const [uiLang, setUiLang] = useState<UiLang>(() => loadUiLang())
+  const [uiTheme, setUiTheme] = useState<UiTheme>(() => loadUiTheme())
+
+  useEffect(() => {
+    try {
+      document.documentElement.dataset.theme = uiTheme
+    } catch {
+      // ignore
+    }
+    try {
+      localStorage.setItem('ui_theme', uiTheme)
+    } catch {
+      // ignore
+    }
+  }, [uiTheme])
 
   useEffect(() => {
     try {
@@ -58,6 +85,10 @@ export default function App() {
     } catch {
       // ignore
     }
+  }, [])
+
+  const toggleUiTheme = useCallback(() => {
+    setUiTheme((cur) => (cur === 'dark' ? 'light' : 'dark'))
   }, [])
 
   const t = useCallback(
@@ -144,6 +175,31 @@ export default function App() {
             title={uiLang === 'zh' ? '\u5207\u6362\u8bed\u8a00' : 'Switch language'}
           >
             {uiLang === 'zh' ? 'ZH' : 'EN'}
+          </button>
+
+          <button
+            className="tab"
+            onClick={toggleUiTheme}
+            title={
+              uiLang === 'en'
+                ? uiTheme === 'dark'
+                  ? 'Switch to light theme'
+                  : 'Switch to dark theme'
+                : uiTheme === 'dark'
+                  ? '\u5207\u6362\u5230\u4eae\u8272\u4e3b\u9898'
+                  : '\u5207\u6362\u5230\u6697\u8272\u4e3b\u9898'
+            }
+            aria-label={
+              uiLang === 'en'
+                ? uiTheme === 'dark'
+                  ? 'Switch to light theme'
+                  : 'Switch to dark theme'
+                : uiTheme === 'dark'
+                  ? '\u5207\u6362\u5230\u4eae\u8272\u4e3b\u9898'
+                  : '\u5207\u6362\u5230\u6697\u8272\u4e3b\u9898'
+            }
+          >
+            {uiTheme === 'dark' ? '\u2600' : '\u263e'}
           </button>
 
           <button

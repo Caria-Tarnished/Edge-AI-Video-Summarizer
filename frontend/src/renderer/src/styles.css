@@ -1,3 +1,84 @@
+:root {
+  --bg: #0b1020;
+  --fg: #e6e9f2;
+  --panel: rgba(255, 255, 255, 0.04);
+  --panel-2: rgba(255, 255, 255, 0.03);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-2: rgba(255, 255, 255, 0.12);
+  --muted: rgba(230, 233, 242, 0.75);
+
+  --tab-bg: rgba(255, 255, 255, 0.06);
+  --tab-border: rgba(255, 255, 255, 0.08);
+  --tab-active-bg: rgba(99, 102, 241, 0.25);
+  --tab-active-border: rgba(99, 102, 241, 0.5);
+
+  --input-bg: rgba(0, 0, 0, 0.25);
+  --input-border: rgba(255, 255, 255, 0.12);
+
+  --btn-bg: rgba(255, 255, 255, 0.06);
+  --btn-border: rgba(255, 255, 255, 0.12);
+  --btn-primary-bg: rgba(99, 102, 241, 0.28);
+  --btn-primary-border: rgba(99, 102, 241, 0.55);
+
+  --alert-bg: rgba(255, 255, 255, 0.04);
+  --alert-border: rgba(255, 255, 255, 0.12);
+  --alert-error-border: rgba(239, 68, 68, 0.6);
+  --alert-error-bg: rgba(239, 68, 68, 0.12);
+  --alert-info-border: rgba(34, 197, 94, 0.55);
+  --alert-info-bg: rgba(34, 197, 94, 0.1);
+
+  --pre-bg: rgba(0, 0, 0, 0.25);
+  --pre-border: rgba(255, 255, 255, 0.1);
+
+  --ok: #86efac;
+  --bad: #fca5a5;
+
+  --stepper-dot-border: rgba(255, 255, 255, 0.18);
+  --stepper-dot-bg: rgba(255, 255, 255, 0.06);
+  --stepper-dot-active-border: rgba(99, 102, 241, 0.8);
+  --stepper-dot-active-bg: rgba(99, 102, 241, 0.25);
+  --stepper-dot-done-border: rgba(34, 197, 94, 0.75);
+  --stepper-dot-done-bg: rgba(34, 197, 94, 0.16);
+  --stepper-line: rgba(255, 255, 255, 0.12);
+  --stepper-line-done: rgba(34, 197, 94, 0.55);
+}
+
+html[data-theme="light"] {
+  --bg: #f6f7fb;
+  --fg: #0f172a;
+  --panel: rgba(0, 0, 0, 0.03);
+  --panel-2: rgba(0, 0, 0, 0.02);
+  --border: rgba(15, 23, 42, 0.12);
+  --border-2: rgba(15, 23, 42, 0.16);
+  --muted: rgba(15, 23, 42, 0.75);
+
+  --tab-bg: rgba(0, 0, 0, 0.04);
+  --tab-border: rgba(15, 23, 42, 0.12);
+  --tab-active-bg: rgba(99, 102, 241, 0.14);
+  --tab-active-border: rgba(99, 102, 241, 0.35);
+
+  --input-bg: rgba(255, 255, 255, 0.8);
+  --input-border: rgba(15, 23, 42, 0.16);
+
+  --btn-bg: rgba(0, 0, 0, 0.04);
+  --btn-border: rgba(15, 23, 42, 0.14);
+  --btn-primary-bg: rgba(99, 102, 241, 0.16);
+  --btn-primary-border: rgba(99, 102, 241, 0.35);
+
+  --alert-bg: rgba(0, 0, 0, 0.03);
+  --alert-border: rgba(15, 23, 42, 0.14);
+
+  --pre-bg: rgba(0, 0, 0, 0.04);
+  --pre-border: rgba(15, 23, 42, 0.14);
+
+  --ok: #15803d;
+  --bad: #b91c1c;
+
+  --stepper-dot-border: rgba(15, 23, 42, 0.18);
+  --stepper-dot-bg: rgba(0, 0, 0, 0.03);
+  --stepper-line: rgba(15, 23, 42, 0.14);
+}
+
 html,
 body {
   margin: 0;
@@ -5,8 +86,8 @@ body {
   height: 100%;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
     Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  background: #0b1020;
-  color: #e6e9f2;
+  background: var(--bg);
+  color: var(--fg);
 }
 
 *,
@@ -30,8 +111,8 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
 }
 
 .brand {
@@ -46,16 +127,16 @@ body {
 
 .tab {
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--tab-bg);
+  border: 1px solid var(--tab-border);
   border-radius: 8px;
-  color: #e6e9f2;
+  color: var(--fg);
   cursor: pointer;
 }
 
 .tab.active {
-  background: rgba(99, 102, 241, 0.25);
-  border-color: rgba(99, 102, 241, 0.5);
+  background: var(--tab-active-bg);
+  border-color: var(--tab-active-border);
 }
 
 .content {
@@ -72,22 +153,23 @@ body {
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 14px;
 }
 
 .subcard {
   margin-top: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
 }
 
 .muted {
-  opacity: 0.75;
+  opacity: 1;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -127,9 +209,9 @@ body {
   width: 100%;
   padding: 9px 10px;
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #e6e9f2;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--fg);
   outline: none;
   min-width: 0;
 }
@@ -138,14 +220,14 @@ body {
   padding: 9px 12px;
   border-radius: 10px;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  color: #e6e9f2;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--fg);
 }
 
 .btn.primary {
-  background: rgba(99, 102, 241, 0.28);
-  border-color: rgba(99, 102, 241, 0.55);
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-border);
 }
 
 .btn:disabled {
@@ -157,27 +239,27 @@ body {
   margin-top: 10px;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--alert-border);
+  background: var(--alert-bg);
   font-size: 13px;
 }
 
 .alert.alert-error {
-  border-color: rgba(239, 68, 68, 0.6);
-  background: rgba(239, 68, 68, 0.12);
+  border-color: var(--alert-error-border);
+  background: var(--alert-error-bg);
 }
 
 .alert.alert-info {
-  border-color: rgba(34, 197, 94, 0.55);
-  background: rgba(34, 197, 94, 0.1);
+  border-color: var(--alert-info-border);
+  background: var(--alert-info-bg);
 }
 
 .pre {
   margin: 8px 0 0;
   padding: 10px;
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--pre-bg);
+  border: 1px solid var(--pre-border);
   overflow: auto;
   font-size: 12px;
 }
@@ -199,11 +281,11 @@ body {
 }
 
 .v.ok {
-  color: #86efac;
+  color: var(--ok);
 }
 
 .v.bad {
-  color: #fca5a5;
+  color: var(--bad);
 }
 
 .wizard-stepper {
@@ -246,18 +328,18 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--stepper-dot-border);
+  background: var(--stepper-dot-bg);
 }
 
 .wizard-stepper-dot.active {
-  border-color: rgba(99, 102, 241, 0.8);
-  background: rgba(99, 102, 241, 0.25);
+  border-color: var(--stepper-dot-active-border);
+  background: var(--stepper-dot-active-bg);
 }
 
 .wizard-stepper-dot.done {
-  border-color: rgba(34, 197, 94, 0.75);
-  background: rgba(34, 197, 94, 0.16);
+  border-color: var(--stepper-dot-done-border);
+  background: var(--stepper-dot-done-bg);
 }
 
 .wizard-stepper-label {
@@ -278,11 +360,11 @@ body {
   height: 2px;
   flex: 1;
   margin: 0 10px;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--stepper-line);
 }
 
 .wizard-stepper-line.done {
-  background: rgba(34, 197, 94, 0.55);
+  background: var(--stepper-line-done);
 }
 
 @media (max-width: 860px) {
