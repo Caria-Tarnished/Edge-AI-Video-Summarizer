@@ -43,9 +43,10 @@ from .repo import (
     upsert_video_summary,
     update_job,
 )
-from .runtime import limit_asr, limit_llm
+from .runtime import limit_asr, limit_heavy, limit_llm
 from .runtime import (
     get_asr_concurrency_timeout_seconds,
+    get_heavy_concurrency_timeout_seconds,
     get_llm_concurrency_timeout_seconds,
     refresh_runtime_preferences,
 )
@@ -150,9 +151,15 @@ class JobWorker:
                 if job_type == "transcribe":
                     self._run_transcribe(job, claimed_started_at)
                 elif job_type == "index":
-                    self._run_index(job, claimed_started_at)
+                    with limit_heavy(
+                        timeout_seconds=get_heavy_concurrency_timeout_seconds()
+                    ):
+                        self._run_index(job, claimed_started_at)
                 elif job_type == "keyframes":
-                    self._run_keyframes(job, claimed_started_at)
+                    with limit_heavy(
+                        timeout_seconds=get_heavy_concurrency_timeout_seconds()
+                    ):
+                        self._run_keyframes(job, claimed_started_at)
                 elif job_type == "summarize":
                     self._run_summarize(job, claimed_started_at)
                 else:
@@ -221,6 +228,7 @@ class JobWorker:
                 timeout_err = detail in (
                     "ASR_CONCURRENCY_TIMEOUT",
                     "LLM_CONCURRENCY_TIMEOUT",
+                    "HEAVY_CONCURRENCY_TIMEOUT",
                 )
                 update_job(
                     job_id,
@@ -245,7 +253,11 @@ class JobWorker:
                         status="failed",
                         progress=0.0,
                         message="failed",
-                        error_code="E_JOB_FAILED",
+                        error_code=(
+                            "E_CONCURRENCY_TIMEOUT"
+                            if timeout_err
+                            else "E_JOB_FAILED"
+                        ),
                         error_message=detail[:2000],
                     )
                 elif job_type == "keyframes":
@@ -254,7 +266,11 @@ class JobWorker:
                         status="failed",
                         progress=0.0,
                         message="failed",
-                        error_code="E_JOB_FAILED",
+                        error_code=(
+                            "E_CONCURRENCY_TIMEOUT"
+                            if timeout_err
+                            else "E_JOB_FAILED"
+                        ),
                         error_message=detail[:2000],
                     )
                 elif job_type == "summarize":
@@ -263,7 +279,11 @@ class JobWorker:
                         status="failed",
                         progress=0.0,
                         message="failed",
-                        error_code="E_JOB_FAILED",
+                        error_code=(
+                            "E_CONCURRENCY_TIMEOUT"
+                            if timeout_err
+                            else "E_JOB_FAILED"
+                        ),
                         error_message=detail[:2000],
                     )
 

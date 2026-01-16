@@ -66,6 +66,7 @@ from .repo import (
 from .paths import audio_wav_path, db_path, keyframes_dir
 from .runtime import (
     apply_runtime_preferences,
+    get_concurrency_diagnostics,
     get_effective_runtime_preferences,
     get_llm_concurrency_timeout_seconds,
     limit_llm,
@@ -219,6 +220,7 @@ class RuntimeProfileRequest(BaseModel):
     profile: Optional[str] = None
     asr_concurrency: Optional[int] = None
     llm_concurrency: Optional[int] = None
+    heavy_concurrency: Optional[int] = None
     llm_timeout_seconds: Optional[int] = None
     asr_model: Optional[str] = None
     asr_device: Optional[str] = None
@@ -364,11 +366,25 @@ def diagnostics() -> Dict[str, Any]:
         ),
     }
 
+    runtime_prefs: Dict[str, Any] = {}
+    runtime_effective: Dict[str, Any] = {}
+    try:
+        runtime_prefs = get_default_runtime_preferences()
+        runtime_effective = get_effective_runtime_preferences(runtime_prefs)
+    except Exception:
+        runtime_prefs = {}
+        runtime_effective = {}
+
     return {
         "backend": {
             "data_dir": settings.data_dir,
             "db_path": db_path(),
             "disk": disk,
+        },
+        "runtime": {
+            "preferences": runtime_prefs,
+            "effective": runtime_effective,
+            "concurrency": get_concurrency_diagnostics(),
         },
         "ffmpeg": ff,
         "huggingface": hf,
@@ -443,6 +459,8 @@ def set_runtime_profile_api(req: RuntimeProfileRequest) -> Dict[str, Any]:
         prefs["asr_concurrency"] = int(req.asr_concurrency)
     if req.llm_concurrency is not None:
         prefs["llm_concurrency"] = int(req.llm_concurrency)
+    if req.heavy_concurrency is not None:
+        prefs["heavy_concurrency"] = int(req.heavy_concurrency)
     if req.llm_timeout_seconds is not None:
         prefs["llm_timeout_seconds"] = int(req.llm_timeout_seconds)
     if req.asr_model is not None:

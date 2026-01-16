@@ -18,6 +18,7 @@ type RuntimeDraft = {
   profile?: string;
   asr_concurrency?: number;
   llm_concurrency?: number;
+  heavy_concurrency?: number;
   llm_timeout_seconds?: number;
   asr_model?: string;
   asr_device?: string;
@@ -270,6 +271,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
         profile: normalizedProfile,
         asr_concurrency: (rt.preferences as any)?.asr_concurrency,
         llm_concurrency: (rt.preferences as any)?.llm_concurrency,
+        heavy_concurrency: (rt.preferences as any)?.heavy_concurrency,
         llm_timeout_seconds: (rt.preferences as any)?.llm_timeout_seconds,
         asr_model: String((rt.preferences as any)?.asr_model ?? ""),
         asr_device: (rt.preferences as any)?.asr_device,
@@ -346,6 +348,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
         profile: runtimeDraft.profile,
         asr_concurrency: runtimeDraft.asr_concurrency,
         llm_concurrency: runtimeDraft.llm_concurrency,
+        heavy_concurrency: runtimeDraft.heavy_concurrency,
         llm_timeout_seconds: runtimeDraft.llm_timeout_seconds,
         asr_model: String(runtimeDraft.asr_model ?? "").trim() || undefined,
         asr_device: runtimeDraft.asr_device,
@@ -583,6 +586,21 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
                 setRuntimeDraft((d) => ({
                   ...d,
                   llm_concurrency: toNumberOrUndefined(e.target.value),
+                }))
+              }
+              inputMode="numeric"
+            />
+          </label>
+
+          <label className="field">
+            <div className="label">heavy_concurrency</div>
+            <input
+              className="input"
+              value={runtimeDraft.heavy_concurrency ?? ""}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setRuntimeDraft((d) => ({
+                  ...d,
+                  heavy_concurrency: toNumberOrUndefined(e.target.value),
                 }))
               }
               inputMode="numeric"

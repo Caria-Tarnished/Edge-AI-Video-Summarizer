@@ -125,7 +125,7 @@ def fetch_next_pending_job(
     job_type: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     with connect() as conn:
-        asr_limit, llm_limit = _get_job_type_concurrency_limits()
+        asr_limit, llm_limit, heavy_limit = _get_job_type_concurrency_limits()
         if job_type:
             jt = str(job_type or "")
             sql = (
@@ -144,6 +144,13 @@ def fetch_next_pending_job(
                     "WHERE status='running' AND job_type='summarize') < ? "
                 )
                 params.append(int(llm_limit))
+            elif jt in ("index", "keyframes"):
+                sql += (
+                    "AND (SELECT COUNT(*) FROM jobs "
+                    "WHERE status='running' AND job_type IN "
+                    "('index','keyframes')) < ? "
+                )
+                params.append(int(heavy_limit))
             sql += "ORDER BY created_at LIMIT 1"
             row = conn.execute(sql, tuple(params)).fetchone()
         else:
@@ -157,11 +164,15 @@ def fetch_next_pending_job(
                 "(SELECT COUNT(*) FROM jobs "
                 "WHERE status='running' "
                 "AND job_type='summarize') < ?) "
+                "AND (job_type NOT IN ('index','keyframes') OR "
+                "(SELECT COUNT(*) FROM jobs "
+                "WHERE status='running' "
+                "AND job_type IN ('index','keyframes')) < ?) "
                 "ORDER BY created_at LIMIT 1"
             )
             row = conn.execute(
                 sql,
-                (int(asr_limit), int(llm_limit)),
+                (int(asr_limit), int(llm_limit), int(heavy_limit)),
             ).fetchone()
         return dict(row) if row else None
 
@@ -176,7 +187,7 @@ def claim_pending_job(job_id: str, job_type: Optional[str] = None) -> bool:
             ).fetchone()
             jt = str(row["job_type"] or "") if row else ""
 
-        asr_limit, llm_limit = _get_job_type_concurrency_limits()
+        asr_limit, llm_limit, heavy_limit = _get_job_type_concurrency_limits()
         sql = (
             "UPDATE jobs SET status='running', "
             "started_at=datetime('now') "
@@ -196,6 +207,13 @@ def claim_pending_job(job_id: str, job_type: Optional[str] = None) -> bool:
                 "WHERE status='running' AND job_type='summarize') < ? "
             )
             params.append(int(llm_limit))
+        elif jt in ("index", "keyframes"):
+            sql += (
+                "AND (SELECT COUNT(*) FROM jobs "
+                "WHERE status='running' AND job_type IN "
+                "('index','keyframes')) < ? "
+            )
+            params.append(int(heavy_limit))
 
         cur = conn.execute(
             sql,
@@ -204,7 +222,7 @@ def claim_pending_job(job_id: str, job_type: Optional[str] = None) -> bool:
         return bool(cur.rowcount)
 
 
-def _get_job_type_concurrency_limits() -> tuple[int, int]:
+def _get_job_type_concurrency_limits() -> tuple[int, int, int]:
     try:
         from .runtime import get_effective_runtime_preferences
 
@@ -212,9 +230,10 @@ def _get_job_type_concurrency_limits() -> tuple[int, int]:
         eff = get_effective_runtime_preferences(prefs)
         asr_limit = int(eff.get("asr_concurrency") or 0)
         llm_limit = int(eff.get("llm_concurrency") or 0)
-        return max(0, asr_limit), max(0, llm_limit)
+        heavy_limit = int(eff.get("heavy_concurrency") or 0)
+        return max(0, asr_limit), max(0, llm_limit), max(0, heavy_limit)
     except Exception:
-        return 1, 1
+        return 1, 1, 1
 
 
 def get_job_status(job_id: str) -> Optional[str]:
