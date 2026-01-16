@@ -1,22 +1,218 @@
-# Edge-AI-Video-Summarizer
+# Edge AI Video Summarizer
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Backend Quality](https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer/actions/workflows/quality.yml/badge.svg)
 
-本项目是一个 **本地优先（local-first）** 的视频处理与检索后端：
-
-- 导入本地视频
-- 抽取音频并进行 ASR 分段转写（支持断点续跑）
-- 导出可播放字幕（SRT/VTT）
-- 对转写内容进行分块、Embedding、向量索引
-- 提供检索（`/search`）与问答（`/chat`）接口：支持 retrieval-only，也支持接入本地 LLM（RAG）
-
-后端基于 **FastAPI + SQLite**，向量库使用 **ChromaDB**。
-
-同时提供 **Electron + Vite + React** 桌面端（Windows），用于本地视频库/详情页/任务进度与结果预览，并在发布态自动托管后端进程。
-
-> 说明：仓库中的 `demo/` 内容用于其他平台（如 ModelScope）展示，因此本 GitHub 仓库默认忽略 `demo/`（见根目录 `.gitignore`）。
+[English](#english) | [中文](#chinese)
 
 ---
+
+<a name="english"></a>
+## English
+
+**Edge AI Video Summarizer** is a local-first video processing and summarization agent.
+
+It runs entirely on your local machine to convert long-form videos into structured knowledge (summaries, outlines, searchable chunks), without uploading your data to the cloud.
+
+### Key Features
+
+- **Privacy first**: ASR, embedding, indexing, and RAG can run locally.
+- **Efficient ingestion**: Map-Reduce style summarization for long videos.
+- **Local RAG**: Chat with your video library via a local OpenAI-compatible LLM server (e.g. `llama.cpp` `llama-server`).
+- **Visual context**: Keyframe extraction aligned with summaries/outlines.
+
+### System Architecture
+
+```mermaid
+graph TD
+    classDef frontend fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef backend fill:#fff3e0,stroke:#ff6f00,stroke-width:2px;
+    classDef storage fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef ai fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+
+    subgraph Desktop["Windows Desktop App"]
+        Renderer["Renderer (React)"]:::frontend
+        Main["Electron Main Process"]:::frontend
+    end
+
+    subgraph Core["Core Backend"]
+        API["FastAPI Backend"]:::backend
+        FFmpeg["FFmpeg"]:::backend
+    end
+
+    subgraph Data["Local Storage"]
+        SQLite[("SQLite (Metadata)")]:::storage
+        Chroma[("ChromaDB (Vectors)")]:::storage
+    end
+
+    subgraph AI_Engine["AI Engine"]
+        Llama["llama-server"]:::ai
+        Models[("GGUF Models\n(Whisper / LLM)")]:::ai
+    end
+
+    Renderer -- HTTP API --> API
+    Main -.->|Spawn & Monitor| API
+
+    API --> FFmpeg
+    API <--> SQLite
+    API <--> Chroma
+
+    API -- OpenAI Compatible API --> Llama
+    Llama <--> Models
+```
+
+### Installation
+
+See:
+
+- **GitHub Releases**: https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer/releases
+
+### Development
+
+<details>
+<summary>Click to expand development instructions</summary>
+
+#### Prerequisites
+
+- Python 3.10+
+- Node.js 18+
+- PowerShell
+
+#### Quick Start
+
+1) Backend setup:
+
+```powershell
+cd backend
+python -m venv .venv
+\.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+2) Start all services (dev mode):
+
+Run from repo root:
+
+```powershell
+./start_dev.cmd
+```
+
+3) Build desktop distributables (Windows):
+
+```powershell
+cd frontend
+npm run dist
+```
+
+</details>
+
+---
+
+<a name="chinese"></a>
+## 中文
+
+**Edge AI Video Summarizer** 是一个本地优先（local-first）的视频处理与总结/检索助手。
+
+它完全在本地运行，将长视频转化为结构化知识（摘要、大纲、可检索文本块），无需上传数据到云端。
+
+### 核心功能
+
+- **隐私优先**：ASR、向量化、索引与问答都可在本地完成。
+- **高效摄入**：针对长视频的 Map-Reduce 分层摘要。
+- **本地 RAG**：通过本地 OpenAI 兼容接口对视频库进行问答（例如 `llama.cpp` 的 `llama-server`）。
+- **图文对齐**：关键帧提取与摘要/大纲对齐，便于验证。
+
+### 系统架构
+
+```mermaid
+graph TD
+    classDef frontend fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef backend fill:#fff3e0,stroke:#ff6f00,stroke-width:2px;
+    classDef storage fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef ai fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+
+    subgraph Desktop["Windows 桌面应用"]
+        Renderer["渲染进程 (React)"]:::frontend
+        Main["Electron 主进程"]:::frontend
+    end
+
+    subgraph Core["核心后端"]
+        API["FastAPI 后端"]:::backend
+        FFmpeg["FFmpeg"]:::backend
+    end
+
+    subgraph Data["本地存储"]
+        SQLite[("SQLite (元数据)")]:::storage
+        Chroma[("ChromaDB (向量库)")]:::storage
+    end
+
+    subgraph AI_Engine["AI 引擎"]
+        Llama["llama-server"]:::ai
+        Models[("GGUF 模型\n(Whisper / LLM)")]:::ai
+    end
+
+    Renderer -- HTTP API --> API
+    Main -.->|拉起与监控| API
+
+    API --> FFmpeg
+    API <--> SQLite
+    API <--> Chroma
+
+    API -- OpenAI 兼容接口 --> Llama
+    Llama <--> Models
+```
+
+### 安装使用
+
+请前往：
+
+- **GitHub Releases**: https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer/releases
+
+### 开发者指南
+
+<details>
+<summary>点击展开开发文档</summary>
+
+#### 环境要求
+
+- Python 3.10+
+- Node.js 18+
+- PowerShell
+
+#### 快速启动
+
+1) 后端环境配置：
+
+```powershell
+cd backend
+python -m venv .venv
+\.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+2) 一键启动（Dev Mode）：
+
+在仓库根目录运行：
+
+```powershell
+./start_dev.cmd
+```
+
+3) 打包发布（Windows）：
+
+```powershell
+cd frontend
+npm run dist
+```
+
+</details>
+
+---
+
+## Detailed Documentation
+
+<details>
+<summary>Click to expand (legacy detailed notes)</summary>
 
 ## 功能概览
 
