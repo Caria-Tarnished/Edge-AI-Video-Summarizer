@@ -92,6 +92,76 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
     [uiLang]
   );
 
+  const exportDataZip = useCallback(async () => {
+    if (!window.electronAPI?.exportDataZip) {
+      setError(
+        uiLang === "en"
+          ? "Not running in Electron; cannot export data."
+          : "\u5f53\u524d\u4e0d\u662f Electron \u73af\u5883\uff0c\u65e0\u6cd5\u5bfc\u51fa\u6570\u636e\u3002"
+      );
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setBusy(uiLang === "en" ? "Exporting..." : "\u6b63\u5728\u5bfc\u51fa..."
+    );
+    try {
+      const res: any = await window.electronAPI.exportDataZip();
+      if (res && res.cancelled) {
+        setInfo(uiLang === "en" ? "Cancelled" : "\u5df2\u53d6\u6d88");
+        return;
+      }
+      if (res && res.ok) {
+        setInfo(
+          uiLang === "en"
+            ? `Exported: ${String(res.path || "")}`
+            : `\u5df2\u5bfc\u51fa\uff1a${String(res.path || "")}`
+        );
+        return;
+      }
+      setError(String(res?.error || "EXPORT_FAILED"));
+    } catch (e: any) {
+      setError(e && e.message ? String(e.message) : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }, [uiLang]);
+
+  const restoreDataZip = useCallback(async () => {
+    if (!window.electronAPI?.restoreDataZip) {
+      setError(
+        uiLang === "en"
+          ? "Not running in Electron; cannot restore data."
+          : "\u5f53\u524d\u4e0d\u662f Electron \u73af\u5883\uff0c\u65e0\u6cd5\u6062\u590d\u6570\u636e\u3002"
+      );
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setBusy(uiLang === "en" ? "Restoring..." : "\u6b63\u5728\u6062\u590d..."
+    );
+    try {
+      const res: any = await window.electronAPI.restoreDataZip();
+      if (res && res.cancelled) {
+        setInfo(uiLang === "en" ? "Cancelled" : "\u5df2\u53d6\u6d88");
+        return;
+      }
+      if (res && res.ok) {
+        setInfo(
+          uiLang === "en"
+            ? `Restored: ${String(res.path || "")}`
+            : `\u5df2\u6062\u590d\uff1a${String(res.path || "")}`
+        );
+        return;
+      }
+      setError(String(res?.error || "RESTORE_FAILED"));
+    } catch (e: any) {
+      setError(e && e.message ? String(e.message) : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }, [uiLang]);
+
   const t = useCallback(
     (
       key:
@@ -1079,6 +1149,16 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           <button className="btn" onClick={refreshDiagnostics} disabled={!!busy}>
             {t("refresh_diagnostics")}
           </button>
+          {window.edgeVideoAgent?.isPackaged && window.electronAPI?.exportDataZip ? (
+            <button className="btn" onClick={() => void exportDataZip()} disabled={!!busy}>
+              {uiLang === "en" ? "Export data (zip)" : "\u5bfc\u51fa\u6570\u636e\uff08zip\uff09"}
+            </button>
+          ) : null}
+          {window.edgeVideoAgent?.isPackaged && window.electronAPI?.restoreDataZip ? (
+            <button className="btn" onClick={() => void restoreDataZip()} disabled={!!busy}>
+              {uiLang === "en" ? "Restore data (zip)" : "\u6062\u590d\u6570\u636e\uff08zip\uff09"}
+            </button>
+          ) : null}
           <button
             className="btn"
             onClick={() => openFirstRunWizard(false)}

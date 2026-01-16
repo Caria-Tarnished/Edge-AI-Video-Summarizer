@@ -12,6 +12,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openVideoFile: async (): Promise<string | null> => {
     return await ipcRenderer.invoke('dialog:openVideo')
   },
+  exportDataZip: async (): Promise<any> => {
+    return await ipcRenderer.invoke('data:exportZip')
+  },
+  restoreDataZip: async (): Promise<any> => {
+    return await ipcRenderer.invoke('data:restoreZip')
+  },
   pickLlamaServerExe: async (): Promise<string | null> => {
     return await ipcRenderer.invoke('dialog:openLlamaExe')
   },
@@ -30,6 +36,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 export type ElectronAPI = {
   openVideoFile: () => Promise<string | null>
+  exportDataZip: () => Promise<any>
+  restoreDataZip: () => Promise<any>
   pickLlamaServerExe: () => Promise<string | null>
   pickLlamaModel: () => Promise<string | null>
   getDevConfig: () => Promise<{ path: string; config: Record<string, unknown> }>

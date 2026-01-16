@@ -1,9 +1,20 @@
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "fs";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import * as http from "node:http";
 import * as https from "node:https";
 import * as net from "node:net";
+import * as os from "node:os";
 import { dirname, join } from "path";
 
 const rawDevServerUrl = String(
@@ -78,6 +89,204 @@ async function ensureBackendEnv(): Promise<void> {
 
   _runtimeBackendBaseUrl = "http://127.0.0.1:8001";
   process.env.EDGE_VIDEO_AGENT_BACKEND_BASE_URL = _runtimeBackendBaseUrl;
+}
+
+type DataDirConfig = {
+  data_dir?: string;
+};
+
+function getDataDirConfigPath(): string {
+  return join(app.getPath("userData"), "data_dir.json");
+}
+
+function readDataDirConfig(): DataDirConfig {
+  const p = getDataDirConfigPath();
+  if (!existsSync(p)) {
+    return {};
+  }
+  try {
+    const raw = readFileSync(p, { encoding: "utf-8" });
+    const obj = JSON.parse(raw || "{}");
+    return obj && typeof obj === "object" ? (obj as DataDirConfig) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeDataDirConfig(config: DataDirConfig): DataDirConfig {
+  const p = getDataDirConfigPath();
+  try {
+    mkdirSync(dirname(p), { recursive: true });
+  } catch {}
+  try {
+    writeFileSync(p, JSON.stringify(config || {}, null, 2), {
+      encoding: "utf-8",
+    });
+  } catch {}
+  return readDataDirConfig();
+}
+
+function getDefaultPackagedDataDir(): string {
+  return join(app.getPath("userData"), "edge-video-agent-data");
+}
+
+function isDirEmpty(p: string): boolean {
+  try {
+    if (!existsSync(p)) return true;
+    const st = statSync(p);
+    if (!st.isDirectory()) return true;
+    const items = readdirSync(p);
+    return items.length === 0;
+  } catch {
+    return true;
+  }
+}
+
+function copyDirRecursive(src: string, dst: string): void {
+  const st = statSync(src);
+  if (!st.isDirectory()) {
+    throw new Error("source is not a directory");
+  }
+  mkdirSync(dst, { recursive: true });
+  const ents = readdirSync(src, { withFileTypes: true });
+  for (const ent of ents) {
+    const sp = join(src, ent.name);
+    const dp = join(dst, ent.name);
+    if (ent.isDirectory()) {
+      copyDirRecursive(sp, dp);
+      continue;
+    }
+    if (ent.isFile()) {
+      mkdirSync(dirname(dp), { recursive: true });
+      copyFileSync(sp, dp);
+      continue;
+    }
+  }
+}
+
+function resolvePreferredDataDir(): string {
+  const env = String(process.env.EDGE_VIDEO_AGENT_DATA_DIR || "").trim();
+  if (env) return env;
+  const cfg = readDataDirConfig();
+  const fromCfg = String(cfg.data_dir || "").trim();
+  if (fromCfg) return fromCfg;
+  if (app.isPackaged) return getDefaultPackagedDataDir();
+  return join(os.homedir(), ".edge-video-agent");
+}
+
+function psQuote(s: string): string {
+  const v = String(s || "");
+  return `'${v.replaceAll("'", "''")}'`;
+}
+
+async function runPowerShell(command: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(
+      "powershell",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
+      {
+        windowsHide: true,
+      }
+    );
+    let stderr = "";
+    child.stderr.on("data", (buf) => {
+      stderr += String(buf || "");
+    });
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(stderr || `PowerShell failed: ${code}`));
+      }
+    });
+  });
+}
+
+async function ensureDataDirSelectedAndMigrated(): Promise<void> {
+  if (!app.isPackaged) {
+    return;
+  }
+
+  const env = String(process.env.EDGE_VIDEO_AGENT_DATA_DIR || "").trim();
+  if (env) {
+    return;
+  }
+
+  const cfg = readDataDirConfig();
+  const cfgDir = String(cfg.data_dir || "").trim();
+  if (cfgDir) {
+    process.env.EDGE_VIDEO_AGENT_DATA_DIR = cfgDir;
+    try {
+      mkdirSync(cfgDir, { recursive: true });
+    } catch {}
+    return;
+  }
+
+  const newDir = getDefaultPackagedDataDir();
+  const oldDir = join(os.homedir(), ".edge-video-agent");
+
+  const oldExists = existsSync(oldDir) && !isDirEmpty(oldDir);
+  const newEmpty = isDirEmpty(newDir);
+  if (oldExists && newEmpty) {
+    const res = await dialog.showMessageBox({
+      type: "question",
+      buttons: [
+        "\u590d\u5236\u8fc1\u79fb\uff08\u63a8\u8350\uff09",
+        "\u7ee7\u7eed\u4f7f\u7528\u65e7\u76ee\u5f55",
+      ],
+      defaultId: 0,
+      cancelId: 1,
+      message: "\u68c0\u6d4b\u5230\u65e7\u7248\u6570\u636e\u76ee\u5f55\uff0c\u662f\u5426\u8fc1\u79fb\u5230\u65b0\u7684\u5b89\u88c5\u5b89\u5168\u76ee\u5f55\uff1f",
+      detail:
+        `\u65e7\u76ee\u5f55\uff1a${oldDir}\n\n\u65b0\u76ee\u5f55\uff1a${newDir}\n\n\u63a8\u8350\u9009\u62e9\u201c\u590d\u5236\u8fc1\u79fb\u201d\uff0c\u5b8c\u6210\u540e\u4f1a\u518d\u8be2\u95ee\u662f\u5426\u5220\u9664\u65e7\u76ee\u5f55\u4ee5\u91ca\u653e\u7a7a\u95f4\u3002`,
+    });
+
+    if (res.response === 0) {
+      try {
+        mkdirSync(newDir, { recursive: true });
+        copyDirRecursive(oldDir, newDir);
+        process.env.EDGE_VIDEO_AGENT_DATA_DIR = newDir;
+        writeDataDirConfig({ data_dir: newDir });
+
+        const del = await dialog.showMessageBox({
+          type: "question",
+          buttons: ["\u4e0d\u5220\u9664", "\u5220\u9664\u65e7\u76ee\u5f55"],
+          defaultId: 0,
+          cancelId: 0,
+          message:
+            "\u5df2\u6210\u529f\u590d\u5236\u8fc1\u79fb\u6570\u636e\u3002\u662f\u5426\u5220\u9664\u65e7\u76ee\u5f55\u4ee5\u91ca\u653e\u7a7a\u95f4\uff1f",
+          detail: `\u65e7\u76ee\u5f55\uff1a${oldDir}`,
+        });
+        if (del.response === 1) {
+          try {
+            rmSync(oldDir, { recursive: true, force: true });
+          } catch {}
+        }
+        return;
+      } catch (e: any) {
+        const msg = e && e.message ? String(e.message) : String(e);
+        await dialog.showMessageBox({
+          type: "error",
+          message: "\u8fc1\u79fb\u5931\u8d25\uff0c\u5c06\u4f7f\u7528\u65e7\u76ee\u5f55\u8fd0\u884c\u3002",
+          detail: msg,
+        });
+        process.env.EDGE_VIDEO_AGENT_DATA_DIR = oldDir;
+        writeDataDirConfig({ data_dir: oldDir });
+        return;
+      }
+    }
+
+    process.env.EDGE_VIDEO_AGENT_DATA_DIR = oldDir;
+    writeDataDirConfig({ data_dir: oldDir });
+    return;
+  }
+
+  process.env.EDGE_VIDEO_AGENT_DATA_DIR = newDir;
+  try {
+    mkdirSync(newDir, { recursive: true });
+  } catch {}
+  writeDataDirConfig({ data_dir: newDir });
 }
 
 function getRepoRootGuess(): string {
@@ -447,6 +656,7 @@ async function waitForUrl(u: string, timeoutMs: number): Promise<void> {
 
 async function createWindow(): Promise<void> {
   await ensureBackendEnv();
+  await ensureDataDirSelectedAndMigrated();
   await ensureBackendStarted();
 
   const preloadPath = resolvePreloadPath();
@@ -579,6 +789,126 @@ ipcMain.handle("config:setDevConfig", async (_evt, config: any) => {
       ? (config as Record<string, unknown>)
       : {};
   return writeDevConfig(payload);
+});
+
+ipcMain.handle("data:exportZip", async () => {
+  const dataDir = resolvePreferredDataDir() || getDefaultPackagedDataDir();
+  try {
+    mkdirSync(dataDir, { recursive: true });
+  } catch {}
+
+  const res = await dialog.showSaveDialog({
+    title: "\u5bfc\u51fa\u6570\u636e\u5907\u4efd\uff08zip\uff09",
+    defaultPath: join(app.getPath("downloads"), "edge-video-agent-data.zip"),
+    filters: [{ name: "Zip", extensions: ["zip"] }],
+  });
+
+  if (res.canceled || !res.filePath) {
+    return { ok: false, cancelled: true };
+  }
+
+  const zipPath = String(res.filePath || "");
+  try {
+    const cmd = `Compress-Archive -Path ${psQuote(
+      dataDir
+    )} -DestinationPath ${psQuote(zipPath)} -Force`;
+    await runPowerShell(cmd);
+    return { ok: true, path: zipPath, data_dir: dataDir };
+  } catch (e: any) {
+    const msg = e && e.message ? String(e.message) : String(e);
+    return { ok: false, error: msg, data_dir: dataDir };
+  }
+});
+
+ipcMain.handle("data:restoreZip", async () => {
+  const dataDir = resolvePreferredDataDir() || getDefaultPackagedDataDir();
+  try {
+    mkdirSync(dataDir, { recursive: true });
+  } catch {}
+
+  const pick = await dialog.showOpenDialog({
+    title: "\u9009\u62e9\u5907\u4efd\u6587\u4ef6\uff08zip\uff09",
+    properties: ["openFile"],
+    filters: [{ name: "Zip", extensions: ["zip"] }],
+  });
+  if (pick.canceled || pick.filePaths.length === 0) {
+    return { ok: false, cancelled: true };
+  }
+
+  const zipPath = String(pick.filePaths[0] || "");
+  const ok = await dialog.showMessageBox({
+    type: "warning",
+    buttons: ["\u53d6\u6d88", "\u7ee7\u7eed\u6062\u590d"],
+    defaultId: 0,
+    cancelId: 0,
+    message: "\u6062\u590d\u5907\u4efd\u5c06\u8986\u76d6\u5f53\u524d\u6570\u636e\u3002\u662f\u5426\u7ee7\u7eed\uff1f",
+    detail: `zip\uff1a${zipPath}\n\n\u76ee\u6807\u6570\u636e\u76ee\u5f55\uff1a${dataDir}`,
+  });
+  if (ok.response !== 1) {
+    return { ok: false, cancelled: true };
+  }
+
+  try {
+    const restoreTmp = `${dataDir}.restore-${Date.now()}`;
+    try {
+      rmSync(restoreTmp, { recursive: true, force: true });
+    } catch {}
+    mkdirSync(restoreTmp, { recursive: true });
+
+    const cmd = `Expand-Archive -Path ${psQuote(
+      zipPath
+    )} -DestinationPath ${psQuote(restoreTmp)} -Force`;
+    await runPowerShell(cmd);
+
+    let root = restoreTmp;
+    try {
+      const ents = readdirSync(restoreTmp, { withFileTypes: true });
+      if (ents.length === 1 && ents[0].isDirectory()) {
+        root = join(restoreTmp, ents[0].name);
+      }
+    } catch {}
+
+    const bak = `${dataDir}.backup-${Date.now()}`;
+    if (!isDirEmpty(dataDir)) {
+      try {
+        renameSync(dataDir, bak);
+      } catch (e: any) {
+        const msg = e && e.message ? String(e.message) : String(e);
+        try {
+          rmSync(restoreTmp, { recursive: true, force: true });
+        } catch {}
+        throw new Error(`BACKUP_FAILED:${msg}`);
+      }
+    } else {
+      try {
+        rmSync(dataDir, { recursive: true, force: true });
+      } catch {}
+    }
+
+    try {
+      renameSync(root, dataDir);
+    } finally {
+      try {
+        rmSync(restoreTmp, { recursive: true, force: true });
+      } catch {}
+    }
+
+    try {
+      if (_backendProc) {
+        _backendProc.kill();
+        _backendProc = null;
+      }
+    } catch {}
+
+    await ensureBackendStarted();
+    try {
+      mainWindow?.webContents.reload();
+    } catch {}
+    return { ok: true, path: zipPath, data_dir: dataDir };
+  } catch (e: any) {
+    const msg = e && e.message ? String(e.message) : String(e);
+    return { ok: false, error: msg, path: zipPath, data_dir: dataDir };
+  }
 });
 
 app.whenReady().then(async () => {

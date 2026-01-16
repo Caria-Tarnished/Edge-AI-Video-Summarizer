@@ -9,6 +9,8 @@ declare global {
     }
     electronAPI?: {
       openVideoFile: () => Promise<string | null>
+      exportDataZip: () => Promise<any>
+      restoreDataZip: () => Promise<any>
       pickLlamaServerExe: () => Promise<string | null>
       pickLlamaModel: () => Promise<string | null>
       getDevConfig: () => Promise<{ path: string; config: Record<string, unknown> }>
