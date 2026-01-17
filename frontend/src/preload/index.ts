@@ -25,6 +25,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: async (url: string): Promise<any> => {
     return await ipcRenderer.invoke('app:openExternal', url)
   },
+  updaterGetState: async (): Promise<any> => {
+    return await ipcRenderer.invoke('updater:getState')
+  },
+  updaterCheck: async (): Promise<any> => {
+    return await ipcRenderer.invoke('updater:check')
+  },
+  updaterDownload: async (): Promise<any> => {
+    return await ipcRenderer.invoke('updater:download')
+  },
+  updaterInstall: async (): Promise<any> => {
+    return await ipcRenderer.invoke('updater:install')
+  },
+  onUpdaterEvent: (callback: (payload: any) => void): (() => void) => {
+    const handler = (_evt: any, payload: any) => {
+      try {
+        callback(payload)
+      } catch {}
+    }
+    ipcRenderer.on('updater:event', handler)
+    return () => {
+      try {
+        ipcRenderer.removeListener('updater:event', handler)
+      } catch {}
+    }
+  },
   exportDataZip: async (): Promise<any> => {
     return await ipcRenderer.invoke('data:exportZip')
   },
@@ -52,6 +77,11 @@ export type ElectronAPI = {
   getAppVersion: () => Promise<{ version: string; is_packaged: boolean } | null>
   checkUpdates: () => Promise<any>
   openExternal: (url: string) => Promise<any>
+  updaterGetState: () => Promise<any>
+  updaterCheck: () => Promise<any>
+  updaterDownload: () => Promise<any>
+  updaterInstall: () => Promise<any>
+  onUpdaterEvent: (callback: (payload: any) => void) => () => void
   exportDataZip: () => Promise<any>
   restoreDataZip: () => Promise<any>
   pickLlamaServerExe: () => Promise<string | null>

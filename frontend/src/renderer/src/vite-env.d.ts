@@ -12,6 +12,11 @@ declare global {
       getAppVersion: () => Promise<{ version: string; is_packaged: boolean } | null>
       checkUpdates: () => Promise<any>
       openExternal: (url: string) => Promise<any>
+      updaterGetState: () => Promise<any>
+      updaterCheck: () => Promise<any>
+      updaterDownload: () => Promise<any>
+      updaterInstall: () => Promise<any>
+      onUpdaterEvent: (callback: (payload: any) => void) => () => void
       exportDataZip: () => Promise<any>
       restoreDataZip: () => Promise<any>
       pickLlamaServerExe: () => Promise<string | null>

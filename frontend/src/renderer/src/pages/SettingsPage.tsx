@@ -74,6 +74,8 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateInfo, setUpdateInfo] = useState<string | null>(null);
 
+  const [updaterState, setUpdaterState] = useState<any>(null);
+
   const openFirstRunWizard = useCallback(
     (resetCompletedFlag: boolean) => {
       try {
@@ -130,6 +132,117 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
       setError(String(res?.error || "EXPORT_FAILED"));
     } catch (e: any) {
       setError(e && e.message ? String(e.message) : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }, [uiLang]);
+
+  const updaterCheck = useCallback(async () => {
+    setUpdateError(null);
+    setUpdateInfo(null);
+    if (!window.electronAPI?.updaterCheck) {
+      setUpdateError("UPDATER_API_MISSING");
+      return;
+    }
+    setBusy("updater_check");
+    try {
+      const res = await window.electronAPI.updaterCheck();
+      if (res && res.state) setUpdaterState(res.state);
+      if (res && res.ok) {
+        setUpdateInfo(
+          uiLang === "en" ? "Checked." : "\u5df2\u68c0\u67e5\u66f4\u65b0\u3002"
+        );
+      } else {
+        setUpdateError(String(res?.error || "CHECK_FAILED"));
+      }
+    } catch (e: any) {
+      setUpdateError(e && e.message ? String(e.message) : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }, [uiLang]);
+
+  const updaterDownload = useCallback(async () => {
+    setUpdateError(null);
+    setUpdateInfo(null);
+    if (!window.electronAPI?.updaterDownload) {
+      setUpdateError("UPDATER_API_MISSING");
+      return;
+    }
+    setBusy("updater_download");
+    try {
+      const res = await window.electronAPI.updaterDownload();
+      if (res && res.state) setUpdaterState(res.state);
+      if (res && res.ok) {
+        setUpdateInfo(
+          uiLang === "en"
+            ? "Downloading..."
+            : "\u5f00\u59cb\u4e0b\u8f7d..."
+        );
+      } else {
+        setUpdateError(String(res?.error || "DOWNLOAD_FAILED"));
+      }
+    } catch (e: any) {
+      setUpdateError(e && e.message ? String(e.message) : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }, [uiLang]);
+
+  const updaterUpdateNow = useCallback(async () => {
+    setUpdateError(null);
+    setUpdateInfo(null);
+    if (!window.electronAPI?.updaterDownload || !window.electronAPI?.updaterInstall) {
+      setUpdateError("UPDATER_API_MISSING");
+      return;
+    }
+    setBusy("updater_update_now");
+    try {
+      const dl = await window.electronAPI.updaterDownload();
+      if (dl && dl.state) setUpdaterState(dl.state);
+      if (!dl || !dl.ok) {
+        setUpdateError(String(dl?.error || "DOWNLOAD_FAILED"));
+        return;
+      }
+
+      const ins = await window.electronAPI.updaterInstall();
+      if (ins && ins.ok) {
+        setUpdateInfo(
+          uiLang === "en"
+            ? "Installing update..."
+            : "\u6b63\u5728\u5b89\u88c5\u66f4\u65b0\uff0c\u7a0b\u5e8f\u5373\u5c06\u91cd\u542f..."
+        );
+      } else {
+        setUpdateError(String(ins?.error || "INSTALL_FAILED"));
+      }
+    } catch (e: any) {
+      setUpdateError(e && e.message ? String(e.message) : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }, [uiLang]);
+
+  const updaterInstall = useCallback(async () => {
+    setUpdateError(null);
+    setUpdateInfo(null);
+    if (!window.electronAPI?.updaterInstall) {
+      setUpdateError("UPDATER_API_MISSING");
+      return;
+    }
+    setBusy("updater_install");
+    try {
+      const res = await window.electronAPI.updaterInstall();
+      if (res && res.ok) {
+        setUpdateInfo(
+          uiLang === "en"
+            ? "Installing update..."
+            : "\u6b63\u5728\u5b89\u88c5\u66f4\u65b0\uff0c\u7a0b\u5e8f\u5373\u5c06\u91cd\u542f..."
+        );
+      } else {
+        setUpdateError(String(res?.error || "INSTALL_FAILED"));
+      }
+    } catch (e: any) {
+      setUpdateError(e && e.message ? String(e.message) : String(e));
     } finally {
       setBusy(null);
     }
@@ -378,7 +491,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
   }, [uiLang]);
 
   const openUpdateRelease = useCallback(async () => {
-    const url = String(updateCheck?.release_url || "").trim();
+    const url = String(updaterState?.release_url || updateCheck?.release_url || "").trim();
     if (!url) return;
     try {
       if (window.electronAPI?.openExternal) {
@@ -389,7 +502,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
     try {
       window.open(url, "_blank");
     } catch {}
-  }, [updateCheck]);
+  }, [updateCheck, updaterState]);
 
   const refreshDiagnostics = useCallback(async () => {
     setError(null);
@@ -408,6 +521,35 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    let disposed = false;
+    const load = async () => {
+      try {
+        if (!window.electronAPI?.updaterGetState) return;
+        const st = await window.electronAPI.updaterGetState();
+        if (!disposed) setUpdaterState(st);
+      } catch {}
+    };
+    void load();
+
+    const off = window.electronAPI?.onUpdaterEvent
+      ? window.electronAPI.onUpdaterEvent((payload: any) => {
+          try {
+            if (payload?.type === "state") {
+              setUpdaterState(payload.state);
+            }
+          } catch {}
+        })
+      : null;
+
+    return () => {
+      disposed = true;
+      try {
+        off && off();
+      } catch {}
+    };
+  }, []);
 
   const saveRuntime = useCallback(async () => {
     setError(null);
@@ -595,32 +737,89 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
 
       <div className="card">
         <h3>{uiLang === "en" ? "Updates" : "\u66f4\u65b0"}</h3>
-        <div className="row">
-          <button className="btn" onClick={checkUpdates} disabled={!!busy}>
-            {uiLang === "en" ? "Check updates" : "\u68c0\u67e5\u66f4\u65b0"}
-          </button>
-          {updateCheck?.ok && updateCheck?.release_url ? (
-            <button className="btn" onClick={openUpdateRelease} disabled={!!busy}>
-              {uiLang === "en" ? "Open release" : "\u6253\u5f00\u53d1\u5e03\u9875"}
-            </button>
-          ) : null}
-        </div>
 
-        <div className="kv" style={{ marginTop: 8 }}>
-          <div className="k">current</div>
-          <div className="v">{String(appVersion?.version || "-")}</div>
-        </div>
-        <div className="kv">
-          <div className="k">latest</div>
-          <div className="v">{String(updateCheck?.ok ? updateCheck?.latest_version || "-" : "-")}</div>
-        </div>
+        {updaterState?.supported ? (
+          <>
+            <div className="row">
+              <button className="btn" onClick={updaterCheck} disabled={!!busy}>
+                {uiLang === "en" ? "Check" : "\u68c0\u67e5"}
+              </button>
+              {String(updaterState?.status || "") === "update_available" ? (
+                <button className="btn primary" onClick={updaterUpdateNow} disabled={!!busy}>
+                  {uiLang === "en" ? "Update now" : "\u4e00\u952e\u66f4\u65b0"}
+                </button>
+              ) : null}
+              {String(updaterState?.status || "") === "downloaded" ? (
+                <button className="btn primary" onClick={updaterInstall} disabled={!!busy}>
+                  {uiLang === "en" ? "Install & Restart" : "\u5b89\u88c5\u5e76\u91cd\u542f"}
+                </button>
+              ) : null}
+              {updaterState?.release_url ? (
+                <button className="btn" onClick={openUpdateRelease} disabled={!!busy}>
+                  {uiLang === "en" ? "Open release" : "\u6253\u5f00\u53d1\u5e03\u9875"}
+                </button>
+              ) : null}
+            </div>
 
-        {busy === "checking_updates" ? (
-          <div className="muted" style={{ marginTop: 8 }}>
-            {uiLang === "en" ? "Checking..." : "\u6b63\u5728\u68c0\u67e5..."}
-          </div>
-        ) : null}
+            <div className="kv" style={{ marginTop: 8 }}>
+              <div className="k">current</div>
+              <div className="v">{String(updaterState?.current_version || appVersion?.version || "-")}</div>
+            </div>
+            <div className="kv">
+              <div className="k">status</div>
+              <div className="v">{String(updaterState?.status || "-")}</div>
+            </div>
+            <div className="kv">
+              <div className="k">available</div>
+              <div className="v">{String(updaterState?.available_version || "-")}</div>
+            </div>
 
+            {String(updaterState?.status || "") === "downloading" ? (
+              <div className="muted" style={{ marginTop: 8 }}>
+                {uiLang === "en"
+                  ? `Downloading: ${Number(updaterState?.progress?.percent || 0).toFixed(1)}%`
+                  : `\u6b63\u5728\u4e0b\u8f7d\uff1a${Number(updaterState?.progress?.percent || 0).toFixed(1)}%`}
+              </div>
+            ) : null}
+
+            {updaterState?.error ? (
+              <div className="alert alert-error compact">{String(updaterState.error)}</div>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <div className="muted" style={{ marginBottom: 8 }}>
+              {uiLang === "en"
+                ? "Auto update is available only in the installed (packaged) app."
+                : "\u81ea\u52a8\u66f4\u65b0\u4ec5\u652f\u6301\u5b89\u88c5\u7248\uff08packaged\uff09\u3002"}
+            </div>
+            <div className="row">
+              <button className="btn" onClick={checkUpdates} disabled={!!busy}>
+                {uiLang === "en" ? "Check updates" : "\u68c0\u67e5\u66f4\u65b0"}
+              </button>
+              {updateCheck?.ok && updateCheck?.release_url ? (
+                <button className="btn" onClick={openUpdateRelease} disabled={!!busy}>
+                  {uiLang === "en" ? "Open release" : "\u6253\u5f00\u53d1\u5e03\u9875"}
+                </button>
+              ) : null}
+            </div>
+
+            <div className="kv" style={{ marginTop: 8 }}>
+              <div className="k">current</div>
+              <div className="v">{String(appVersion?.version || "-")}</div>
+            </div>
+            <div className="kv">
+              <div className="k">latest</div>
+              <div className="v">{String(updateCheck?.ok ? updateCheck?.latest_version || "-" : "-")}</div>
+            </div>
+
+            {busy === "checking_updates" ? (
+              <div className="muted" style={{ marginTop: 8 }}>
+                {uiLang === "en" ? "Checking..." : "\u6b63\u5728\u68c0\u67e5..."}
+              </div>
+            ) : null}
+          </>
+        )}
         {updateError ? <div className="alert alert-error compact">{updateError}</div> : null}
         {updateInfo ? <div className="alert alert-info compact">{updateInfo}</div> : null}
       </div>

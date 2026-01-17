@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { autoUpdater } from "electron-updater";
 import {
   copyFileSync,
   existsSync,
@@ -627,6 +628,160 @@ type UpdateCheckErr = {
 
 type UpdateCheckResult = UpdateCheckOk | UpdateCheckErr;
 
+type UpdaterStatus =
+  | "disabled"
+  | "idle"
+  | "checking"
+  | "update_available"
+  | "no_update"
+  | "downloading"
+  | "downloaded"
+  | "error";
+
+type UpdaterState = {
+  supported: boolean;
+  status: UpdaterStatus;
+  current_version: string;
+  available_version?: string;
+  release_url?: string;
+  downloaded?: boolean;
+  progress?: {
+    percent?: number;
+    transferred?: number;
+    total?: number;
+    bytes_per_second?: number;
+  };
+  error?: string;
+  last_checked_at?: string;
+};
+
+let _updaterState: UpdaterState = {
+  supported: false,
+  status: "disabled",
+  current_version: String(app.getVersion() || ""),
+};
+
+function getUpdateRepo(): string {
+  return String(
+    process.env.EDGE_VIDEO_AGENT_UPDATE_REPO ||
+      "Caria-Tarnished/Edge-AI-Video-Summarizer"
+  ).trim();
+}
+
+function buildReleaseUrlFromVersion(v: string): string {
+  const repo = getUpdateRepo();
+  const ver = String(v || "").trim();
+  if (!repo || !ver) return "";
+  const tag = ver.startsWith("v") || ver.startsWith("V") ? ver : `v${ver}`;
+  return `https://github.com/${repo}/releases/tag/${tag}`;
+}
+
+function emitUpdaterState(): void {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("updater:event", { type: "state", state: _updaterState });
+    }
+  } catch {}
+}
+
+function initAutoUpdater(): void {
+  const disabled = String(process.env.EDGE_VIDEO_AGENT_DISABLE_AUTO_UPDATE || "").trim();
+  const supported = app.isPackaged && !(disabled === "1" || disabled.toLowerCase() === "true");
+
+  _updaterState = {
+    supported,
+    status: supported ? "idle" : "disabled",
+    current_version: String(app.getVersion() || ""),
+  };
+
+  if (!supported) {
+    emitUpdaterState();
+    return;
+  }
+
+  autoUpdater.autoDownload = false;
+  autoUpdater.allowPrerelease = String(app.getVersion() || "").includes("-");
+
+  autoUpdater.on("checking-for-update", () => {
+    _updaterState = {
+      ..._updaterState,
+      status: "checking",
+      error: undefined,
+      last_checked_at: new Date().toISOString(),
+    };
+    emitUpdaterState();
+  });
+
+  autoUpdater.on("update-available", (info: any) => {
+    const next = String(info?.version || "").trim();
+    _updaterState = {
+      ..._updaterState,
+      status: "update_available",
+      available_version: next || _updaterState.available_version,
+      release_url: next ? buildReleaseUrlFromVersion(next) : _updaterState.release_url,
+      downloaded: false,
+      progress: undefined,
+      error: undefined,
+    };
+    emitUpdaterState();
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    _updaterState = {
+      ..._updaterState,
+      status: "no_update",
+      available_version: undefined,
+      release_url: undefined,
+      downloaded: false,
+      progress: undefined,
+      error: undefined,
+      last_checked_at: new Date().toISOString(),
+    };
+    emitUpdaterState();
+  });
+
+  autoUpdater.on("download-progress", (p: any) => {
+    _updaterState = {
+      ..._updaterState,
+      status: "downloading",
+      progress: {
+        percent: typeof p?.percent === "number" ? p.percent : undefined,
+        transferred: typeof p?.transferred === "number" ? p.transferred : undefined,
+        total: typeof p?.total === "number" ? p.total : undefined,
+        bytes_per_second:
+          typeof p?.bytesPerSecond === "number" ? p.bytesPerSecond : undefined,
+      },
+      error: undefined,
+    };
+    emitUpdaterState();
+  });
+
+  autoUpdater.on("update-downloaded", (info: any) => {
+    const next = String(info?.version || "").trim();
+    _updaterState = {
+      ..._updaterState,
+      status: "downloaded",
+      available_version: next || _updaterState.available_version,
+      release_url: (next ? buildReleaseUrlFromVersion(next) : "") || _updaterState.release_url,
+      downloaded: true,
+      error: undefined,
+    };
+    emitUpdaterState();
+  });
+
+  autoUpdater.on("error", (e: any) => {
+    const msg = e && e.message ? String(e.message) : String(e);
+    _updaterState = {
+      ..._updaterState,
+      status: "error",
+      error: msg,
+    };
+    emitUpdaterState();
+  });
+
+  emitUpdaterState();
+}
+
 type SemVer = {
   major: number;
   minor: number;
@@ -1021,6 +1176,59 @@ ipcMain.handle("app:openExternal", async (_evt, url: any) => {
   }
 });
 
+ipcMain.handle("updater:getState", async () => {
+  return _updaterState;
+});
+
+ipcMain.handle("updater:check", async () => {
+  if (!_updaterState.supported) {
+    return { ok: false, error: "NOT_SUPPORTED", state: _updaterState };
+  }
+  try {
+    const res = await autoUpdater.checkForUpdates();
+    return { ok: true, result: res, state: _updaterState };
+  } catch (e: any) {
+    const msg = e && e.message ? String(e.message) : String(e);
+    _updaterState = { ..._updaterState, status: "error", error: msg };
+    emitUpdaterState();
+    return { ok: false, error: msg, state: _updaterState };
+  }
+});
+
+ipcMain.handle("updater:download", async () => {
+  if (!_updaterState.supported) {
+    return { ok: false, error: "NOT_SUPPORTED", state: _updaterState };
+  }
+  try {
+    await autoUpdater.downloadUpdate();
+    return { ok: true, state: _updaterState };
+  } catch (e: any) {
+    const msg = e && e.message ? String(e.message) : String(e);
+    _updaterState = { ..._updaterState, status: "error", error: msg };
+    emitUpdaterState();
+    return { ok: false, error: msg, state: _updaterState };
+  }
+});
+
+ipcMain.handle("updater:install", async () => {
+  if (!_updaterState.supported) {
+    return { ok: false, error: "NOT_SUPPORTED", state: _updaterState };
+  }
+  try {
+    setTimeout(() => {
+      try {
+        autoUpdater.quitAndInstall(true, true);
+      } catch {}
+    }, 50);
+    return { ok: true };
+  } catch (e: any) {
+    const msg = e && e.message ? String(e.message) : String(e);
+    _updaterState = { ..._updaterState, status: "error", error: msg };
+    emitUpdaterState();
+    return { ok: false, error: msg, state: _updaterState };
+  }
+});
+
 ipcMain.handle("data:exportZip", async () => {
   const dataDir = resolvePreferredDataDir() || getDefaultPackagedDataDir();
   try {
@@ -1143,6 +1351,7 @@ ipcMain.handle("data:restoreZip", async () => {
 
 app.whenReady().then(async () => {
   await createWindow();
+  initAutoUpdater();
 
   app.on("activate", async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -1161,4 +1370,13 @@ app.on("window-all-closed", () => {
     } catch {}
     app.quit();
   }
+});
+
+app.on("before-quit", () => {
+  try {
+    if (_backendProc) {
+      _backendProc.kill();
+      _backendProc = null;
+    }
+  } catch {}
 });

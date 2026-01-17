@@ -2,6 +2,10 @@
   "name": "edge-video-agent-frontend",
   "private": true,
   "version": "0.0.1-beta.4",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer.git"
+  },
   "type": "module",
   "main": "dist/main/index.js",
   "scripts": {
@@ -24,6 +28,13 @@
   "build": {
     "appId": "com.caria.edgeVideoAgent",
     "productName": "Edge Video Agent",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Caria-Tarnished",
+        "repo": "Edge-AI-Video-Summarizer"
+      }
+    ],
     "directories": {
       "output": "../release"
     },
@@ -52,6 +63,7 @@
     }
   },
   "dependencies": {
+    "electron-updater": "^6.1.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
