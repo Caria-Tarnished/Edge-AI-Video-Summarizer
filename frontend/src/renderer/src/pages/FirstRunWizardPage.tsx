@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, DiagnosticsResponse } from '../api/backend'
+import { LoadingState } from '../ui/States'
 
 type UiLang = 'zh' | 'en'
 
@@ -349,10 +350,15 @@ export default function FirstRunWizardPage({ uiLang, onDone }: Props) {
         </div>
 
         {!diag ? (
-          <div className="muted" style={{ marginTop: 8 }}>
-            {uiLang === 'en'
-              ? 'Loading diagnostics...'
-              : '\u6b63\u5728\u83b7\u53d6\u81ea\u68c0\u4fe1\u606f...'}
+          <div style={{ marginTop: 8 }}>
+            <LoadingState
+              compact
+              description={
+                uiLang === 'en'
+                  ? 'Loading diagnostics...'
+                  : '\u6b63\u5728\u83b7\u53d6\u81ea\u68c0\u4fe1\u606f...'
+              }
+            />
           </div>
         ) : stepKey === 'welcome' ? (
           <div className="subcard" style={{ marginTop: 8 }}>
@@ -387,7 +393,7 @@ export default function FirstRunWizardPage({ uiLang, onDone }: Props) {
                 </div>
               ) : null}
               {diag.ffmpeg?.error ? (
-                <div className="alert alert-error">{String(diag.ffmpeg.error)}</div>
+                <div className="alert alert-error compact">{String(diag.ffmpeg.error)}</div>
               ) : null}
               {!diag.ffmpeg?.ok ? (
                 <div className="muted" style={{ marginTop: 6 }}>
@@ -411,7 +417,7 @@ export default function FirstRunWizardPage({ uiLang, onDone }: Props) {
                 <div className="v">{formatBytes((diag.backend as any)?.disk?.free)}</div>
               </div>
               {(diag.backend as any)?.disk?.error ? (
-                <div className="alert alert-error">{String((diag.backend as any).disk.error)}</div>
+                <div className="alert alert-error compact">{String((diag.backend as any).disk.error)}</div>
               ) : null}
             </div>
           </>
@@ -423,14 +429,14 @@ export default function FirstRunWizardPage({ uiLang, onDone }: Props) {
             </div>
 
             {asrMissingRequired.length ? (
-              <div className="alert alert-error" style={{ marginTop: 8 }}>
+              <div className="alert alert-error compact" style={{ marginTop: 8 }}>
                 {t('missing_required')}
                 <pre className="pre" style={{ marginTop: 8 }}>
                   {asrMissingRequired.join('\n')}
                 </pre>
               </div>
             ) : (
-              <div className="alert alert-info" style={{ marginTop: 8 }}>
+              <div className="alert alert-info compact" style={{ marginTop: 8 }}>
                 {uiLang === 'en'
                   ? 'Required files are present (model should be usable).'
                   : '\u5fc5\u9700\u6587\u4ef6\u5df2\u5c31\u7eea\uff08\u6a21\u578b\u5e94\u53ef\u7528\uff09\u3002'}
@@ -501,7 +507,7 @@ export default function FirstRunWizardPage({ uiLang, onDone }: Props) {
               </div>
             </div>
             {(diag as any)?.llm_local?.error ? (
-              <div className="alert alert-error">{String((diag as any).llm_local.error)}</div>
+              <div className="alert alert-error compact">{String((diag as any).llm_local.error)}</div>
             ) : null}
             {!llmOk ? (
               <div className="muted" style={{ marginTop: 6 }}>

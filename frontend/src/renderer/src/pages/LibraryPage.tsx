@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type VideoItem } from "../api/backend";
+import { EmptyState, LoadingState } from "../ui/States";
 
 type UiLang = "zh" | "en";
 
@@ -192,11 +193,31 @@ export default function LibraryPage({ uiLang = "zh", onOpenVideo }: Props) {
 
       {items.length === 0 ? (
         <div className="card">
-          <div className="muted">
-            {
-              "\u6682\u65e0\u89c6\u9891\u3002\u53ef\u70b9\u51fb\u300c\u5bfc\u5165\u89c6\u9891\u300d\u6dfb\u52a0\u4e00\u4e2a\u672c\u5730\u89c6\u9891\u6587\u4ef6\u3002"
-            }
-          </div>
+          {busy ? (
+            <LoadingState
+              compact
+              description={uiLang === "en" ? "Loading..." : "\u6b63\u5728\u52a0\u8f7d..."}
+            />
+          ) : (
+            <EmptyState
+              compact
+              title={uiLang === "en" ? "No videos" : "\u6682\u65e0\u89c6\u9891"}
+              description={
+                uiLang === "en"
+                  ? "Click 'Import video' to add a local video file."
+                  : "\u53ef\u70b9\u51fb\u300c\u5bfc\u5165\u89c6\u9891\u300d\u6dfb\u52a0\u4e00\u4e2a\u672c\u5730\u89c6\u9891\u6587\u4ef6\u3002"
+              }
+              actions={
+                <button
+                  className="btn primary"
+                  onClick={onImport}
+                  disabled={busy || !canPickFile}
+                >
+                  {uiLang === "en" ? "Import video" : "\u5bfc\u5165\u89c6\u9891"}
+                </button>
+              }
+            />
+          )}
         </div>
       ) : (
         <div className="card">

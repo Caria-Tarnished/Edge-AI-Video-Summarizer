@@ -686,16 +686,16 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
               ) : null}
 
               {asrStatus?.local?.error ? (
-                <div className="alert alert-error">{String(asrStatus.local.error)}</div>
+                <div className="alert alert-error compact">{String(asrStatus.local.error)}</div>
               ) : null}
 
               {asrStatus?.download?.ok ? null : asrStatus?.download?.error ? (
-                <div className="alert alert-error">{String(asrStatus.download.error)}</div>
+                <div className="alert alert-error compact">{String(asrStatus.download.error)}</div>
               ) : null}
 
               {Array.isArray((asrStatus as any)?.local?.missing_required_files) &&
               (asrStatus as any).local.missing_required_files.length ? (
-                <div className="alert alert-error" style={{ marginTop: 8 }}>
+                <div className="alert alert-error compact" style={{ marginTop: 8 }}>
                   {uiLang === "en"
                     ? "Missing required files (model not usable)."
                     : "\u7f3a\u5931\u5fc5\u9700\u6587\u4ef6\uff08\u6a21\u578b\u4e0d\u53ef\u7528\uff09\u3002"}
@@ -708,7 +708,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
                   </pre>
                 </div>
               ) : (
-                <div className="alert alert-info" style={{ marginTop: 8 }}>
+                <div className="alert alert-info compact" style={{ marginTop: 8 }}>
                   {uiLang === "en"
                     ? "Required files are present (model should be usable)."
                     : "\u5fc5\u9700\u6587\u4ef6\u5df2\u5c31\u7eea\uff08\u6a21\u578b\u5e94\u53ef\u7528\uff09\u3002"}
@@ -1012,7 +1012,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
               <div className="v">{localStatus.default_model}</div>
             </div>
             {localStatus.error ? (
-              <div className="alert alert-error">{localStatus.error}</div>
+              <div className="alert alert-error compact">{localStatus.error}</div>
             ) : null}
             {localStatus.models?.length ? (
               <div className="subcard">
@@ -1224,6 +1224,67 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
                 ffmpeg: {String(diagnostics.ffmpeg.ffmpeg)}
               </div>
             ) : null}
+
+            {(() => {
+              const cc = (diagnostics as any)?.runtime?.concurrency;
+              if (!cc) return null;
+
+              const asr = (cc?.limiters?.asr || {}) as any;
+              const llm = (cc?.limiters?.llm || {}) as any;
+              const heavy = (cc?.limiters?.heavy || {}) as any;
+              const to = (cc?.timeouts || {}) as any;
+
+              const asrMax = Number(asr.max ?? 0);
+              const llmMax = Number(llm.max ?? 0);
+              const heavyMax = Number(heavy.max ?? 0);
+
+              const asrIn = Number(asr.in_use ?? 0);
+              const llmIn = Number(llm.in_use ?? 0);
+              const heavyIn = Number(heavy.in_use ?? 0);
+
+              const cls = (inUse: number, max: number) => {
+                if (max <= 0) return "v";
+                return inUse >= max ? "v bad" : "v ok";
+              };
+
+              return (
+                <div className="subcard" style={{ marginTop: 8 }}>
+                  <div className="label">
+                    {uiLang === "en" ? "Concurrency" : "\u5e76\u53d1\u5360\u7528"}
+                  </div>
+
+                  <div className="kv">
+                    <div className="k">asr</div>
+                    <div className={cls(asrIn, asrMax)}>
+                      {String(asrIn)}/{String(asrMax)}
+                      {typeof to.asr === "number" ? ` (timeout ${to.asr}s)` : ""}
+                    </div>
+                  </div>
+
+                  <div className="kv">
+                    <div className="k">llm</div>
+                    <div className={cls(llmIn, llmMax)}>
+                      {String(llmIn)}/{String(llmMax)}
+                      {typeof to.llm === "number" ? ` (timeout ${to.llm}s)` : ""}
+                    </div>
+                  </div>
+
+                  <div className="kv">
+                    <div className="k">heavy</div>
+                    <div className={cls(heavyIn, heavyMax)}>
+                      {String(heavyIn)}/{String(heavyMax)}
+                      {typeof to.heavy === "number" ? ` (timeout ${to.heavy}s)` : ""}
+                    </div>
+                  </div>
+
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    {uiLang === "en"
+                      ? "Saturated (= max) means new tasks will wait or timeout."
+                      : "\u5f53\u5360\u7528\u8fbe\u5230 max \u65f6\uff0c\u65b0\u4efb\u52a1\u4f1a\u7b49\u5f85\u6216\u8d85\u65f6\u3002"}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="subcard" style={{ marginTop: 8 }}>
               <div className="label">HF cache</div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE, api, type JobItem } from '../api/backend'
+import { EmptyState, LoadingState } from '../ui/States'
 
 type UiLang = 'zh' | 'en'
 
@@ -328,6 +329,7 @@ export default function TaskCenterPage({ uiLang = 'zh', onOpenVideo }: Props) {
             <label className="row" style={{ marginTop: 0 }}>
               <input
                 type="checkbox"
+                className="checkbox"
                 checked={autoRefresh}
                 onChange={(e) => setAutoRefresh(Boolean(e.target.checked))}
               />
@@ -420,7 +422,19 @@ export default function TaskCenterPage({ uiLang = 'zh', onOpenVideo }: Props) {
       <div className="card">
         <h3 style={{ marginTop: 0 }}>{uiLang === 'en' ? 'Jobs' : '任务列表'}</h3>
         {items.length === 0 ? (
-          <div className="muted">{uiLang === 'en' ? 'No jobs.' : '暂无任务。'}</div>
+          busy ? (
+            <LoadingState compact description={uiLang === 'en' ? 'Loading...' : '\u6b63\u5728\u52a0\u8f7d...'} />
+          ) : (
+            <EmptyState
+              compact
+              title={uiLang === 'en' ? 'No jobs' : '\u6682\u65e0\u4efb\u52a1'}
+              description={
+                uiLang === 'en'
+                  ? 'Try adjusting filters or refresh.'
+                  : '\u53ef\u5c1d\u8bd5\u8c03\u6574\u7b5b\u9009\u6761\u4ef6\u6216\u70b9\u51fb\u5237\u65b0\u3002'
+              }
+            />
+          )
         ) : (
           <div>
             {items.map((j) => {
@@ -515,13 +529,21 @@ export default function TaskCenterPage({ uiLang = 'zh', onOpenVideo }: Props) {
       <div className="card">
         <h3 style={{ marginTop: 0 }}>{uiLang === 'en' ? 'Selected job' : '任务详情'}</h3>
         {!selectedJob ? (
-          <div className="muted">{uiLang === 'en' ? 'Click a job to view details.' : '点击任务查看详情。'}</div>
+          <EmptyState
+            compact
+            title={uiLang === 'en' ? 'No selection' : '未选择任务'}
+            description={uiLang === 'en' ? 'Click a job in the list to view details.' : '点击任务列表中的一项查看详情。'}
+          />
         ) : (
           <div>
             <div className="muted" style={{ marginBottom: 8 }}>
               SSE: {sseState}
-              {sseError ? ` | ${sseError}` : ''}
             </div>
+            {sseError ? (
+              <div className="alert alert-error compact" style={{ marginTop: 0, marginBottom: 8 }}>
+                {String(sseError)}
+              </div>
+            ) : null}
             <div className="kv">
               <div className="k">id</div>
               <div className="v">{String(selectedJob.id)}</div>

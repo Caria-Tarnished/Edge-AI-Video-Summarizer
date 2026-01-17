@@ -13,6 +13,7 @@ import {
   type VideoItem,
   type VideoSummaryStatus
 } from '../api/backend'
+import { EmptyState, LoadingState } from '../ui/States'
 
 type Props = {
   videoId: string
@@ -1620,7 +1621,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             </div>
           </>
         ) : (
-          <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div>
+          <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} />
         )}
       </div>
 
@@ -1658,11 +1659,13 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
               </button>
               <div className="muted">{'\u500d\u901f'}</div>
               <select
+                className="input"
                 value={String(playerPlaybackRate)}
                 onChange={(e) => {
                   const v = parseFloat(e.target.value)
                   setPlaybackRate(Number.isFinite(v) ? v : 1)
                 }}
+                style={{ width: 96 }}
                 disabled={busy}
               >
                 <option value="0.5">0.5x</option>
@@ -1694,6 +1697,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             <div className="k">segment_seconds</div>
             <div className="v">
               <input
+                className="input"
                 value={asrSegmentSeconds}
                 onChange={(e) => setAsrSegmentSeconds(e.target.value)}
                 placeholder="(default)"
@@ -1706,6 +1710,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             <div className="k">overlap_seconds</div>
             <div className="v">
               <input
+                className="input"
                 value={asrOverlapSeconds}
                 onChange={(e) => setAsrOverlapSeconds(e.target.value)}
                 placeholder="(default)"
@@ -1720,6 +1725,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <input
                   type="checkbox"
+                  className="checkbox"
                   checked={asrFromScratch}
                   onChange={(e) => setAsrFromScratch(e.target.checked)}
                   disabled={busy}
@@ -1763,7 +1769,9 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             <div className="muted">progress: {transcribeProgressText}</div>
             <div className="muted">message: {transcribeJob ? String(transcribeJob.message || '') : '-'}</div>
             <div className="muted">sse: {transcribeSseState}</div>
-            {transcribeSseError ? <div className="muted">error: {transcribeSseError}</div> : null}
+            {transcribeSseError ? (
+              <div className="alert alert-error compact">{String(transcribeSseError)}</div>
+            ) : null}
           </div>
           <div className="subcard">
             <div style={{ fontWeight: 700 }}>{'\u7d22\u5f15'}</div>
@@ -1772,7 +1780,9 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             <div className="muted">progress: {indexProgressText}</div>
             <div className="muted">message: {indexJob ? String(indexJob.message || '') : '-'}</div>
             <div className="muted">sse: {indexSseState}</div>
-            {indexSseError ? <div className="muted">error: {indexSseError}</div> : null}
+            {indexSseError ? (
+              <div className="alert alert-error compact">{String(indexSseError)}</div>
+            ) : null}
           </div>
           <div className="subcard">
             <div style={{ fontWeight: 700 }}>{'\u6458\u8981'}</div>
@@ -1781,7 +1791,9 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             <div className="muted">progress: {summaryProgressText}</div>
             <div className="muted">message: {summaryJob ? String(summaryJob.message || '') : '-'}</div>
             <div className="muted">sse: {summarySseState}</div>
-            {summarySseError ? <div className="muted">error: {summarySseError}</div> : null}
+            {summarySseError ? (
+              <div className="alert alert-error compact">{String(summarySseError)}</div>
+            ) : null}
           </div>
           <div className="subcard">
             <div style={{ fontWeight: 700 }}>{'\u5173\u952e\u5e27'}</div>
@@ -1790,7 +1802,9 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             <div className="muted">progress: {keyframesProgressText}</div>
             <div className="muted">message: {keyframesJob ? String(keyframesJob.message || '') : '-'}</div>
             <div className="muted">sse: {keyframesSseState}</div>
-            {keyframesSseError ? <div className="muted">error: {keyframesSseError}</div> : null}
+            {keyframesSseError ? (
+              <div className="alert alert-error compact">{String(keyframesSseError)}</div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -1806,7 +1820,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
         </div>
 
         {indexStatusError ? <div className="alert alert-error">{indexStatusError}</div> : null}
-        {indexStatusBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div> : null}
+        {indexStatusBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
 
         {!indexStatusBusy && !indexStatus ? <div className="muted">{'-'} </div> : null}
 
@@ -1837,8 +1851,8 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
               <div className="v">{String(Boolean(indexStatus.is_stale))}</div>
             </div>
             {indexStatus.error_code || indexStatus.error_message ? (
-              <div className="muted" style={{ marginTop: 8 }}>
-                error: {String(indexStatus.error_code || '')} {String(indexStatus.error_message || '')}
+              <div className="alert alert-error compact">
+                {String(indexStatus.error_code || '')} {String(indexStatus.error_message || '')}
               </div>
             ) : null}
           </div>
@@ -1850,13 +1864,20 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
           <h3 style={{ margin: 0 }}>{'\u5173\u952e\u5e27\u9884\u89c8'}</h3>
           <div className="row" style={{ marginTop: 0 }}>
             <div className="muted">method</div>
-            <select value={keyframesMethod} onChange={(e) => setKeyframesMethod(e.target.value as any)} disabled={busy}>
+            <select
+              className="input"
+              value={keyframesMethod}
+              onChange={(e) => setKeyframesMethod(e.target.value as any)}
+              style={{ width: 120 }}
+              disabled={busy}
+            >
               <option value="interval">{'interval'}</option>
               <option value="scene">{'scene'}</option>
               <option value="all">{'all'}</option>
             </select>
             <div className="muted">limit</div>
             <input
+              className="input"
               value={String(keyframesLimit)}
               onChange={(e) => {
                 const n = parseInt(e.target.value || '0', 10)
@@ -1881,7 +1902,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
         {keyframesIndexError ? <div className="alert alert-error">{keyframesIndexError}</div> : null}
         {keyframesListError ? <div className="alert alert-error">{keyframesListError}</div> : null}
 
-        {keyframesIndexBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div> : null}
+        {keyframesIndexBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
 
         {keyframesIndex ? (
           <div className="subcard">
@@ -1904,9 +1925,11 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
           </div>
         ) : null}
 
-        {keyframesListBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div> : null}
+        {keyframesListBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
 
-        {!keyframesListBusy && keyframesItems.length === 0 ? <div className="muted">{'\u6682\u65e0\u9884\u89c8\u3002'} </div> : null}
+        {!keyframesListBusy && keyframesItems.length === 0 ? (
+          <EmptyState compact description={'\u6682\u65e0\u9884\u89c8\u3002'} />
+        ) : null}
 
         {keyframesItems.length > 0 ? (
           <div
@@ -1958,6 +1981,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
           <div className="row" style={{ marginTop: 0, alignItems: 'center', flexWrap: 'wrap' }}>
             <div className="muted">limit</div>
             <input
+              className="input"
               value={String(transcriptLimit)}
               onChange={(e) => {
                 const n = parseInt(e.target.value || '0', 10)
@@ -1969,6 +1993,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <input
                 type="checkbox"
+                className="checkbox"
                 checked={transcriptAutoScroll}
                 onChange={(e) => setTranscriptAutoScroll(e.target.checked)}
                 disabled={busy}
@@ -1983,10 +2008,15 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
 
         {transcriptError ? <div className="alert alert-error">{transcriptError}</div> : null}
 
-        {transcriptBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div> : null}
+        {transcriptBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
 
         {!transcriptBusy && transcriptSegments.length === 0 ? (
-          <div className="muted">{'\u6682\u65e0\u9884\u89c8\u3002\u53ef\u5728\u8f6c\u5199\u5b8c\u6210\u540e\u81ea\u52a8\u51fa\u73b0\uff0c\u6216\u70b9\u51fb\u300c\u5237\u65b0\u9884\u89c8\u300d\u3002'}</div>
+          <EmptyState
+            compact
+            description={
+              '\u6682\u65e0\u9884\u89c8\u3002\u53ef\u5728\u8f6c\u5199\u5b8c\u6210\u540e\u81ea\u52a8\u51fa\u73b0\uff0c\u6216\u70b9\u51fb\u300c\u5237\u65b0\u9884\u89c8\u300d\u3002'
+            }
+          />
         ) : null}
 
         {transcriptSegments.length > 0 ? (
@@ -2066,6 +2096,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
               <div className="row" style={{ marginTop: 10 }}>
                 <div className="muted">top_k</div>
                 <input
+                  className="input"
                   value={String(chatTopK)}
                   onChange={(e) => {
                     const n = parseInt(e.target.value || '0', 10)
@@ -2102,6 +2133,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <input
                     type="checkbox"
+                    className="checkbox"
                     checked={chatConfirmSend}
                     onChange={(e) => setChatConfirmSend(e.target.checked)}
                     disabled={busy || chatBusy}
@@ -2109,6 +2141,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
                   <span className="muted">{'\u786e\u8ba4\u53d1\u9001\uff08confirm_send\uff09'}</span>
                 </label>
                 <textarea
+                  className="input"
                   value={chatQuery}
                   onChange={(e) => setChatQuery(e.target.value)}
                   onKeyDown={(e) => {
@@ -2215,6 +2248,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                   <input
                     type="checkbox"
+                    className="checkbox"
                     checked={notesAutoExpandOutline}
                     onChange={(e) => setNotesAutoExpandOutline(e.target.checked)}
                     disabled={busy}
@@ -2224,7 +2258,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
               </div>
 
               {summaryError ? <div className="alert alert-error">{summaryError}</div> : null}
-              {summaryBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div> : null}
+              {summaryBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
 
               {summaryStatus ? (
                 <div className="subcard">
@@ -2245,8 +2279,8 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
                     <div className="v">{String(Boolean(summaryStatus.is_stale))}</div>
                   </div>
                   {summaryStatus.error_code || summaryStatus.error_message ? (
-                    <div className="muted" style={{ marginTop: 8 }}>
-                      error: {String(summaryStatus.error_code || '')} {String(summaryStatus.error_message || '')}
+                    <div className="alert alert-error compact">
+                      {String(summaryStatus.error_code || '')} {String(summaryStatus.error_message || '')}
                     </div>
                   ) : null}
                 </div>
@@ -2289,9 +2323,11 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
                     ) : null}
                   </div>
                   {outlineError ? <div className="alert alert-error">{outlineError}</div> : null}
-                  {outlineBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d...'} </div> : null}
+                  {outlineBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
                   {alignedKeyframesError ? <div className="alert alert-error">{alignedKeyframesError}</div> : null}
-                  {alignedKeyframesBusy ? <div className="muted">{'\u6b63\u5728\u52a0\u8f7d\u5173\u952e\u5e27...'} </div> : null}
+                  {alignedKeyframesBusy ? (
+                    <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d\u5173\u952e\u5e27...'} />
+                  ) : null}
 
                   {String(outlineError || '').includes('SUMMARY_NOT_FOUND') ? (
                     <div className="subcard">
