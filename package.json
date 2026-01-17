@@ -1,4 +1,7 @@
 {
+  "name": "edge-ai-video-summarizer-root",
+  "private": true,
+  "version": "0.0.0",
   "dependencies": {
     "ws": "^8.19.0"
   }
