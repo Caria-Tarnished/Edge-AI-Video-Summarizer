@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import {
   copyFileSync,
   existsSync,
@@ -608,6 +608,212 @@ function escapeHtml(s: string): string {
     .replaceAll("'", "&#39;");
 }
 
+type UpdateCheckOk = {
+  ok: true;
+  current_version: string;
+  latest_version: string;
+  update_available: boolean;
+  release_url: string;
+  release_tag: string;
+  prerelease: boolean;
+  published_at: string;
+  assets: Array<{ name: string; url: string }>;
+};
+
+type UpdateCheckErr = {
+  ok: false;
+  error: string;
+};
+
+type UpdateCheckResult = UpdateCheckOk | UpdateCheckErr;
+
+type SemVer = {
+  major: number;
+  minor: number;
+  patch: number;
+  preTag?: string;
+  preNum?: number;
+};
+
+function normalizeTagVersion(tag: string): string {
+  const t = String(tag || "").trim();
+  return t.startsWith("v") || t.startsWith("V") ? t.slice(1) : t;
+}
+
+function parseSemVer(v: string): SemVer | null {
+  const s = String(v || "").trim();
+  const m = s.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/);
+  if (!m) return null;
+  const major = parseInt(m[1] || "0", 10);
+  const minor = parseInt(m[2] || "0", 10);
+  const patch = parseInt(m[3] || "0", 10);
+  const pre = String(m[4] || "").trim();
+  if (!pre) return { major, minor, patch };
+  const parts = pre.split(".");
+  const preTag = String(parts[0] || "").trim();
+  const preNumRaw = String(parts[1] || "").trim();
+  const preNum = preNumRaw && /^\d+$/.test(preNumRaw) ? parseInt(preNumRaw, 10) : undefined;
+  return { major, minor, patch, preTag, preNum };
+}
+
+function preTagRank(tag: string): number {
+  const t = String(tag || "").toLowerCase();
+  if (t === "alpha") return 0;
+  if (t === "beta") return 1;
+  if (t === "rc") return 2;
+  return 3;
+}
+
+function compareSemVer(a: SemVer, b: SemVer): number {
+  if (a.major !== b.major) return a.major > b.major ? 1 : -1;
+  if (a.minor !== b.minor) return a.minor > b.minor ? 1 : -1;
+  if (a.patch !== b.patch) return a.patch > b.patch ? 1 : -1;
+
+  const ap = !!a.preTag;
+  const bp = !!b.preTag;
+  if (!ap && !bp) return 0;
+  if (!ap && bp) return 1;
+  if (ap && !bp) return -1;
+
+  const ar = preTagRank(String(a.preTag || ""));
+  const br = preTagRank(String(b.preTag || ""));
+  if (ar !== br) return ar > br ? 1 : -1;
+
+  const an = typeof a.preNum === "number" ? a.preNum : -1;
+  const bn = typeof b.preNum === "number" ? b.preNum : -1;
+  if (an !== bn) return an > bn ? 1 : -1;
+
+  return 0;
+}
+
+function httpGetJson(urlStr: string, timeoutMs: number): Promise<any> {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(urlStr);
+      const mod = url.protocol === "https:" ? https : http;
+      const port = url.port
+        ? parseInt(url.port, 10)
+        : url.protocol === "https:"
+          ? 443
+          : 80;
+      const req = mod.request(
+        {
+          method: "GET",
+          host: url.hostname,
+          port,
+          path: `${url.pathname || "/"}${url.search || ""}`,
+          timeout: timeoutMs,
+          headers: {
+            "User-Agent": "edge-video-agent",
+            Accept: "application/vnd.github+json",
+          },
+        },
+        (res) => {
+          let body = "";
+          res.setEncoding("utf-8");
+          res.on("data", (chunk) => {
+            body += String(chunk || "");
+          });
+          res.on("end", () => {
+            try {
+              const code = res.statusCode || 0;
+              if (code < 200 || code >= 300) {
+                reject(new Error(`HTTP_${code}`));
+                return;
+              }
+              resolve(JSON.parse(body || "{}"));
+            } catch (e) {
+              reject(e);
+            }
+          });
+        }
+      );
+      req.on("error", reject);
+      req.on("timeout", () => req.destroy(new Error("timeout")));
+      req.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+async function checkForUpdatesManual(): Promise<UpdateCheckResult> {
+  const repo = String(
+    process.env.EDGE_VIDEO_AGENT_UPDATE_REPO ||
+      "Caria-Tarnished/Edge-AI-Video-Summarizer"
+  ).trim();
+  const current = String(app.getVersion() || "").trim();
+  if (!repo || !current) {
+    return { ok: false, error: "MISSING_REPO_OR_VERSION" };
+  }
+
+  const currentIsPre = current.includes("-");
+  try {
+    let rel: any = null;
+    if (currentIsPre) {
+      const list = await httpGetJson(
+        `https://api.github.com/repos/${repo}/releases?per_page=30`,
+        12000
+      );
+      const arr = Array.isArray(list) ? list : [];
+      rel =
+        arr.find((r) => r && typeof r === "object" && (r as any).prerelease) ||
+        arr.find((r) => r && typeof r === "object" && !(r as any).prerelease) ||
+        null;
+    } else {
+      rel = await httpGetJson(
+        `https://api.github.com/repos/${repo}/releases/latest`,
+        12000
+      );
+    }
+
+    if (!rel || typeof rel !== "object") {
+      return { ok: false, error: "NO_RELEASE" };
+    }
+
+    const tag = String((rel as any).tag_name || "").trim();
+    const latestVersion = normalizeTagVersion(tag);
+    const releaseUrl = String((rel as any).html_url || "").trim();
+    const publishedAt = String((rel as any).published_at || "").trim();
+    const prerelease = Boolean((rel as any).prerelease);
+
+    if (!latestVersion || !releaseUrl) {
+      return { ok: false, error: "BAD_RELEASE_METADATA" };
+    }
+
+    const curSv = parseSemVer(current);
+    const latSv = parseSemVer(latestVersion);
+    const updateAvailable =
+      curSv && latSv ? compareSemVer(latSv, curSv) > 0 : latestVersion !== current;
+
+    const assetsRaw = Array.isArray((rel as any).assets)
+      ? ((rel as any).assets as any[])
+      : [];
+    const assets = assetsRaw
+      .map((a) => {
+        const name = String(a?.name || "").trim();
+        const url = String(a?.browser_download_url || "").trim();
+        if (!name || !url) return null;
+        return { name, url };
+      })
+      .filter(Boolean) as Array<{ name: string; url: string }>;
+
+    return {
+      ok: true,
+      current_version: current,
+      latest_version: latestVersion,
+      update_available: updateAvailable,
+      release_url: releaseUrl,
+      release_tag: tag,
+      prerelease,
+      published_at: publishedAt,
+      assets,
+    };
+  } catch (e: any) {
+    return { ok: false, error: e && e.message ? String(e.message) : String(e) };
+  }
+}
+
 function probeUrl(u: string, timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
     try {
@@ -789,6 +995,30 @@ ipcMain.handle("config:setDevConfig", async (_evt, config: any) => {
       ? (config as Record<string, unknown>)
       : {};
   return writeDevConfig(payload);
+});
+
+ipcMain.handle("app:getVersion", async () => {
+  return {
+    version: String(app.getVersion() || ""),
+    is_packaged: Boolean(app.isPackaged),
+  };
+});
+
+ipcMain.handle("app:checkUpdates", async () => {
+  return await checkForUpdatesManual();
+});
+
+ipcMain.handle("app:openExternal", async (_evt, url: any) => {
+  const u = String(url || "").trim();
+  if (!u) {
+    return { ok: false, error: "EMPTY_URL" };
+  }
+  try {
+    await shell.openExternal(u);
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e && e.message ? String(e.message) : String(e) };
+  }
 });
 
 ipcMain.handle("data:exportZip", async () => {

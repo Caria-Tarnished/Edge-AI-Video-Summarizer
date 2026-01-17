@@ -9,6 +9,9 @@ declare global {
     }
     electronAPI?: {
       openVideoFile: () => Promise<string | null>
+      getAppVersion: () => Promise<{ version: string; is_packaged: boolean } | null>
+      checkUpdates: () => Promise<any>
+      openExternal: (url: string) => Promise<any>
       exportDataZip: () => Promise<any>
       restoreDataZip: () => Promise<any>
       pickLlamaServerExe: () => Promise<string | null>

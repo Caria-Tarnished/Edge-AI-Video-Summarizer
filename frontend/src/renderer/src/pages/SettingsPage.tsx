@@ -67,6 +67,13 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
+  const [appVersion, setAppVersion] = useState<
+    { version: string; is_packaged: boolean } | null
+  >(null);
+  const [updateCheck, setUpdateCheck] = useState<any>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<string | null>(null);
+
   const openFirstRunWizard = useCallback(
     (resetCompletedFlag: boolean) => {
       try {
@@ -251,7 +258,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
     setInfo(null);
     setBusy("loading");
     try {
-      const [rt, llm, prov, status, asr, diag, devCfg] = await Promise.all([
+      const [rt, llm, prov, status, asr, diag, devCfg, ver] = await Promise.all([
         api.getRuntimeProfile(),
         api.getDefaultLlmPreferences(),
         api.listLlmProviders(),
@@ -261,9 +268,13 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
         window.electronAPI?.getDevConfig
           ? window.electronAPI.getDevConfig().catch(() => null)
           : Promise.resolve(null),
+        window.electronAPI?.getAppVersion
+          ? window.electronAPI.getAppVersion().catch(() => null)
+          : Promise.resolve(null),
       ]);
 
       setRuntime(rt);
+      setAppVersion(ver);
       const rawProfile = String((rt.preferences as any)?.profile ?? "balanced");
       const normalizedProfile =
         rawProfile === "gpu" ? "gpu_recommended" : rawProfile;
@@ -320,6 +331,65 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
       setBusy(null);
     }
   }, []);
+
+  const checkUpdates = useCallback(async () => {
+    setUpdateError(null);
+    setUpdateInfo(null);
+
+    if (!window.electronAPI?.checkUpdates) {
+      setUpdateError(
+        uiLang === "en"
+          ? "Not running in Electron."
+          : "\u5f53\u524d\u4e0d\u662f Electron \u73af\u5883\u3002"
+      );
+      return;
+    }
+
+    setBusy("checking_updates");
+    try {
+      const ver = window.electronAPI?.getAppVersion
+        ? await window.electronAPI.getAppVersion().catch(() => null)
+        : null;
+      setAppVersion(ver);
+
+      const res = await window.electronAPI.checkUpdates();
+      setUpdateCheck(res);
+
+      if (res && res.ok) {
+        if (res.update_available) {
+          setUpdateInfo(
+            uiLang === "en"
+              ? `Update available: ${String(res.latest_version || "")}`
+              : `\u53d1\u73b0\u65b0\u7248\u672c\uff1a${String(res.latest_version || "")}`
+          );
+        } else {
+          setUpdateInfo(
+            uiLang === "en" ? "Up to date." : "\u5df2\u662f\u6700\u65b0\u7248\u3002"
+          );
+        }
+      } else {
+        setUpdateError(String(res?.error || "CHECK_FAILED"));
+      }
+    } catch (e: any) {
+      setUpdateError(e && e.message ? String(e.message) : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }, [uiLang]);
+
+  const openUpdateRelease = useCallback(async () => {
+    const url = String(updateCheck?.release_url || "").trim();
+    if (!url) return;
+    try {
+      if (window.electronAPI?.openExternal) {
+        await window.electronAPI.openExternal(url);
+        return;
+      }
+    } catch {}
+    try {
+      window.open(url, "_blank");
+    } catch {}
+  }, [updateCheck]);
 
   const refreshDiagnostics = useCallback(async () => {
     setError(null);
@@ -521,6 +591,38 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
             {t("refresh_all")}
           </button>
         </div>
+      </div>
+
+      <div className="card">
+        <h3>{uiLang === "en" ? "Updates" : "\u66f4\u65b0"}</h3>
+        <div className="row">
+          <button className="btn" onClick={checkUpdates} disabled={!!busy}>
+            {uiLang === "en" ? "Check updates" : "\u68c0\u67e5\u66f4\u65b0"}
+          </button>
+          {updateCheck?.ok && updateCheck?.release_url ? (
+            <button className="btn" onClick={openUpdateRelease} disabled={!!busy}>
+              {uiLang === "en" ? "Open release" : "\u6253\u5f00\u53d1\u5e03\u9875"}
+            </button>
+          ) : null}
+        </div>
+
+        <div className="kv" style={{ marginTop: 8 }}>
+          <div className="k">current</div>
+          <div className="v">{String(appVersion?.version || "-")}</div>
+        </div>
+        <div className="kv">
+          <div className="k">latest</div>
+          <div className="v">{String(updateCheck?.ok ? updateCheck?.latest_version || "-" : "-")}</div>
+        </div>
+
+        {busy === "checking_updates" ? (
+          <div className="muted" style={{ marginTop: 8 }}>
+            {uiLang === "en" ? "Checking..." : "\u6b63\u5728\u68c0\u67e5..."}
+          </div>
+        ) : null}
+
+        {updateError ? <div className="alert alert-error compact">{updateError}</div> : null}
+        {updateInfo ? <div className="alert alert-info compact">{updateInfo}</div> : null}
       </div>
 
       <div className="card">
