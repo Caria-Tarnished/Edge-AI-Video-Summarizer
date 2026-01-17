@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build & upload release assets for (e.g. v0.0.1-beta.5)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -14,11 +19,14 @@ jobs:
     runs-on: windows-latest
 
     env:
-      RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+      RELEASE_TAG: ${{ (startsWith(github.ref, 'refs/tags/') && github.ref_name) || github.event.inputs.tag || '' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG != '' && env.RELEASE_TAG || github.ref }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -138,11 +146,19 @@ jobs:
             ${{ steps.prep.outputs.out_dir || 'release' }}
 
       - name: Create/Update GitHub Release (gh)
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && steps.prep.outputs.tag != '' }}
+        if: ${{ steps.prep.outputs.tag != '' && ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch') }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $ErrorActionPreference = 'Stop'
+
+          function Assert-LastExitCode([string]$Message) {
+            if ($LASTEXITCODE -ne 0) {
+              throw "$Message (exit=$LASTEXITCODE)"
+            }
+          }
+
           $tag = "${{ steps.prep.outputs.tag }}"
           $ver = "${{ steps.prep.outputs.version }}"
           $outDir = "${{ steps.prep.outputs.out_dir }}"
@@ -184,6 +200,8 @@ jobs:
             $args = @("release","create",$tag,$setupExe,$blockmap,$zip,$yml,$sha,"--repo","${{ github.repository }}","--title",$tag,"--notes",$notes)
             if ($isPre) { $args += "--prerelease" }
             gh @args
+            Assert-LastExitCode "gh release create failed"
           } else {
             gh release upload $tag $setupExe $blockmap $zip $yml $sha --repo "${{ github.repository }}" --clobber
+            Assert-LastExitCode "gh release upload failed"
           }
