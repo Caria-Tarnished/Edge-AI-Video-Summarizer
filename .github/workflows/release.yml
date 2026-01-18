@@ -77,10 +77,13 @@ jobs:
       - name: Build desktop distributables (electron-builder)
         working-directory: frontend
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          npm run dist
+          $ver = node -p "require('./package.json').version"
+          if ($ver.Contains('-')) {
+            npm run dist:beta -- --publish never
+          } else {
+            npm run dist:stable -- --publish never
+          }
 
       - name: Prepare artifacts + SHA256
         id: prep
@@ -233,6 +236,15 @@ jobs:
             gh release upload $tag $setupExe $blockmap $zip $yml $sha --repo "${{ github.repository }}" --clobber
             Assert-LastExitCode "gh release upload failed"
           }
+
+          # Ensure release is NOT a draft (draft releases do not show up as normal assets and break auto-update)
+          $relJson = gh api "repos/${{ github.repository }}/releases/tags/$tag"
+          Assert-LastExitCode "gh api get release failed"
+          $rel = $relJson | ConvertFrom-Json
+          $relId = $rel.id
+          $preVal = $isPre.ToString().ToLowerInvariant()
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$relId" -f draft=false -f prerelease=$preVal 1>$null
+          Assert-LastExitCode "gh api update release (draft/prerelease) failed"
 
           $assetNames = gh release view $tag --repo "${{ github.repository }}" --json assets --jq ".assets[].name"
           Assert-LastExitCode "gh release view (post-upload) failed"
