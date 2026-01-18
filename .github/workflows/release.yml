@@ -8,7 +8,7 @@ on:
     inputs:
       tag:
         description: "Existing tag to build & upload release assets for (e.g. v0.0.1-beta.5)"
-        required: false
+        required: true
         default: ""
 
 permissions:
@@ -27,6 +27,14 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ env.RELEASE_TAG != '' && env.RELEASE_TAG || github.ref }}
+
+      - name: Validate workflow_dispatch tag
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: pwsh
+        run: |
+          if (-not "${{ env.RELEASE_TAG }}") {
+            throw "workflow_dispatch requires 'tag' input (e.g. v0.0.1-beta.5)."
+          }
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -143,7 +151,12 @@ jobs:
         with:
           name: windows-${{ steps.prep.outputs.version || 'build' }}
           path: |
-            ${{ steps.prep.outputs.out_dir || 'release' }}
+            ${{ steps.prep.outputs.out_dir }}/*.exe
+            ${{ steps.prep.outputs.out_dir }}/*.exe.blockmap
+            ${{ steps.prep.outputs.out_dir }}/*.zip
+            ${{ steps.prep.outputs.out_dir }}/*.zip.blockmap
+            ${{ steps.prep.outputs.out_dir }}/*.yml
+            ${{ steps.prep.outputs.out_dir }}/SHA256SUMS.txt
 
       - name: Create/Update GitHub Release (gh)
         if: ${{ steps.prep.outputs.tag != '' && ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch') }}
