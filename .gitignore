@@ -1,8 +1,13 @@
 /demo/
-
+/frontend/node_modules/
 /artifacts/
 /release/
 /backend/.venv/
 /backend/app/__pycache__/
 /logs/
 /.kiro/
+/node_modules/
+/backend/.mypy_cache/
+/backend/.pytest_cache/
+/backend/__pycache__/
+/.pytest_cache/

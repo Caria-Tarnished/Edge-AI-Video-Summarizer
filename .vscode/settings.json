@@ -1,3 +1,46 @@
 {
-    "kiroAgent.configureMCP": "Disabled"
+    "kiroAgent.configureMCP": "Disabled",
+    "files.watcherExclude": {
+        "**/.git/**": true,
+        "**/node_modules/**": true,
+        "**/artifacts/**": true,
+        "**/release/**": true,
+        "**/logs/**": true,
+        "**/dist/**": true,
+        "**/out/**": true,
+        "**/.venv/**": true,
+        "**/__pycache__/**": true,
+        "**/.mypy_cache/**": true,
+        "**/.pytest_cache/**": true,
+        "**/build/**": true,
+        "**/cache/**": true
+    },
+    "search.exclude": {
+        "**/.git/**": true,
+        "**/node_modules/**": true,
+        "**/artifacts/**": true,
+        "**/release/**": true,
+        "**/logs/**": true,
+        "**/dist/**": true,
+        "**/out/**": true,
+        "**/.venv/**": true,
+        "**/__pycache__/**": true,
+        "**/.mypy_cache/**": true,
+        "**/.pytest_cache/**": true,
+        "**/build/**": true,
+        "**/cache/**": true
+    },
+    "files.exclude": {
+        "**/.git": true,
+        "**/node_modules": true,
+        "**/artifacts": true,
+        "**/release": true,
+        "**/logs": true,
+        "**/dist": true,
+        "**/out": true,
+        "**/.venv": true,
+        "**/__pycache__": true,
+        "**/.mypy_cache": true,
+        "**/.pytest_cache": true
+    }
 }
