@@ -69,6 +69,38 @@ contextBridge.exposeInMainWorld('electronAPI', {
     config: Record<string, unknown>
   ): Promise<{ path: string; config: Record<string, unknown> }> => {
     return await ipcRenderer.invoke('config:setDevConfig', config)
+  },
+
+  llamaGetState: async (): Promise<any> => {
+    return await ipcRenderer.invoke('llama:getState')
+  },
+  llamaGetLogs: async (): Promise<any> => {
+    return await ipcRenderer.invoke('llama:getLogs')
+  },
+  llamaClearLogs: async (): Promise<any> => {
+    return await ipcRenderer.invoke('llama:clearLogs')
+  },
+  llamaStart: async (): Promise<any> => {
+    return await ipcRenderer.invoke('llama:start')
+  },
+  llamaStop: async (): Promise<any> => {
+    return await ipcRenderer.invoke('llama:stop')
+  },
+  llamaRestart: async (): Promise<any> => {
+    return await ipcRenderer.invoke('llama:restart')
+  },
+  onLlamaEvent: (callback: (payload: any) => void): (() => void) => {
+    const handler = (_evt: any, payload: any) => {
+      try {
+        callback(payload)
+      } catch {}
+    }
+    ipcRenderer.on('llama:event', handler)
+    return () => {
+      try {
+        ipcRenderer.removeListener('llama:event', handler)
+      } catch {}
+    }
   }
 })
 
@@ -88,4 +120,12 @@ export type ElectronAPI = {
   pickLlamaModel: () => Promise<string | null>
   getDevConfig: () => Promise<{ path: string; config: Record<string, unknown> }>
   setDevConfig: (config: Record<string, unknown>) => Promise<{ path: string; config: Record<string, unknown> }>
+
+  llamaGetState: () => Promise<any>
+  llamaGetLogs: () => Promise<any>
+  llamaClearLogs: () => Promise<any>
+  llamaStart: () => Promise<any>
+  llamaStop: () => Promise<any>
+  llamaRestart: () => Promise<any>
+  onLlamaEvent: (callback: (payload: any) => void) => () => void
 }

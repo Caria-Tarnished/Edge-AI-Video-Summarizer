@@ -36,9 +36,28 @@ type LlmDraft = {
 type DevConfigDraft = {
   llama_server_exe?: string;
   llama_model_path?: string;
+  llama_model_slot?: string;
+  llama_model_q4_path?: string;
+  llama_model_q5_path?: string;
+  llama_model_small_path?: string;
   llama_port?: number;
   local_llm_base_url?: string;
   backend_base_url?: string;
+};
+
+type LlamaState = {
+  status?: string;
+  pid?: number | null;
+  started_at?: string | null;
+  stopped_at?: string | null;
+  last_exit_code?: number | null;
+  last_signal?: string | null;
+  error?: string | null;
+};
+
+type LlamaLogs = {
+  stdout?: string[];
+  stderr?: string[];
 };
 
 function toNumberOrUndefined(v: string): number | undefined {
@@ -62,6 +81,9 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
 
   const [devConfigPath, setDevConfigPath] = useState<string | null>(null);
   const [devConfigDraft, setDevConfigDraft] = useState<DevConfigDraft>({});
+
+  const [llamaState, setLlamaState] = useState<LlamaState | null>(null);
+  const [llamaLogs, setLlamaLogs] = useState<LlamaLogs | null>(null);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -371,7 +393,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
     setInfo(null);
     setBusy("loading");
     try {
-      const [rt, llm, prov, status, asr, diag, devCfg, ver] = await Promise.all([
+      const [rt, llm, prov, status, asr, diag, devCfg, ver, llama] = await Promise.all([
         api.getRuntimeProfile(),
         api.getDefaultLlmPreferences(),
         api.listLlmProviders(),
@@ -383,6 +405,9 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           : Promise.resolve(null),
         window.electronAPI?.getAppVersion
           ? window.electronAPI.getAppVersion().catch(() => null)
+          : Promise.resolve(null),
+        window.electronAPI?.llamaGetState
+          ? window.electronAPI.llamaGetState().catch(() => null)
           : Promise.resolve(null),
       ]);
 
@@ -424,12 +449,16 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
       }
 
       if (devCfg && typeof devCfg === "object") {
-        const p = String((devCfg as any).path || "");
+        const p = String((devCfg as any).path || "").trim();
         const cfg = ((devCfg as any).config || {}) as Record<string, unknown>;
         setDevConfigPath(p || null);
         setDevConfigDraft({
           llama_server_exe: String(cfg.llama_server_exe || ""),
           llama_model_path: String(cfg.llama_model_path || ""),
+          llama_model_slot: String(cfg.llama_model_slot || ""),
+          llama_model_q4_path: String(cfg.llama_model_q4_path || ""),
+          llama_model_q5_path: String(cfg.llama_model_q5_path || ""),
+          llama_model_small_path: String(cfg.llama_model_small_path || ""),
           llama_port:
             typeof cfg.llama_port === "number"
               ? (cfg.llama_port as number)
@@ -438,12 +467,136 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           backend_base_url: String(cfg.backend_base_url || ""),
         });
       }
+
+      if (llama && typeof llama === "object") {
+        const st = (llama as any).state;
+        const logs = (llama as any).logs;
+        if (st && typeof st === "object") {
+          setLlamaState(st as LlamaState);
+        }
+        if (logs && typeof logs === "object") {
+          setLlamaLogs(logs as LlamaLogs);
+        }
+      }
     } catch (e: any) {
       setError(String(e?.message || e));
     } finally {
       setBusy(null);
     }
   }, []);
+
+  useEffect(() => {
+    if (!window.electronAPI?.onLlamaEvent) {
+      return;
+    }
+    const off = window.electronAPI.onLlamaEvent((payload: any) => {
+      const type = String(payload?.type || "");
+      if (type === "state" && payload?.state) {
+        setLlamaState(payload.state as LlamaState);
+      }
+      if (type === "logs" && payload?.logs) {
+        setLlamaLogs(payload.logs as LlamaLogs);
+      }
+    });
+    return () => {
+      try {
+        off();
+      } catch {}
+    };
+  }, []);
+
+  const refreshLlama = useCallback(async () => {
+    if (!window.electronAPI?.llamaGetState) {
+      setError(uiLang === "en" ? "Not running in Electron." : "\u5f53\u524d\u4e0d\u662f Electron \u73af\u5883\u3002");
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setBusy("refreshing_llama");
+    try {
+      const res: any = await window.electronAPI.llamaGetState();
+      if (res?.state) setLlamaState(res.state as LlamaState);
+      if (res?.logs) setLlamaLogs(res.logs as LlamaLogs);
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setBusy(null);
+    }
+  }, [uiLang]);
+
+  const llamaStart = useCallback(async () => {
+    if (!window.electronAPI?.llamaStart) {
+      setError(uiLang === "en" ? "Not running in Electron." : "\u5f53\u524d\u4e0d\u662f Electron \u73af\u5883\u3002");
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setBusy("llama_start");
+    try {
+      const res: any = await window.electronAPI.llamaStart();
+      if (res?.state) setLlamaState(res.state as LlamaState);
+      if (res?.logs) setLlamaLogs(res.logs as LlamaLogs);
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setBusy(null);
+    }
+  }, [uiLang]);
+
+  const llamaStop = useCallback(async () => {
+    if (!window.electronAPI?.llamaStop) {
+      setError(uiLang === "en" ? "Not running in Electron." : "\u5f53\u524d\u4e0d\u662f Electron \u73af\u5883\u3002");
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setBusy("llama_stop");
+    try {
+      const res: any = await window.electronAPI.llamaStop();
+      if (res?.state) setLlamaState(res.state as LlamaState);
+      if (res?.logs) setLlamaLogs(res.logs as LlamaLogs);
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setBusy(null);
+    }
+  }, [uiLang]);
+
+  const llamaRestart = useCallback(async () => {
+    if (!window.electronAPI?.llamaRestart) {
+      setError(uiLang === "en" ? "Not running in Electron." : "\u5f53\u524d\u4e0d\u662f Electron \u73af\u5883\u3002");
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setBusy("llama_restart");
+    try {
+      const res: any = await window.electronAPI.llamaRestart();
+      if (res?.state) setLlamaState(res.state as LlamaState);
+      if (res?.logs) setLlamaLogs(res.logs as LlamaLogs);
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setBusy(null);
+    }
+  }, [uiLang]);
+
+  const llamaClearLogs = useCallback(async () => {
+    if (!window.electronAPI?.llamaClearLogs) {
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setBusy("llama_clear_logs");
+    try {
+      await window.electronAPI.llamaClearLogs();
+      await refreshLlama();
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setBusy(null);
+    }
+  }, [refreshLlama]);
 
   const checkUpdates = useCallback(async () => {
     setUpdateError(null);
@@ -646,6 +799,16 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
     setInfo(null);
     setBusy("saving_dev_config");
     try {
+      let prev: Record<string, unknown> = {};
+      try {
+        if (window.electronAPI?.getDevConfig) {
+          const cur = await window.electronAPI.getDevConfig();
+          prev = ((cur as any)?.config || {}) as Record<string, unknown>;
+        }
+      } catch {
+        prev = {};
+      }
+
       const port = devConfigDraft.llama_port;
       const baseUrlRaw = String(devConfigDraft.local_llm_base_url || "").trim();
       const baseUrl =
@@ -654,13 +817,22 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           ? `http://127.0.0.1:${port}/v1`
           : "");
 
-      const payload: Record<string, unknown> = {
+      const partial: Record<string, unknown> = {
         llama_server_exe: String(devConfigDraft.llama_server_exe || "").trim(),
         llama_model_path: String(devConfigDraft.llama_model_path || "").trim(),
+        llama_model_slot: String(devConfigDraft.llama_model_slot || "").trim(),
+        llama_model_q4_path: String(devConfigDraft.llama_model_q4_path || "").trim(),
+        llama_model_q5_path: String(devConfigDraft.llama_model_q5_path || "").trim(),
+        llama_model_small_path: String(devConfigDraft.llama_model_small_path || "").trim(),
         llama_port:
           typeof port === "number" && Number.isFinite(port) ? port : undefined,
         local_llm_base_url: baseUrl,
         backend_base_url: String(devConfigDraft.backend_base_url || "").trim(),
+      };
+
+      const payload: Record<string, unknown> = {
+        ...prev,
+        ...partial,
       };
 
       const res = await window.electronAPI.setDevConfig(payload);
@@ -670,6 +842,10 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
       setDevConfigDraft({
         llama_server_exe: String(cfg.llama_server_exe || ""),
         llama_model_path: String(cfg.llama_model_path || ""),
+        llama_model_slot: String(cfg.llama_model_slot || ""),
+        llama_model_q4_path: String(cfg.llama_model_q4_path || ""),
+        llama_model_q5_path: String(cfg.llama_model_q5_path || ""),
+        llama_model_small_path: String(cfg.llama_model_small_path || ""),
         llama_port:
           typeof cfg.llama_port === "number"
             ? (cfg.llama_port as number)
@@ -689,6 +865,123 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
       setBusy(null);
     }
   }, [devConfigDraft]);
+
+  const pickPresetModel = useCallback(
+    async (slot: "q4" | "q5" | "small") => {
+      if (!window.electronAPI?.pickLlamaModel) {
+        return;
+      }
+      const p = await window.electronAPI.pickLlamaModel();
+      if (!p) return;
+      if (slot === "q4") {
+        setDevConfigDraft((d) => ({ ...d, llama_model_q4_path: p }));
+        return;
+      }
+      if (slot === "q5") {
+        setDevConfigDraft((d) => ({ ...d, llama_model_q5_path: p }));
+        return;
+      }
+      setDevConfigDraft((d) => ({ ...d, llama_model_small_path: p }));
+    },
+    []
+  );
+
+  const applyPresetModelAndRestart = useCallback(async () => {
+    if (!window.electronAPI?.setDevConfig) {
+      setError(uiLang === "en" ? "Not running in Electron." : "\u5f53\u524d\u4e0d\u662f Electron \u73af\u5883\u3002");
+      return;
+    }
+    if (!window.electronAPI?.llamaRestart) {
+      setError(uiLang === "en" ? "llama-server control not available." : "llama-server \u63a7\u5236\u4e0d\u53ef\u7528\uff08\u8bf7\u786e\u8ba4\u5df2\u5b89\u88c5\u7248\u672c\u4e14 preload \u6b63\u5e38\uff09\u3002");
+      return;
+    }
+
+    const slot = String(devConfigDraft.llama_model_slot || "q4").trim() as any;
+    const q4 = String(devConfigDraft.llama_model_q4_path || "").trim();
+    const q5 = String(devConfigDraft.llama_model_q5_path || "").trim();
+    const small = String(devConfigDraft.llama_model_small_path || "").trim();
+
+    let nextModelPath = "";
+    if (slot === "q4") nextModelPath = q4;
+    else if (slot === "q5") nextModelPath = q5;
+    else if (slot === "small") nextModelPath = small;
+    else nextModelPath = String(devConfigDraft.llama_model_path || "").trim();
+
+    if (!nextModelPath) {
+      setError(uiLang === "en" ? "Model path is empty." : "\u6a21\u578b\u8def\u5f84\u4e3a\u7a7a\u3002");
+      return;
+    }
+
+    setError(null);
+    setInfo(null);
+    setBusy("llama_hot_swap");
+    try {
+      let prev: Record<string, unknown> = {};
+      try {
+        if (window.electronAPI?.getDevConfig) {
+          const cur = await window.electronAPI.getDevConfig();
+          prev = ((cur as any)?.config || {}) as Record<string, unknown>;
+          setDevConfigPath(String((cur as any)?.path || "") || null);
+        }
+      } catch {
+        prev = {};
+      }
+
+      const port = devConfigDraft.llama_port;
+      const baseUrlRaw = String(devConfigDraft.local_llm_base_url || "").trim();
+      const baseUrl =
+        baseUrlRaw ||
+        (typeof port === "number" && Number.isFinite(port)
+          ? `http://127.0.0.1:${port}/v1`
+          : "");
+
+      const nextCfg: Record<string, unknown> = {
+        ...prev,
+        llama_server_exe: String(devConfigDraft.llama_server_exe || "").trim(),
+        llama_model_path: nextModelPath,
+        llama_model_slot: String(slot || "").trim(),
+        llama_model_q4_path: q4,
+        llama_model_q5_path: q5,
+        llama_model_small_path: small,
+        llama_port:
+          typeof port === "number" && Number.isFinite(port) ? port : undefined,
+        local_llm_base_url: baseUrl,
+        backend_base_url: String(devConfigDraft.backend_base_url || "").trim(),
+      };
+
+      const res = await window.electronAPI.setDevConfig(nextCfg);
+      const cfg = ((res as any).config || {}) as Record<string, unknown>;
+      setDevConfigDraft({
+        llama_server_exe: String(cfg.llama_server_exe || ""),
+        llama_model_path: String(cfg.llama_model_path || ""),
+        llama_model_slot: String(cfg.llama_model_slot || ""),
+        llama_model_q4_path: String(cfg.llama_model_q4_path || ""),
+        llama_model_q5_path: String(cfg.llama_model_q5_path || ""),
+        llama_model_small_path: String(cfg.llama_model_small_path || ""),
+        llama_port:
+          typeof cfg.llama_port === "number"
+            ? (cfg.llama_port as number)
+            : undefined,
+        local_llm_base_url: String(cfg.local_llm_base_url || ""),
+        backend_base_url: String(cfg.backend_base_url || ""),
+      });
+
+      const rr: any = await window.electronAPI.llamaRestart();
+      if (rr?.state) setLlamaState(rr.state as LlamaState);
+      if (rr?.logs) setLlamaLogs(rr.logs as LlamaLogs);
+
+      try {
+        const ls = await api.getLocalLlmStatus();
+        setLocalStatus(ls);
+      } catch {}
+
+      setInfo(uiLang === "en" ? "Model switched and llama-server restarted" : "\u6a21\u578b\u5df2\u5207\u6362\uff0cllama-server \u5df2\u91cd\u542f");
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setBusy(null);
+    }
+  }, [devConfigDraft, uiLang]);
 
   const pickLlamaExe = useCallback(async () => {
     if (!window.electronAPI?.pickLlamaServerExe) {
@@ -733,6 +1026,71 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
             {t("refresh_all")}
           </button>
         </div>
+
+      </div>
+
+      <div className="card">
+        <h3>{uiLang === "en" ? "llama-server (in-app control)" : "llama-server \uff08\u5e94\u7528\u5185\u63a7\u5236\uff09"}</h3>
+
+        {window.electronAPI?.llamaGetState ? (
+          <>
+            <div className="row">
+              <button className="btn" onClick={refreshLlama} disabled={!!busy}>
+                {uiLang === "en" ? "Refresh" : "\u5237\u65b0"}
+              </button>
+              <button className="btn primary" onClick={llamaStart} disabled={!!busy}>
+                {uiLang === "en" ? "Start" : "\u542f\u52a8"}
+              </button>
+              <button className="btn" onClick={llamaStop} disabled={!!busy}>
+                {uiLang === "en" ? "Stop" : "\u505c\u6b62"}
+              </button>
+              <button className="btn" onClick={llamaRestart} disabled={!!busy}>
+                {uiLang === "en" ? "Restart" : "\u91cd\u542f"}
+              </button>
+              <button className="btn" onClick={llamaClearLogs} disabled={!!busy}>
+                {uiLang === "en" ? "Clear logs" : "\u6e05\u7a7a\u65e5\u5fd7"}
+              </button>
+            </div>
+
+            <div className="subcard" style={{ marginTop: 8 }}>
+              <div className="kv">
+                <div className="k">status</div>
+                <div className="v">{String(llamaState?.status || "-")}</div>
+              </div>
+              <div className="kv">
+                <div className="k">pid</div>
+                <div className="v">{String(llamaState?.pid ?? "-")}</div>
+              </div>
+              <div className="kv">
+                <div className="k">exit_code</div>
+                <div className="v">{String(llamaState?.last_exit_code ?? "-")}</div>
+              </div>
+              {llamaState?.error ? (
+                <div className="alert alert-error compact">{String(llamaState.error)}</div>
+              ) : null}
+            </div>
+
+            {llamaLogs?.stdout?.length ? (
+              <div className="subcard" style={{ marginTop: 8 }}>
+                <div className="label">stdout</div>
+                <pre className="pre">{String((llamaLogs.stdout || []).join("\n"))}</pre>
+              </div>
+            ) : null}
+
+            {llamaLogs?.stderr?.length ? (
+              <div className="subcard" style={{ marginTop: 8 }}>
+                <div className="label">stderr</div>
+                <pre className="pre">{String((llamaLogs.stderr || []).join("\n"))}</pre>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="muted">
+            {uiLang === "en"
+              ? "Auto control is available only in Electron packaged/dev app with preload enabled."
+              : "\u81ea\u52a8\u63a7\u5236\u4ec5\u5728 Electron \u73af\u5883\uff08\u4e14 preload \u6b63\u5e38\u542f\u7528\uff09\u4e0b\u53ef\u7528\u3002"}
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -1372,6 +1730,127 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
                 >
                   {t("pick_file")}
                 </button>
+              </div>
+
+              <div className="field" style={{ gridColumn: "1 / -1" }}>
+                <div className="label">
+                  {uiLang === "en"
+                    ? "Quick switch local LLM weights"
+                    : "\u5feb\u901f\u5207\u6362\u672c\u5730 LLM \u6a21\u578b\uff08GGUF\uff09"}
+                </div>
+                <div className="muted">
+                  {uiLang === "en"
+                    ? "Select a preset, save config and restart llama-server."
+                    : "\u9009\u62e9\u4e00\u4e2a\u9884\u7f6e\u9879\uff0c\u4fdd\u5b58\u914d\u7f6e\u5e76\u91cd\u542f llama-server\u3002"}
+                </div>
+                <div className="row" style={{ marginTop: 6 }}>
+                  <select
+                    className="input"
+                    value={String(devConfigDraft.llama_model_slot || "q4")}
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                      setDevConfigDraft((d) => ({
+                        ...d,
+                        llama_model_slot: e.target.value,
+                      }))
+                    }
+                    disabled={!!busy}
+                  >
+                    <option value="q4">Qwen2.5-7B-Instruct Q4_K_M</option>
+                    <option value="q5">Qwen2.5-7B-Instruct Q5_K_M</option>
+                    <option value="small">
+                      {uiLang === "en" ? "Smaller model" : "\u66f4\u5c0f\u6a21\u578b"}
+                    </option>
+                    <option value="custom">
+                      {uiLang === "en" ? "Custom (llama_model_path)" : "\u81ea\u5b9a\u4e49\uff08llama_model_path\uff09"}
+                    </option>
+                  </select>
+                  <button
+                    className="btn primary"
+                    onClick={applyPresetModelAndRestart}
+                    disabled={!!busy}
+                  >
+                    {uiLang === "en"
+                      ? "Apply & Restart"
+                      : "\u5e94\u7528\u5e76\u91cd\u542f"}
+                  </button>
+                </div>
+
+                <div className="grid" style={{ marginTop: 8 }}>
+                  <label className="field">
+                    <div className="label">Q4_K_M path</div>
+                    <input
+                      className="input"
+                      value={devConfigDraft.llama_model_q4_path ?? ""}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setDevConfigDraft((d) => ({
+                          ...d,
+                          llama_model_q4_path: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. F:\\LLAMA\\models\\...\\Q4_K_M.gguf"
+                    />
+                  </label>
+                  <div className="field">
+                    <div className="label">{uiLang === "en" ? "Pick" : "\u9009\u62e9"}</div>
+                    <button
+                      className="btn"
+                      onClick={() => void pickPresetModel("q4")}
+                      disabled={!!busy}
+                    >
+                      {t("pick_file")}
+                    </button>
+                  </div>
+
+                  <label className="field">
+                    <div className="label">Q5_K_M path</div>
+                    <input
+                      className="input"
+                      value={devConfigDraft.llama_model_q5_path ?? ""}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setDevConfigDraft((d) => ({
+                          ...d,
+                          llama_model_q5_path: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. F:\\LLAMA\\models\\...\\Q5_K_M.gguf"
+                    />
+                  </label>
+                  <div className="field">
+                    <div className="label">{uiLang === "en" ? "Pick" : "\u9009\u62e9"}</div>
+                    <button
+                      className="btn"
+                      onClick={() => void pickPresetModel("q5")}
+                      disabled={!!busy}
+                    >
+                      {t("pick_file")}
+                    </button>
+                  </div>
+
+                  <label className="field">
+                    <div className="label">{uiLang === "en" ? "Small model path" : "\u5c0f\u6a21\u578b\u8def\u5f84"}</div>
+                    <input
+                      className="input"
+                      value={devConfigDraft.llama_model_small_path ?? ""}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setDevConfigDraft((d) => ({
+                          ...d,
+                          llama_model_small_path: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. F:\\LLAMA\\models\\...\\small.gguf"
+                    />
+                  </label>
+                  <div className="field">
+                    <div className="label">{uiLang === "en" ? "Pick" : "\u9009\u62e9"}</div>
+                    <button
+                      className="btn"
+                      onClick={() => void pickPresetModel("small")}
+                      disabled={!!busy}
+                    >
+                      {t("pick_file")}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <label className="field">

@@ -23,6 +23,14 @@ declare global {
       pickLlamaModel: () => Promise<string | null>
       getDevConfig: () => Promise<{ path: string; config: Record<string, unknown> }>
       setDevConfig: (config: Record<string, unknown>) => Promise<{ path: string; config: Record<string, unknown> }>
+
+      llamaGetState?: () => Promise<any>
+      llamaGetLogs?: () => Promise<any>
+      llamaClearLogs?: () => Promise<any>
+      llamaStart?: () => Promise<any>
+      llamaStop?: () => Promise<any>
+      llamaRestart?: () => Promise<any>
+      onLlamaEvent?: (callback: (payload: any) => void) => () => void
     }
   }
 }
