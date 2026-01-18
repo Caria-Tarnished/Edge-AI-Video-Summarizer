@@ -86,7 +86,10 @@ jobs:
         id: prep
         shell: pwsh
         run: |
-          $tag = "${{ env.RELEASE_TAG }}"
+          $tag = "${{ env.RELEASE_TAG }}".Trim()
+          if ($tag -and (-not $tag.StartsWith('v'))) {
+            throw "Tag must start with 'v' (got: $tag)"
+          }
           $pkgVer = node -p "require('./frontend/package.json').version"
 
           $ver = $pkgVer
@@ -100,6 +103,12 @@ jobs:
 
           $channel = $ver.Contains('-') ? 'beta' : 'stable'
           $outDir = "release/$channel/$ver"
+
+          Write-Host "RELEASE_TAG=$tag"
+          Write-Host "pkgVer=$pkgVer"
+          Write-Host "ver=$ver"
+          Write-Host "channel=$channel"
+          Write-Host "outDir=$outDir"
 
           if (-not (Test-Path -LiteralPath $outDir -PathType Container)) {
             throw "Output dir not found: $outDir"
@@ -132,6 +141,10 @@ jobs:
               throw "Missing artifact: $p"
             }
           }
+
+          Get-ChildItem -LiteralPath $outDir -File |
+            Sort-Object -Property Name |
+            ForEach-Object { Write-Host ("artifact: {0} ({1} bytes)" -f $_.Name, $_.Length) }
 
           Get-FileHash -Algorithm SHA256 $setupExe, $blockmap, $zip, $yml |
             ForEach-Object { "$($_.Hash)  $($_.Path | Split-Path -Leaf)" } |
@@ -172,10 +185,12 @@ jobs:
             }
           }
 
-          $tag = "${{ steps.prep.outputs.tag }}"
+          $tag = "${{ steps.prep.outputs.tag }}".Trim()
           $ver = "${{ steps.prep.outputs.version }}"
           $outDir = "${{ steps.prep.outputs.out_dir }}"
           $isPre = "${{ steps.prep.outputs.prerelease }}" -eq "true"
+
+          Write-Host "Uploading release assets for tag=$tag ver=$ver outDir=$outDir isPre=$isPre"
 
           $setupExe = Join-Path $outDir "Edge Video Agent Setup $ver.exe"
           $blockmap = "$setupExe.blockmap"
@@ -210,7 +225,7 @@ jobs:
           }
 
           if (-not $exists) {
-            $args = @("release","create",$tag,$setupExe,$blockmap,$zip,$yml,$sha,"--repo","${{ github.repository }}","--title",$tag,"--notes",$notes)
+            $args = @("release","create",$tag,$setupExe,$blockmap,$zip,$yml,$sha,"--repo","${{ github.repository }}","--title",$tag,"--notes",$notes,"--verify-tag")
             if ($isPre) { $args += "--prerelease" }
             gh @args
             Assert-LastExitCode "gh release create failed"
@@ -218,3 +233,11 @@ jobs:
             gh release upload $tag $setupExe $blockmap $zip $yml $sha --repo "${{ github.repository }}" --clobber
             Assert-LastExitCode "gh release upload failed"
           }
+
+          $assetNames = gh release view $tag --repo "${{ github.repository }}" --json assets --jq ".assets[].name"
+          Assert-LastExitCode "gh release view (post-upload) failed"
+          if (-not $assetNames) {
+            throw "Release $tag still has no uploaded assets (only source archives)."
+          }
+          Write-Host "Release assets:" 
+          $assetNames
