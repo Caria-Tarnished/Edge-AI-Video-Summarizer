@@ -140,7 +140,18 @@ jobs:
             $yml = Join-Path $outDir "latest.yml"
           }
 
-          foreach ($p in @($setupExe, $blockmap, $zip, $yml)) {
+          $ymlExtra = ""
+          if (-not $ver.Contains('-')) {
+            $ymlExtra = Join-Path $outDir "beta.yml"
+            if (Test-Path -LiteralPath $yml -PathType Leaf) {
+              Copy-Item -LiteralPath $yml -Destination $ymlExtra -Force
+            }
+          }
+
+          $checkPaths = @($setupExe, $blockmap, $zip, $yml)
+          if ($ymlExtra) { $checkPaths += $ymlExtra }
+
+          foreach ($p in $checkPaths) {
             if (-not (Test-Path -LiteralPath $p -PathType Leaf)) {
               throw "Missing artifact: $p"
             }
@@ -150,7 +161,10 @@ jobs:
             Sort-Object -Property Name |
             ForEach-Object { Write-Host ("artifact: {0} ({1} bytes)" -f $_.Name, $_.Length) }
 
-          Get-FileHash -Algorithm SHA256 $setupExe, $blockmap, $zip, $yml |
+          $hashPaths = @($setupExe, $blockmap, $zip, $yml)
+          if ($ymlExtra) { $hashPaths += $ymlExtra }
+
+          Get-FileHash -Algorithm SHA256 $hashPaths |
             ForEach-Object { "$($_.Hash)  $($_.Path | Split-Path -Leaf)" } |
             Set-Content -Encoding ASCII $shaPath
 
@@ -219,6 +233,14 @@ jobs:
             $yml = Join-Path $outDir "latest.yml"
           }
 
+          $ymlExtra = ""
+          if (-not $ver.Contains('-')) {
+            $ymlExtra = Join-Path $outDir "beta.yml"
+            if (Test-Path -LiteralPath $yml -PathType Leaf) {
+              Copy-Item -LiteralPath $yml -Destination $ymlExtra -Force
+            }
+          }
+
           $notes = "Automated release for $tag."
 
           $exists = $false
@@ -230,12 +252,17 @@ jobs:
           }
 
           if (-not $exists) {
-            $args = @("release","create",$tag,$setupExe,$blockmap,$zip,$yml,$sha,"--repo","${{ github.repository }}","--title",$tag,"--notes",$notes,"--verify-tag")
+            $args = @("release","create",$tag,$setupExe,$blockmap,$zip,$yml)
+            if ($ymlExtra) { $args += $ymlExtra }
+            $args += @($sha,"--repo","${{ github.repository }}","--title",$tag,"--notes",$notes,"--verify-tag")
             if ($isPre) { $args += "--prerelease" }
             gh @args
             Assert-LastExitCode "gh release create failed"
           } else {
-            gh release upload $tag $setupExe $blockmap $zip $yml $sha --repo "${{ github.repository }}" --clobber
+            $up = @($setupExe, $blockmap, $zip, $yml)
+            if ($ymlExtra) { $up += $ymlExtra }
+            $up += $sha
+            gh release upload $tag @up --repo "${{ github.repository }}" --clobber
             Assert-LastExitCode "gh release upload failed"
           }
 

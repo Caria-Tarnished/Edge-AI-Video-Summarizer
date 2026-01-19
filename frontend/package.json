@@ -1,7 +1,7 @@
 {
   "name": "edge-video-agent-frontend",
   "private": true,
-  "version": "0.0.1-beta.5",
+  "version": "0.0.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer.git"
@@ -19,8 +19,8 @@
     "pack:stable": "npm run stage-backend && npm run build && electron-builder --dir --config.directories.output=../release/stable/%npm_package_version%",
     "pack:beta": "npm run stage-backend && npm run build && electron-builder --dir --config.directories.output=../release/beta/%npm_package_version%",
     "pack": "node -e \"const v=process.env.npm_package_version||''; const c=v.includes('-')?'beta':'stable'; const r=require('child_process').spawnSync('npm',['run',`pack:${c}`],{stdio:'inherit',shell:true}); process.exit(r.status??0);\"",
-    "dist:stable": "npm run stage-backend && npm run build && electron-builder --config.directories.output=../release/stable/%npm_package_version%",
-    "dist:beta": "npm run stage-backend && npm run build && electron-builder --config.directories.output=../release/beta/%npm_package_version%",
+    "dist:stable": "npm run stage-backend && npm run build && electron-builder --config.directories.output=../release/stable/%npm_package_version% --publish never",
+    "dist:beta": "npm run stage-backend && npm run build && electron-builder --config.directories.output=../release/beta/%npm_package_version% --publish never",
     "dist": "node -e \"const v=process.env.npm_package_version||''; const c=v.includes('-')?'beta':'stable'; const r=require('child_process').spawnSync('npm',['run',`dist:${c}`],{stdio:'inherit',shell:true}); process.exit(r.status??0);\"",
     "preview": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit"
