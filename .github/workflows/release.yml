@@ -131,7 +131,8 @@ jobs:
             if (Test-Path -LiteralPath $cand1 -PathType Leaf) {
               $yml = $cand1
             } elseif (Test-Path -LiteralPath $cand2 -PathType Leaf) {
-              $yml = $cand2
+              Copy-Item -LiteralPath $cand2 -Destination $cand1 -Force
+              $yml = $cand1
             } else {
               $yml = $cand1
             }
@@ -209,7 +210,8 @@ jobs:
             if (Test-Path -LiteralPath $cand1 -PathType Leaf) {
               $yml = $cand1
             } elseif (Test-Path -LiteralPath $cand2 -PathType Leaf) {
-              $yml = $cand2
+              Copy-Item -LiteralPath $cand2 -Destination $cand1 -Force
+              $yml = $cand1
             } else {
               $yml = $cand1
             }
