@@ -86,10 +86,236 @@ function pushLogLine(arr: string[], line: string): void {
   }
 }
 
-function drainLogBuffer(
-  buf: string,
-  arr: string[],
-): { buf: string } {
+async function downloadGgufPreset(opts: {
+  taskId: string;
+  slot: "q4" | "q5" | "small";
+  repoId: string;
+  filename?: string;
+  destDir?: string;
+}): Promise<{ ok: boolean; model_path?: string; error?: string }> {
+  const taskId = String(opts.taskId || "").trim();
+  const slot = opts.slot;
+  const repoId = String(opts.repoId || "").trim();
+  const dataDir = resolvePreferredDataDir() || getDefaultPackagedDataDir();
+  const destDir =
+    String(opts.destDir || "").trim() || join(dataDir, "models", "llm");
+
+  if (!taskId) return { ok: false, error: "TASK_ID_REQUIRED" };
+  if (!repoId) return { ok: false, error: "REPO_ID_REQUIRED" };
+
+  setDepsTask(taskId, {
+    kind: "gguf_model",
+    status: "downloading",
+    label: `gguf (${repoId})`,
+    started_at: new Date().toISOString(),
+    error: undefined,
+    finished_at: undefined,
+    transferred: 0,
+    total: undefined,
+    bytes_per_second: undefined,
+    percent: undefined,
+  });
+
+  const inferFallbackFilename = (): string => {
+    const r = repoId.toLowerCase();
+    if (r.includes("qwen2.5-7b") && slot === "q4") {
+      return "Qwen2.5-7B-Instruct-Q4_K_M.gguf";
+    }
+    if (r.includes("qwen2.5-7b") && slot === "q5") {
+      return "Qwen2.5-7B-Instruct-Q5_K_M.gguf";
+    }
+    if (r.includes("qwen2.5-3b") && slot === "small") {
+      return "Qwen2.5-3B-Instruct-Q4_K_M.gguf";
+    }
+    if (slot === "q5") return "model-q5.gguf";
+    return "model-q4.gguf";
+  };
+
+  const pickFromList = (names: string[]): string | null => {
+    const ggufs = names
+      .map((n) => String(n || "").trim())
+      .filter(Boolean)
+      .filter((n) => n.toLowerCase().endsWith(".gguf"));
+
+    const pickMatch = (re: RegExp) =>
+      ggufs.find((n) => re.test(n)) || null;
+
+    if (slot === "q4" || slot === "small") {
+      return (
+        pickMatch(/q4[_-]?k[_-]?m/i) ||
+        pickMatch(/q4/i) ||
+        ggufs[0] ||
+        null
+      );
+    }
+    return pickMatch(/q5[_-]?k[_-]?m/i) || pickMatch(/q5/i) || ggufs[0] || null;
+  };
+
+  const httpGetJsonAny = (urlStr: string, timeoutMs: number): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      try {
+        const url = new URL(urlStr);
+        const mod = url.protocol === "https:" ? https : http;
+        const port = url.port
+          ? parseInt(url.port, 10)
+          : url.protocol === "https:"
+            ? 443
+            : 80;
+        const req = mod.request(
+          {
+            method: "GET",
+            host: url.hostname,
+            port,
+            path: `${url.pathname || "/"}${url.search || ""}`,
+            timeout: timeoutMs,
+            headers: {
+              "User-Agent": "edge-video-agent",
+              Accept: "application/json",
+            },
+          },
+          (res) => {
+            let body = "";
+            res.setEncoding("utf-8");
+            res.on("data", (chunk) => {
+              body += String(chunk || "");
+            });
+            res.on("end", () => {
+              try {
+                const code = res.statusCode || 0;
+                if (code < 200 || code >= 300) {
+                  reject(new Error(`HTTP_${code}`));
+                  return;
+                }
+                resolve(JSON.parse(body || "{}"));
+              } catch (e) {
+                reject(e);
+              }
+            });
+          },
+        );
+        req.on("error", reject);
+        req.on("timeout", () => req.destroy(new Error("timeout")));
+        req.end();
+      } catch (e) {
+        reject(e);
+      }
+    });
+  };
+
+  try {
+    let filename = String(opts.filename || "").trim();
+    if (!filename) {
+      try {
+        const modelInfo = await httpGetJsonAny(
+          `https://huggingface.co/api/models/${encodeURIComponent(repoId)}`,
+          12000,
+        );
+        const sibs = Array.isArray(modelInfo?.siblings)
+          ? (modelInfo.siblings as any[])
+          : [];
+        const names = sibs
+          .map((s) => String(s?.rfilename || s?.path || s?.name || "").trim())
+          .filter(Boolean);
+        const picked = pickFromList(names);
+        if (picked) filename = picked;
+      } catch {}
+    }
+
+    if (!filename) {
+      filename = inferFallbackFilename();
+    }
+
+    const destRoot = join(destDir, repoId.replaceAll("/", "__"));
+    const outPath = join(destRoot, filename);
+    const url = `https://huggingface.co/${repoId}/resolve/main/${encodeURIComponent(
+      filename,
+    )}?download=true`;
+
+    setDepsTask(taskId, {
+      url,
+      meta: {
+        repo_id: repoId,
+        filename,
+        slot,
+        install_dir: destRoot,
+      },
+    });
+
+    const tmpRoot = join(app.getPath("temp"), "edge-video-agent-deps");
+    const tmpPath = join(tmpRoot, `gguf_${taskId}.gguf`);
+    try {
+      mkdirSync(tmpRoot, { recursive: true });
+    } catch {}
+
+    await httpDownloadToFile({
+      url,
+      destPath: tmpPath,
+      onProgress: (p) => {
+        setDepsTask(taskId, {
+          status: "downloading",
+          transferred: p.transferred,
+          total: p.total,
+          bytes_per_second: p.bytes_per_second,
+          percent: p.percent,
+        });
+      },
+      registerCancel: (cancel) => {
+        _depsCancel[taskId] = cancel;
+      },
+      timeoutMs: 60000,
+    });
+
+    try {
+      mkdirSync(dirname(outPath), { recursive: true });
+    } catch {}
+
+    try {
+      try {
+        rmSync(outPath, { force: true });
+      } catch {}
+      renameSync(tmpPath, outPath);
+    } catch {
+      copyFileSync(tmpPath, outPath);
+      try {
+        rmSync(tmpPath, { force: true });
+      } catch {}
+    }
+
+    try {
+      const cfg = readDevConfig();
+      const patch: any = { ...(cfg || {}) };
+      if (slot === "q4") patch.llama_model_q4_path = outPath;
+      else if (slot === "q5") patch.llama_model_q5_path = outPath;
+      else patch.llama_model_small_path = outPath;
+      writeDevConfig(patch);
+    } catch {}
+
+    setDepsTask(taskId, {
+      status: "done",
+      finished_at: new Date().toISOString(),
+      dest_path: outPath,
+      transferred: undefined,
+      total: undefined,
+      bytes_per_second: undefined,
+      percent: undefined,
+    });
+    return { ok: true, model_path: outPath };
+  } catch (e: any) {
+    const msg = e && e.message ? String(e.message) : String(e);
+    setDepsTask(taskId, {
+      status: msg === "CANCELLED" ? "cancelled" : "error",
+      finished_at: new Date().toISOString(),
+      error: msg,
+    });
+    return { ok: false, error: msg };
+  } finally {
+    try {
+      delete _depsCancel[taskId];
+    } catch {}
+  }
+}
+
+function drainLogBuffer(buf: string, arr: string[]): { buf: string } {
   let b = buf;
   while (true) {
     const idx = b.indexOf("\n");
@@ -207,9 +433,14 @@ function probeHttpOk(u: string, timeoutMs: number): Promise<void> {
   });
 }
 
-async function waitForLlamaReady(baseUrl: string, timeoutMs: number): Promise<void> {
+async function waitForLlamaReady(
+  baseUrl: string,
+  timeoutMs: number,
+): Promise<void> {
   const start = Date.now();
-  const base = String(baseUrl || "").trim().replace(/\/$/, "");
+  const base = String(baseUrl || "")
+    .trim()
+    .replace(/\/$/, "");
   const u = `${base}/models`;
   while (true) {
     try {
@@ -240,7 +471,10 @@ async function startLlamaServer(): Promise<LlamaServerState> {
     return _llamaState;
   }
   if (!existsSync(exe)) {
-    setLlamaState({ status: "error", error: `LLAMA_SERVER_EXE_NOT_FOUND:${exe}` });
+    setLlamaState({
+      status: "error",
+      error: `LLAMA_SERVER_EXE_NOT_FOUND:${exe}`,
+    });
     return _llamaState;
   }
   if (!model) {
@@ -531,6 +765,10 @@ function psQuote(s: string): string {
   return `'${v.replaceAll("'", "''")}'`;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 async function runPowerShell(command: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const child = spawn(
@@ -553,6 +791,79 @@ async function runPowerShell(command: string): Promise<void> {
       }
     });
   });
+}
+
+async function runTaskKill(pid: number): Promise<void> {
+  if (!pid || pid <= 0) return;
+  if (process.platform !== "win32") return;
+  await new Promise<void>((resolve) => {
+    try {
+      const child = spawn("taskkill.exe", ["/PID", String(pid), "/F", "/T"], {
+        windowsHide: true,
+      });
+      child.on("error", () => resolve());
+      child.on("exit", () => resolve());
+    } catch {
+      resolve();
+    }
+  });
+}
+
+async function stopBackendForQuit(): Promise<void> {
+  if (!_backendProc) return;
+  const pid = _backendProc.pid || 0;
+  try {
+    _backendProc.kill();
+  } catch {}
+  const start = Date.now();
+  while (_backendProc && Date.now() - start < 8000) {
+    await sleep(200);
+  }
+  if (_backendProc) {
+    try {
+      await runTaskKill(pid);
+    } catch {}
+    const start2 = Date.now();
+    while (_backendProc && Date.now() - start2 < 8000) {
+      await sleep(200);
+    }
+  }
+  if (_backendProc) {
+    try {
+      _backendProc.kill();
+    } catch {}
+    _backendProc = null;
+  }
+}
+
+async function stopLlamaForQuit(): Promise<void> {
+  const pid = _llamaProc?.pid;
+  await stopLlamaServer();
+  if (_llamaProc && pid) {
+    try {
+      await runTaskKill(pid);
+    } catch {}
+    const start = Date.now();
+    while (_llamaProc && Date.now() - start < 8000) {
+      await sleep(200);
+    }
+  }
+  if (_llamaProc) {
+    try {
+      _llamaProc.kill();
+    } catch {}
+    _llamaProc = null;
+  }
+}
+
+async function prepareForUpdateInstall(): Promise<void> {
+  try {
+    await stopLlamaForQuit();
+  } catch {}
+  try {
+    await stopBackendForQuit();
+  } catch {}
+  await sleep(300);
 }
 
 type DepsTaskKind = "llama_server" | "gguf_model";
@@ -630,7 +941,10 @@ function setDepsTask(id: string, patch: Partial<DepsTask>): DepsTask {
   return next;
 }
 
-function sha256File(path: string, chunkSize: number = 1024 * 1024): Promise<string> {
+function sha256File(
+  path: string,
+  chunkSize: number = 1024 * 1024,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
       const h = crypto.createHash("sha256");
@@ -645,7 +959,10 @@ function sha256File(path: string, chunkSize: number = 1024 * 1024): Promise<stri
 }
 
 function safeEncodePathSegment(pathLike: string): string {
-  return encodeURIComponent(String(pathLike || "").trim()).replace(/%2F/gi, "/");
+  return encodeURIComponent(String(pathLike || "").trim()).replace(
+    /%2F/gi,
+    "/",
+  );
 }
 
 function findFileRecursive(root: string, targetName: string): string | null {
@@ -679,8 +996,7 @@ function httpDownloadToFile(opts: {
   }) => void;
   registerCancel?: (cancel: () => void) => void;
   timeoutMs?: number;
-}): Promise<{ path: string }>
-{
+}): Promise<{ path: string }> {
   const url0 = String(opts.url || "").trim();
   const dest = String(opts.destPath || "").trim();
   const timeoutMs = typeof opts.timeoutMs === "number" ? opts.timeoutMs : 20000;
@@ -692,7 +1008,10 @@ function httpDownloadToFile(opts: {
     mkdirSync(dirname(dest), { recursive: true });
   } catch {}
 
-  const doReq = (urlStr: string, redirectsLeft: number): Promise<{ path: string }> => {
+  const doReq = (
+    urlStr: string,
+    redirectsLeft: number,
+  ): Promise<{ path: string }> => {
     return new Promise((resolve, reject) => {
       let req: http.ClientRequest | null = null;
       let done = false;
@@ -758,7 +1077,9 @@ function httpDownloadToFile(opts: {
               }
               const nextUrl = new URL(res.headers.location, urlStr).toString();
               res.resume();
-              doReq(nextUrl, redirectsLeft - 1).then(resolve).catch(reject);
+              doReq(nextUrl, redirectsLeft - 1)
+                .then(resolve)
+                .catch(reject);
               return;
             }
             if (code < 200 || code >= 300) {
@@ -767,7 +1088,10 @@ function httpDownloadToFile(opts: {
               return;
             }
 
-            const len = parseInt(String(res.headers["content-length"] || "0"), 10);
+            const len = parseInt(
+              String(res.headers["content-length"] || "0"),
+              10,
+            );
             if (Number.isFinite(len) && len > 0) total = len;
 
             let file: ReturnType<typeof createWriteStream> | null = null;
@@ -787,7 +1111,9 @@ function httpDownloadToFile(opts: {
             });
 
             res.on("data", (chunk) => {
-              transferred += (chunk as any)?.length ? Number((chunk as any).length) : 0;
+              transferred += (chunk as any)?.length
+                ? Number((chunk as any).length)
+                : 0;
 
               const now = Date.now();
               const dt = Math.max(1, now - lastTickAt);
@@ -796,7 +1122,9 @@ function httpDownloadToFile(opts: {
                 lastTickAt = now;
                 lastTickBytes = transferred;
                 const bps = Math.max(0, Math.floor((dBytes * 1000) / dt));
-                const percent = total ? Math.max(0, Math.min(100, (transferred / total) * 100)) : undefined;
+                const percent = total
+                  ? Math.max(0, Math.min(100, (transferred / total) * 100))
+                  : undefined;
                 try {
                   opts.onProgress?.({
                     transferred,
@@ -825,8 +1153,13 @@ function httpDownloadToFile(opts: {
                 return;
               }
               const elapsedMs = Math.max(1, Date.now() - startedAt);
-              const bps = Math.max(0, Math.floor((transferred * 1000) / elapsedMs));
-              const percent = total ? Math.max(0, Math.min(100, (transferred / total) * 100)) : undefined;
+              const bps = Math.max(
+                0,
+                Math.floor((transferred * 1000) / elapsedMs),
+              );
+              const percent = total
+                ? Math.max(0, Math.min(100, (transferred / total) * 100))
+                : undefined;
               try {
                 opts.onProgress?.({
                   transferred,
@@ -855,7 +1188,10 @@ function httpDownloadToFile(opts: {
   return doReq(url0, 5);
 }
 
-function pickLlamaCppAsset(assets: any[], flavor: "cpu" | "cuda"): { name: string; url: string } | null {
+function pickLlamaCppAsset(
+  assets: any[],
+  flavor: "cpu" | "cuda",
+): { name: string; url: string } | null {
   const arr = Array.isArray(assets) ? assets : [];
   const norm = (s: any) => String(s || "").toLowerCase();
 
@@ -868,11 +1204,15 @@ function pickLlamaCppAsset(assets: any[], flavor: "cpu" | "cuda"): { name: strin
     })
     .filter(Boolean) as Array<{ name: string; url: string; n: string }>;
 
-  const isWinZipX64 = (n: string) => n.includes("win") && n.includes("x64") && n.endsWith(".zip");
-  const isCudartOnly = (n: string) => n.startsWith("cudart-") || n.includes("cudart-llama");
+  const isWinZipX64 = (n: string) =>
+    n.includes("win") && n.includes("x64") && n.endsWith(".zip");
+  const isCudartOnly = (n: string) =>
+    n.startsWith("cudart-") || n.includes("cudart-llama");
   const isCuda = (n: string) => n.includes("cuda") || n.includes("cublas");
-  const isCpu = (n: string) => !isCuda(n) && !n.includes("rocm") && !n.includes("hip");
-  const isLlamaBinaryZip = (n: string) => n.includes("llama") && n.includes("bin") && !isCudartOnly(n);
+  const isCpu = (n: string) =>
+    !isCuda(n) && !n.includes("rocm") && !n.includes("hip");
+  const isLlamaBinaryZip = (n: string) =>
+    n.includes("llama") && n.includes("bin") && !isCudartOnly(n);
 
   const filtered = candidates.filter((c) => isWinZipX64(c.n));
   if (flavor === "cpu") {
@@ -887,9 +1227,15 @@ function pickLlamaCppAsset(assets: any[], flavor: "cpu" | "cuda"): { name: strin
   }
   return (
     filtered.find((c) => isLlamaBinaryZip(c.n) && isCuda(c.n)) ||
-    candidates.find((c) => isLlamaBinaryZip(c.n) && isCuda(c.n) && c.n.endsWith(".zip")) ||
-    candidates.find((c) => isWinZipX64(c.n) && isCuda(c.n) && !isCudartOnly(c.n)) ||
-    candidates.find((c) => c.n.endsWith(".zip") && isCuda(c.n) && !isCudartOnly(c.n)) ||
+    candidates.find(
+      (c) => isLlamaBinaryZip(c.n) && isCuda(c.n) && c.n.endsWith(".zip"),
+    ) ||
+    candidates.find(
+      (c) => isWinZipX64(c.n) && isCuda(c.n) && !isCudartOnly(c.n),
+    ) ||
+    candidates.find(
+      (c) => c.n.endsWith(".zip") && isCuda(c.n) && !isCudartOnly(c.n),
+    ) ||
     candidates.find((c) => isWinZipX64(c.n) && !isCudartOnly(c.n)) ||
     candidates.find((c) => c.n.endsWith(".zip") && !isCudartOnly(c.n)) ||
     null
@@ -900,11 +1246,11 @@ async function downloadAndInstallLlamaServer(opts: {
   taskId: string;
   flavor: "cpu" | "cuda";
   destDir?: string;
-}): Promise<{ ok: boolean; exe_path?: string; error?: string }>
-{
+}): Promise<{ ok: boolean; exe_path?: string; error?: string }> {
   const taskId = String(opts.taskId || "").trim();
   const dataDir = resolvePreferredDataDir() || getDefaultPackagedDataDir();
-  const destDir = String(opts.destDir || "").trim() || join(dataDir, "deps", "llama.cpp");
+  const destDir =
+    String(opts.destDir || "").trim() || join(dataDir, "deps", "llama.cpp");
   const flavor = opts.flavor;
   setDepsTask(taskId, {
     kind: "llama_server",
@@ -920,7 +1266,7 @@ async function downloadAndInstallLlamaServer(opts: {
       "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest",
       20000,
     );
-    const tag = String(rel?.tag_name || "").trim() || "latest";
+    const tag = String(rel?.tag_name || "").trim();
     const assets = Array.isArray(rel?.assets) ? (rel.assets as any[]) : [];
     const pick = pickLlamaCppAsset(assets, flavor);
     if (!pick) {
@@ -1033,154 +1379,6 @@ async function downloadAndInstallLlamaServer(opts: {
   }
 }
 
-async function getHfModelMeta(repoId: string): Promise<{ siblings: Array<{ rfilename: string; size?: number }> }> {
-  const rid = String(repoId || "").trim();
-  if (!rid) throw new Error("EMPTY_REPO_ID");
-  const url = `https://huggingface.co/api/models/${rid}`;
-  const json = await httpGetJson(url, 20000);
-  const sib = Array.isArray(json?.siblings) ? (json.siblings as any[]) : [];
-  const siblings = sib
-    .map((s) => {
-      const rfilename = String(s?.rfilename || "").trim();
-      const size = typeof s?.size === "number" ? Number(s.size) : undefined;
-      if (!rfilename) return null;
-      return { rfilename, size };
-    })
-    .filter(Boolean) as Array<{ rfilename: string; size?: number }>;
-  return { siblings };
-}
-
-function pickGgufFilename(opts: {
-  slot: "q4" | "q5" | "small";
-  siblings: Array<{ rfilename: string; size?: number }>;
-}): string {
-  const norm = (s: any) => String(s || "").toLowerCase();
-  const ggufs = opts.siblings
-    .filter((s) => norm(s.rfilename).endsWith(".gguf"))
-    .map((s) => ({ ...s, n: norm(s.rfilename) }));
-  if (ggufs.length === 0) throw new Error("NO_GGUF_IN_REPO");
-
-  const bySizeAsc = [...ggufs].sort((a, b) => (a.size || Number.MAX_SAFE_INTEGER) - (b.size || Number.MAX_SAFE_INTEGER));
-  if (opts.slot === "q4") {
-    return (
-      ggufs.find((s) => /q4[_-]k[_-]m/i.test(s.rfilename))?.rfilename ||
-      bySizeAsc[0]?.rfilename ||
-      ggufs[0].rfilename
-    );
-  }
-  if (opts.slot === "q5") {
-    return (
-      ggufs.find((s) => /q5[_-]k[_-]m/i.test(s.rfilename))?.rfilename ||
-      bySizeAsc[0]?.rfilename ||
-      ggufs[0].rfilename
-    );
-  }
-  return (
-    ggufs.find((s) => /q4[_-]k[_-]m/i.test(s.rfilename))?.rfilename ||
-    bySizeAsc[0]?.rfilename ||
-    ggufs[0].rfilename
-  );
-}
-
-async function downloadGgufPreset(opts: {
-  taskId: string;
-  slot: "q4" | "q5" | "small";
-  repoId: string;
-  filename?: string;
-  destDir?: string;
-}): Promise<{ ok: boolean; path?: string; sha256?: string; error?: string; chosen_filename?: string }>
-{
-  const taskId = String(opts.taskId || "").trim();
-  const slot = opts.slot;
-  const repoId = String(opts.repoId || "").trim();
-  const dataDir = resolvePreferredDataDir() || getDefaultPackagedDataDir();
-  const destDir = String(opts.destDir || "").trim() || join(dataDir, "models", "llm");
-
-  setDepsTask(taskId, {
-    kind: "gguf_model",
-    status: "downloading",
-    label: `GGUF (${slot})`,
-    started_at: new Date().toISOString(),
-    error: undefined,
-    finished_at: undefined,
-    meta: {
-      repo_id: repoId,
-    },
-  });
-
-  try {
-    const meta = await getHfModelMeta(repoId);
-    const chosen = String(opts.filename || "").trim() || pickGgufFilename({ slot, siblings: meta.siblings });
-    const url = `https://huggingface.co/${repoId}/resolve/main/${safeEncodePathSegment(
-      chosen,
-    )}?download=true`;
-
-    const destPath = join(destDir, chosen.replace(/[/\\]/g, "_"));
-    setDepsTask(taskId, {
-      url,
-      dest_path: destPath,
-      meta: {
-        ...((_depsTasks[taskId]?.meta || {}) as Record<string, unknown>),
-        repo_id: repoId,
-        filename: chosen,
-      },
-    });
-
-    await httpDownloadToFile({
-      url,
-      destPath,
-      headers: {
-        Accept: "application/octet-stream",
-      },
-      onProgress: (p) => {
-        setDepsTask(taskId, {
-          status: "downloading",
-          transferred: p.transferred,
-          total: p.total,
-          bytes_per_second: p.bytes_per_second,
-          percent: p.percent,
-        });
-      },
-      registerCancel: (cancel) => {
-        _depsCancel[taskId] = cancel;
-      },
-      timeoutMs: 30000,
-    });
-
-    const hash = await sha256File(destPath);
-    const cfg = readDevConfig();
-    const patch: Record<string, unknown> = {};
-    if (slot === "q4") patch.llama_model_q4_path = destPath;
-    if (slot === "q5") patch.llama_model_q5_path = destPath;
-    if (slot === "small") patch.llama_model_small_path = destPath;
-    writeDevConfig({ ...(cfg || {}), ...patch });
-
-    setDepsTask(taskId, {
-      status: "done",
-      finished_at: new Date().toISOString(),
-      dest_path: destPath,
-      transferred: undefined,
-      total: undefined,
-      bytes_per_second: undefined,
-      percent: undefined,
-    });
-
-    return { ok: true, path: destPath, sha256: hash, chosen_filename: chosen };
-  } catch (e: any) {
-    const msg = e && e.message ? String(e.message) : String(e);
-    setDepsTask(taskId, {
-      status: msg === "CANCELLED" ? "cancelled" : "error",
-      finished_at: new Date().toISOString(),
-      error: msg,
-    });
-    return { ok: false, error: msg };
-  } finally {
-    try {
-      delete _depsCancel[taskId];
-    } catch {}
-  }
-}
-
 async function ensureDataDirSelectedAndMigrated(): Promise<void> {
   if (!app.isPackaged) {
     return;
@@ -1218,14 +1416,15 @@ async function ensureDataDirSelectedAndMigrated(): Promise<void> {
     const res = await dialog.showMessageBox({
       type: "question",
       buttons: [
-        "\u590d\u5236\u8fc1\u79fb\u5230\u9ed8\u8ba4\u76ee\u5f55\uff08\u63a8\u8350\uff09",
+        "\u590d\u5236\u8fc1\u79fb\u65e7\u76ee\u5f55\uff08\u63a8\u8350\uff09",
         "\u7ee7\u7eed\u4f7f\u7528\u65e7\u76ee\u5f55",
         "\u9009\u62e9\u5176\u4ed6\u76ee\u5f55...",
         "\u9000\u51fa",
       ],
       defaultId: 0,
       cancelId: 3,
-      message: "\u8bf7\u9009\u62e9\u7f13\u5b58\u4e0e\u6570\u636e\u76ee\u5f55\uff08\u9996\u6b21\u542f\u52a8\u5fc5\u9009\uff09",
+      message:
+        "\u8bf7\u9009\u62e9\u7f13\u5b58\u4e0e\u6570\u636e\u76ee\u5f55\uff08\u9996\u6b21\u542f\u52a8\u5fc5\u9009\uff09",
       detail: `\u9ed8\u8ba4\uff1a${newDir}\n\n\u68c0\u6d4b\u5230\u65e7\u7248\u76ee\u5f55\uff1a${oldDir}`,
     });
 
@@ -1239,7 +1438,8 @@ async function ensureDataDirSelectedAndMigrated(): Promise<void> {
         const msg = e && e.message ? String(e.message) : String(e);
         await dialog.showMessageBox({
           type: "error",
-          message: "\u8fc1\u79fb\u5931\u8d25\uff0c\u5c06\u4f7f\u7528\u65e7\u76ee\u5f55\u8fd0\u884c\u3002",
+          message:
+            "\u8fc1\u79fb\u5931\u8d25\uff0c\u5c06\u4f7f\u7528\u65e7\u76ee\u5f55\u8fd0\u884c\u3002",
           detail: msg,
         });
         selectedDir = oldDir;
@@ -1268,7 +1468,8 @@ async function ensureDataDirSelectedAndMigrated(): Promise<void> {
       ],
       defaultId: 0,
       cancelId: 2,
-      message: "\u8bf7\u9009\u62e9\u7f13\u5b58\u4e0e\u6570\u636e\u76ee\u5f55\uff08\u9996\u6b21\u542f\u52a8\u5fc5\u9009\uff09",
+      message:
+        "\u8bf7\u9009\u62e9\u7f13\u5b58\u4e0e\u6570\u636e\u76ee\u5f55\uff08\u9996\u6b21\u542f\u52a8\u5fc5\u9009\uff09",
       detail: `\u9ed8\u8ba4\uff1a${newDir}\n\n\u8be5\u76ee\u5f55\u5c06\u7528\u4e8e\u6570\u636e\u5e93\u3001\u7d22\u5f15\u3001\u6a21\u578b\u7f13\u5b58\u7b49\uff0c\u53ef\u80fd\u5360\u7528\u8f83\u5927\u7a7a\u95f4\u3002`,
     });
 
@@ -1305,10 +1506,14 @@ async function ensureDataDirSelectedAndMigrated(): Promise<void> {
       if (targetEmpty) {
         const mig = await dialog.showMessageBox({
           type: "question",
-          buttons: ["\u590d\u5236\u65e7\u6570\u636e\u5230\u6b64\u76ee\u5f55", "\u4e0d\u590d\u5236"],
+          buttons: [
+            "\u590d\u5236\u65e7\u6570\u636e\u5230\u6b64\u76ee\u5f55",
+            "\u4e0d\u590d\u5236",
+          ],
           defaultId: 0,
           cancelId: 1,
-          message: "\u68c0\u6d4b\u5230\u65e7\u7248\u6570\u636e\uff0c\u662f\u5426\u590d\u5236\u5230\u65b0\u76ee\u5f55\uff1f",
+          message:
+            "\u68c0\u6d4b\u5230\u65e7\u7248\u6570\u636e\uff0c\u662f\u5426\u590d\u5236\u5230\u65b0\u76ee\u5f55\uff1f",
           detail: `\u65e7\u76ee\u5f55\uff1a${oldDir}\n\n\u76ee\u6807\u76ee\u5f55\uff1a${selectedDir}`,
         });
         if (mig.response === 0) {
@@ -2260,14 +2465,14 @@ ipcMain.handle(
   "deps:downloadLlamaServer",
   async (_evt, args: { flavor?: any; destDir?: any } | null) => {
     const id = `llama_${Date.now()}`;
-    const flavor = String(args?.flavor || "cpu").toLowerCase() === "cuda" ? "cuda" : "cpu";
+    const flavor =
+      String(args?.flavor || "cpu").toLowerCase() === "cuda" ? "cuda" : "cpu";
     const destDir = String(args?.destDir || "").trim() || undefined;
     void downloadAndInstallLlamaServer({
       taskId: id,
       flavor,
       destDir,
-    }).catch(() => {
-    });
+    }).catch(() => {});
     return { ok: true, task_id: id, state: getDepsState() };
   },
 );
@@ -2276,14 +2481,12 @@ ipcMain.handle(
   "deps:downloadGgufPreset",
   async (
     _evt,
-    args:
-      | {
-          slot?: any;
-          repoId?: any;
-          filename?: any;
-          destDir?: any;
-        }
-      | null,
+    args: {
+      slot?: any;
+      repoId?: any;
+      filename?: any;
+      destDir?: any;
+    } | null,
   ) => {
     const id = `gguf_${Date.now()}`;
     const slotRaw = String(args?.slot || "q4").toLowerCase();
@@ -2400,11 +2603,12 @@ ipcMain.handle("updater:install", async () => {
     return { ok: false, error: "NOT_SUPPORTED", state: _updaterState };
   }
   try {
+    await prepareForUpdateInstall();
     setTimeout(() => {
       try {
         autoUpdater.quitAndInstall(true, true);
       } catch {}
-    }, 50);
+    }, 200);
     return { ok: true };
   } catch (e: any) {
     const msg = e && e.message ? String(e.message) : String(e);
