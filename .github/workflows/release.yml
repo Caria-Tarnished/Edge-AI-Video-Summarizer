@@ -80,9 +80,9 @@ jobs:
         run: |
           $ver = node -p "require('./package.json').version"
           if ($ver.Contains('-')) {
-            npm run dist:beta -- --publish never
+            npm run dist:beta
           } else {
-            npm run dist:stable -- --publish never
+            npm run dist:stable
           }
 
       - name: Prepare artifacts + SHA256
@@ -117,9 +117,9 @@ jobs:
             throw "Output dir not found: $outDir"
           }
 
-          $setupExe = Join-Path $outDir "Edge Video Agent Setup $ver.exe"
+          $setupExe = Join-Path $outDir "Edge-Video-Agent-Setup-$ver.exe"
           $blockmap = "$setupExe.blockmap"
-          $zip = Join-Path $outDir "Edge Video Agent-$ver-win.zip"
+          $zip = Join-Path $outDir "Edge-Video-Agent-$ver-win.zip"
           $shaPath = Join-Path $outDir "SHA256SUMS.txt"
 
           $yml = ""
@@ -210,9 +210,9 @@ jobs:
 
           Write-Host "Uploading release assets for tag=$tag ver=$ver outDir=$outDir isPre=$isPre"
 
-          $setupExe = Join-Path $outDir "Edge Video Agent Setup $ver.exe"
+          $setupExe = Join-Path $outDir "Edge-Video-Agent-Setup-$ver.exe"
           $blockmap = "$setupExe.blockmap"
-          $zip = Join-Path $outDir "Edge Video Agent-$ver-win.zip"
+          $zip = Join-Path $outDir "Edge-Video-Agent-$ver-win.zip"
           $sha = Join-Path $outDir "SHA256SUMS.txt"
 
           $yml = ""
