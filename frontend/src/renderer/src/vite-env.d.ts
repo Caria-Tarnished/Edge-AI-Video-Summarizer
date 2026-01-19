@@ -9,6 +9,7 @@ declare global {
     }
     electronAPI?: {
       openVideoFile: () => Promise<string | null>
+      openDirectory?: () => Promise<string | null>
       getAppVersion: () => Promise<{ version: string; is_packaged: boolean } | null>
       checkUpdates: () => Promise<any>
       openExternal: (url: string) => Promise<any>
@@ -23,6 +24,12 @@ declare global {
       pickLlamaModel: () => Promise<string | null>
       getDevConfig: () => Promise<{ path: string; config: Record<string, unknown> }>
       setDevConfig: (config: Record<string, unknown>) => Promise<{ path: string; config: Record<string, unknown> }>
+
+      depsGetState?: () => Promise<any>
+      depsDownloadLlamaServer?: (args: any) => Promise<any>
+      depsDownloadGgufPreset?: (args: any) => Promise<any>
+      depsCancel?: (taskId: string) => Promise<any>
+      onDepsEvent?: (callback: (payload: any) => void) => () => void
 
       llamaGetState?: () => Promise<any>
       llamaGetLogs?: () => Promise<any>

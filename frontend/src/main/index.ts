@@ -2,6 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { autoUpdater } from "electron-updater";
 import {
   copyFileSync,
+  createReadStream,
+  createWriteStream,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -12,6 +14,7 @@ import {
   writeFileSync,
 } from "fs";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import * as crypto from "node:crypto";
 import * as http from "node:http";
 import * as https from "node:https";
 import * as net from "node:net";
@@ -550,6 +553,632 @@ async function runPowerShell(command: string): Promise<void> {
       }
     });
   });
+}
+
+type DepsTaskKind = "llama_server" | "gguf_model";
+
+type DepsTaskStatus =
+  | "idle"
+  | "downloading"
+  | "extracting"
+  | "done"
+  | "cancelled"
+  | "error";
+
+type DepsTask = {
+  id: string;
+  kind: DepsTaskKind;
+  status: DepsTaskStatus;
+  label?: string;
+  url?: string;
+  transferred?: number;
+  total?: number;
+  bytes_per_second?: number;
+  percent?: number;
+  started_at?: string;
+  finished_at?: string;
+  dest_path?: string;
+  error?: string;
+  meta?: Record<string, unknown>;
+};
+
+let _depsTasks: Record<string, DepsTask> = {};
+let _depsCancel: Record<string, (() => void) | undefined> = {};
+
+function emitDepsEvent(type: string, payload: any): void {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("deps:event", { type, ...payload });
+    }
+  } catch {}
+}
+
+function getDepsState(): {
+  tasks: DepsTask[];
+  default_dirs: { data_dir: string; llama_server: string; gguf_models: string };
+} {
+  const dataDir = resolvePreferredDataDir() || getDefaultPackagedDataDir();
+  return {
+    tasks: Object.values(_depsTasks),
+    default_dirs: {
+      data_dir: dataDir,
+      llama_server: join(dataDir, "deps", "llama.cpp"),
+      gguf_models: join(dataDir, "models", "llm"),
+    },
+  };
+}
+
+function setDepsTask(id: string, patch: Partial<DepsTask>): DepsTask {
+  const prev = _depsTasks[id];
+  const kind = (patch.kind || prev?.kind) as DepsTaskKind | undefined;
+  const status = (patch.status || prev?.status || "idle") as DepsTaskStatus;
+  if (!kind) {
+    throw new Error("TASK_KIND_REQUIRED");
+  }
+  const next: DepsTask = {
+    ...prev,
+    ...patch,
+    id,
+    kind,
+    status,
+  };
+  _depsTasks = {
+    ..._depsTasks,
+    [id]: next,
+  };
+  emitDepsEvent("task", { task: next, state: getDepsState() });
+  return next;
+}
+
+function sha256File(path: string, chunkSize: number = 1024 * 1024): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      const h = crypto.createHash("sha256");
+      const s = createReadStream(path, { highWaterMark: chunkSize });
+      s.on("data", (buf) => h.update(buf));
+      s.on("error", reject);
+      s.on("end", () => resolve(h.digest("hex")));
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+function safeEncodePathSegment(pathLike: string): string {
+  return encodeURIComponent(String(pathLike || "").trim()).replace(/%2F/gi, "/");
+}
+
+function findFileRecursive(root: string, targetName: string): string | null {
+  const want = String(targetName || "").toLowerCase();
+  if (!want) return null;
+  try {
+    const ents = readdirSync(root, { withFileTypes: true });
+    for (const ent of ents) {
+      const p = join(root, ent.name);
+      if (ent.isFile() && String(ent.name || "").toLowerCase() === want) {
+        return p;
+      }
+      if (ent.isDirectory()) {
+        const hit = findFileRecursive(p, targetName);
+        if (hit) return hit;
+      }
+    }
+  } catch {}
+  return null;
+}
+
+function httpDownloadToFile(opts: {
+  url: string;
+  destPath: string;
+  headers?: Record<string, string>;
+  onProgress?: (p: {
+    transferred: number;
+    total?: number;
+    bytes_per_second?: number;
+    percent?: number;
+  }) => void;
+  registerCancel?: (cancel: () => void) => void;
+  timeoutMs?: number;
+}): Promise<{ path: string }>
+{
+  const url0 = String(opts.url || "").trim();
+  const dest = String(opts.destPath || "").trim();
+  const timeoutMs = typeof opts.timeoutMs === "number" ? opts.timeoutMs : 20000;
+  if (!url0) return Promise.reject(new Error("EMPTY_URL"));
+  if (!dest) return Promise.reject(new Error("EMPTY_DEST"));
+
+  const part = dest + ".part";
+  try {
+    mkdirSync(dirname(dest), { recursive: true });
+  } catch {}
+
+  const doReq = (urlStr: string, redirectsLeft: number): Promise<{ path: string }> => {
+    return new Promise((resolve, reject) => {
+      let req: http.ClientRequest | null = null;
+      let done = false;
+      let transferred = 0;
+      let total: number | undefined = undefined;
+      const startedAt = Date.now();
+      let lastTickAt = startedAt;
+      let lastTickBytes = 0;
+
+      const finish = (err?: any) => {
+        if (done) return;
+        done = true;
+        if (err) {
+          try {
+            rmSync(part, { force: true });
+          } catch {}
+          reject(err);
+        } else {
+          resolve({ path: dest });
+        }
+      };
+
+      const cancel = () => {
+        try {
+          finish(new Error("CANCELLED"));
+        } catch {}
+        try {
+          req?.destroy(new Error("CANCELLED"));
+        } catch {}
+      };
+      try {
+        opts.registerCancel?.(cancel);
+      } catch {}
+
+      try {
+        const url = new URL(urlStr);
+        const mod = url.protocol === "https:" ? https : http;
+        const port = url.port
+          ? parseInt(url.port, 10)
+          : url.protocol === "https:"
+            ? 443
+            : 80;
+
+        req = mod.request(
+          {
+            method: "GET",
+            host: url.hostname,
+            port,
+            path: `${url.pathname || "/"}${url.search || ""}`,
+            timeout: timeoutMs,
+            headers: {
+              "User-Agent": "edge-video-agent",
+              ...(opts.headers || {}),
+            },
+          },
+          (res) => {
+            const code = res.statusCode || 0;
+            if (code >= 300 && code < 400 && res.headers.location) {
+              if (redirectsLeft <= 0) {
+                res.resume();
+                finish(new Error("TOO_MANY_REDIRECTS"));
+                return;
+              }
+              const nextUrl = new URL(res.headers.location, urlStr).toString();
+              res.resume();
+              doReq(nextUrl, redirectsLeft - 1).then(resolve).catch(reject);
+              return;
+            }
+            if (code < 200 || code >= 300) {
+              res.resume();
+              finish(new Error(`HTTP_${code}`));
+              return;
+            }
+
+            const len = parseInt(String(res.headers["content-length"] || "0"), 10);
+            if (Number.isFinite(len) && len > 0) total = len;
+
+            let file: ReturnType<typeof createWriteStream> | null = null;
+            try {
+              file = createWriteStream(part);
+            } catch (e) {
+              res.resume();
+              finish(e);
+              return;
+            }
+
+            file.on("error", (e) => {
+              try {
+                res.destroy();
+              } catch {}
+              finish(e);
+            });
+
+            res.on("data", (chunk) => {
+              transferred += (chunk as any)?.length ? Number((chunk as any).length) : 0;
+
+              const now = Date.now();
+              const dt = Math.max(1, now - lastTickAt);
+              const dBytes = transferred - lastTickBytes;
+              if (dt >= 500) {
+                lastTickAt = now;
+                lastTickBytes = transferred;
+                const bps = Math.max(0, Math.floor((dBytes * 1000) / dt));
+                const percent = total ? Math.max(0, Math.min(100, (transferred / total) * 100)) : undefined;
+                try {
+                  opts.onProgress?.({
+                    transferred,
+                    total,
+                    bytes_per_second: bps,
+                    percent,
+                  });
+                } catch {}
+              }
+            });
+
+            res.on("error", (e) => finish(e));
+
+            res.pipe(file);
+            file.on("finish", () => {
+              try {
+                file?.close();
+              } catch {}
+              try {
+                try {
+                  rmSync(dest, { force: true });
+                } catch {}
+                renameSync(part, dest);
+              } catch (e) {
+                finish(e);
+                return;
+              }
+              const elapsedMs = Math.max(1, Date.now() - startedAt);
+              const bps = Math.max(0, Math.floor((transferred * 1000) / elapsedMs));
+              const percent = total ? Math.max(0, Math.min(100, (transferred / total) * 100)) : undefined;
+              try {
+                opts.onProgress?.({
+                  transferred,
+                  total,
+                  bytes_per_second: bps,
+                  percent,
+                });
+              } catch {}
+              finish();
+            });
+          },
+        );
+        req.on("error", (e) => finish(e));
+        req.on("timeout", () => {
+          try {
+            req?.destroy(new Error("timeout"));
+          } catch {}
+        });
+        req.end();
+      } catch (e) {
+        finish(e);
+      }
+    });
+  };
+
+  return doReq(url0, 5);
+}
+
+function pickLlamaCppAsset(assets: any[], flavor: "cpu" | "cuda"): { name: string; url: string } | null {
+  const arr = Array.isArray(assets) ? assets : [];
+  const norm = (s: any) => String(s || "").toLowerCase();
+
+  const candidates = arr
+    .map((a) => {
+      const name = String(a?.name || "").trim();
+      const url = String(a?.browser_download_url || "").trim();
+      if (!name || !url) return null;
+      return { name, url, n: norm(name) };
+    })
+    .filter(Boolean) as Array<{ name: string; url: string; n: string }>;
+
+  const isWinZipX64 = (n: string) => n.includes("win") && n.includes("x64") && n.endsWith(".zip");
+  const isCudartOnly = (n: string) => n.startsWith("cudart-") || n.includes("cudart-llama");
+  const isCuda = (n: string) => n.includes("cuda") || n.includes("cublas");
+  const isCpu = (n: string) => !isCuda(n) && !n.includes("rocm") && !n.includes("hip");
+  const isLlamaBinaryZip = (n: string) => n.includes("llama") && n.includes("bin") && !isCudartOnly(n);
+
+  const filtered = candidates.filter((c) => isWinZipX64(c.n));
+  if (flavor === "cpu") {
+    return (
+      filtered.find((c) => isLlamaBinaryZip(c.n) && isCpu(c.n)) ||
+      filtered.find((c) => isLlamaBinaryZip(c.n)) ||
+      filtered.find((c) => !isCudartOnly(c.n) && isCpu(c.n)) ||
+      candidates.find((c) => isWinZipX64(c.n) && !isCudartOnly(c.n)) ||
+      candidates.find((c) => c.n.endsWith(".zip") && !isCudartOnly(c.n)) ||
+      null
+    );
+  }
+  return (
+    filtered.find((c) => isLlamaBinaryZip(c.n) && isCuda(c.n)) ||
+    candidates.find((c) => isLlamaBinaryZip(c.n) && isCuda(c.n) && c.n.endsWith(".zip")) ||
+    candidates.find((c) => isWinZipX64(c.n) && isCuda(c.n) && !isCudartOnly(c.n)) ||
+    candidates.find((c) => c.n.endsWith(".zip") && isCuda(c.n) && !isCudartOnly(c.n)) ||
+    candidates.find((c) => isWinZipX64(c.n) && !isCudartOnly(c.n)) ||
+    candidates.find((c) => c.n.endsWith(".zip") && !isCudartOnly(c.n)) ||
+    null
+  );
+}
+
+async function downloadAndInstallLlamaServer(opts: {
+  taskId: string;
+  flavor: "cpu" | "cuda";
+  destDir?: string;
+}): Promise<{ ok: boolean; exe_path?: string; error?: string }>
+{
+  const taskId = String(opts.taskId || "").trim();
+  const dataDir = resolvePreferredDataDir() || getDefaultPackagedDataDir();
+  const destDir = String(opts.destDir || "").trim() || join(dataDir, "deps", "llama.cpp");
+  const flavor = opts.flavor;
+  setDepsTask(taskId, {
+    kind: "llama_server",
+    status: "downloading",
+    label: `llama-server (${flavor})`,
+    started_at: new Date().toISOString(),
+    error: undefined,
+    finished_at: undefined,
+  });
+
+  try {
+    const rel = await httpGetJson(
+      "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest",
+      20000,
+    );
+    const tag = String(rel?.tag_name || "").trim() || "latest";
+    const assets = Array.isArray(rel?.assets) ? (rel.assets as any[]) : [];
+    const pick = pickLlamaCppAsset(assets, flavor);
+    if (!pick) {
+      throw new Error("NO_RELEASE_ASSET");
+    }
+
+    setDepsTask(taskId, {
+      url: pick.url,
+      meta: {
+        release_tag: tag,
+        asset_name: pick.name,
+      },
+    });
+
+    const tmpRoot = join(app.getPath("temp"), "edge-video-agent-deps");
+    const zipPath = join(tmpRoot, `llama_cpp_${tag}_${flavor}.zip`);
+    const extractDir = join(tmpRoot, `llama_cpp_extract_${taskId}`);
+
+    setDepsTask(taskId, {
+      meta: {
+        ...((_depsTasks[taskId]?.meta || {}) as Record<string, unknown>),
+        tmp_root: tmpRoot,
+        zip_path: zipPath,
+        extract_dir: extractDir,
+        install_dir: destDir,
+      },
+    });
+    try {
+      mkdirSync(tmpRoot, { recursive: true });
+    } catch {}
+    try {
+      rmSync(extractDir, { recursive: true, force: true });
+    } catch {}
+    try {
+      mkdirSync(extractDir, { recursive: true });
+    } catch {}
+
+    await httpDownloadToFile({
+      url: pick.url,
+      destPath: zipPath,
+      onProgress: (p) => {
+        setDepsTask(taskId, {
+          status: "downloading",
+          transferred: p.transferred,
+          total: p.total,
+          bytes_per_second: p.bytes_per_second,
+          percent: p.percent,
+        });
+      },
+      registerCancel: (cancel) => {
+        _depsCancel[taskId] = cancel;
+      },
+      timeoutMs: 30000,
+    });
+
+    setDepsTask(taskId, { status: "extracting" });
+    const cmd = `Expand-Archive -Path ${psQuote(zipPath)} -DestinationPath ${psQuote(
+      extractDir,
+    )} -Force`;
+    await runPowerShell(cmd);
+
+    const exeFound = findFileRecursive(extractDir, "llama-server.exe");
+    if (!exeFound) {
+      setDepsTask(taskId, { dest_path: extractDir });
+      throw new Error("LLAMA_SERVER_EXE_NOT_FOUND_IN_ZIP");
+    }
+
+    const targetExe = join(destDir, tag, "llama-server.exe");
+    try {
+      mkdirSync(dirname(targetExe), { recursive: true });
+    } catch {}
+    copyFileSync(exeFound, targetExe);
+
+    const cfg = readDevConfig();
+    const merged = {
+      ...(cfg || {}),
+      llama_server_exe: targetExe,
+    } as Record<string, unknown>;
+    writeDevConfig(merged);
+
+    try {
+      rmSync(extractDir, { recursive: true, force: true });
+    } catch {}
+    try {
+      rmSync(zipPath, { force: true });
+    } catch {}
+
+    setDepsTask(taskId, {
+      status: "done",
+      finished_at: new Date().toISOString(),
+      dest_path: targetExe,
+      transferred: undefined,
+      total: undefined,
+      bytes_per_second: undefined,
+      percent: undefined,
+    });
+    return { ok: true, exe_path: targetExe };
+  } catch (e: any) {
+    const msg = e && e.message ? String(e.message) : String(e);
+    setDepsTask(taskId, {
+      status: msg === "CANCELLED" ? "cancelled" : "error",
+      finished_at: new Date().toISOString(),
+      error: msg,
+    });
+    return { ok: false, error: msg };
+  } finally {
+    try {
+      delete _depsCancel[taskId];
+    } catch {}
+  }
+}
+
+async function getHfModelMeta(repoId: string): Promise<{ siblings: Array<{ rfilename: string; size?: number }> }> {
+  const rid = String(repoId || "").trim();
+  if (!rid) throw new Error("EMPTY_REPO_ID");
+  const url = `https://huggingface.co/api/models/${rid}`;
+  const json = await httpGetJson(url, 20000);
+  const sib = Array.isArray(json?.siblings) ? (json.siblings as any[]) : [];
+  const siblings = sib
+    .map((s) => {
+      const rfilename = String(s?.rfilename || "").trim();
+      const size = typeof s?.size === "number" ? Number(s.size) : undefined;
+      if (!rfilename) return null;
+      return { rfilename, size };
+    })
+    .filter(Boolean) as Array<{ rfilename: string; size?: number }>;
+  return { siblings };
+}
+
+function pickGgufFilename(opts: {
+  slot: "q4" | "q5" | "small";
+  siblings: Array<{ rfilename: string; size?: number }>;
+}): string {
+  const norm = (s: any) => String(s || "").toLowerCase();
+  const ggufs = opts.siblings
+    .filter((s) => norm(s.rfilename).endsWith(".gguf"))
+    .map((s) => ({ ...s, n: norm(s.rfilename) }));
+  if (ggufs.length === 0) throw new Error("NO_GGUF_IN_REPO");
+
+  const bySizeAsc = [...ggufs].sort((a, b) => (a.size || Number.MAX_SAFE_INTEGER) - (b.size || Number.MAX_SAFE_INTEGER));
+  if (opts.slot === "q4") {
+    return (
+      ggufs.find((s) => /q4[_-]k[_-]m/i.test(s.rfilename))?.rfilename ||
+      bySizeAsc[0]?.rfilename ||
+      ggufs[0].rfilename
+    );
+  }
+  if (opts.slot === "q5") {
+    return (
+      ggufs.find((s) => /q5[_-]k[_-]m/i.test(s.rfilename))?.rfilename ||
+      bySizeAsc[0]?.rfilename ||
+      ggufs[0].rfilename
+    );
+  }
+  return (
+    ggufs.find((s) => /q4[_-]k[_-]m/i.test(s.rfilename))?.rfilename ||
+    bySizeAsc[0]?.rfilename ||
+    ggufs[0].rfilename
+  );
+}
+
+async function downloadGgufPreset(opts: {
+  taskId: string;
+  slot: "q4" | "q5" | "small";
+  repoId: string;
+  filename?: string;
+  destDir?: string;
+}): Promise<{ ok: boolean; path?: string; sha256?: string; error?: string; chosen_filename?: string }>
+{
+  const taskId = String(opts.taskId || "").trim();
+  const slot = opts.slot;
+  const repoId = String(opts.repoId || "").trim();
+  const dataDir = resolvePreferredDataDir() || getDefaultPackagedDataDir();
+  const destDir = String(opts.destDir || "").trim() || join(dataDir, "models", "llm");
+
+  setDepsTask(taskId, {
+    kind: "gguf_model",
+    status: "downloading",
+    label: `GGUF (${slot})`,
+    started_at: new Date().toISOString(),
+    error: undefined,
+    finished_at: undefined,
+    meta: {
+      repo_id: repoId,
+    },
+  });
+
+  try {
+    const meta = await getHfModelMeta(repoId);
+    const chosen = String(opts.filename || "").trim() || pickGgufFilename({ slot, siblings: meta.siblings });
+    const url = `https://huggingface.co/${repoId}/resolve/main/${safeEncodePathSegment(
+      chosen,
+    )}?download=true`;
+
+    const destPath = join(destDir, chosen.replace(/[/\\]/g, "_"));
+    setDepsTask(taskId, {
+      url,
+      dest_path: destPath,
+      meta: {
+        ...((_depsTasks[taskId]?.meta || {}) as Record<string, unknown>),
+        repo_id: repoId,
+        filename: chosen,
+      },
+    });
+
+    await httpDownloadToFile({
+      url,
+      destPath,
+      headers: {
+        Accept: "application/octet-stream",
+      },
+      onProgress: (p) => {
+        setDepsTask(taskId, {
+          status: "downloading",
+          transferred: p.transferred,
+          total: p.total,
+          bytes_per_second: p.bytes_per_second,
+          percent: p.percent,
+        });
+      },
+      registerCancel: (cancel) => {
+        _depsCancel[taskId] = cancel;
+      },
+      timeoutMs: 30000,
+    });
+
+    const hash = await sha256File(destPath);
+    const cfg = readDevConfig();
+    const patch: Record<string, unknown> = {};
+    if (slot === "q4") patch.llama_model_q4_path = destPath;
+    if (slot === "q5") patch.llama_model_q5_path = destPath;
+    if (slot === "small") patch.llama_model_small_path = destPath;
+    writeDevConfig({ ...(cfg || {}), ...patch });
+
+    setDepsTask(taskId, {
+      status: "done",
+      finished_at: new Date().toISOString(),
+      dest_path: destPath,
+      transferred: undefined,
+      total: undefined,
+      bytes_per_second: undefined,
+      percent: undefined,
+    });
+
+    return { ok: true, path: destPath, sha256: hash, chosen_filename: chosen };
+  } catch (e: any) {
+    const msg = e && e.message ? String(e.message) : String(e);
+    setDepsTask(taskId, {
+      status: msg === "CANCELLED" ? "cancelled" : "error",
+      finished_at: new Date().toISOString(),
+      error: msg,
+    });
+    return { ok: false, error: msg };
+  } finally {
+    try {
+      delete _depsCancel[taskId];
+    } catch {}
+  }
 }
 
 async function ensureDataDirSelectedAndMigrated(): Promise<void> {
@@ -1555,6 +2184,16 @@ ipcMain.handle("dialog:openVideo", async () => {
   return res.filePaths[0];
 });
 
+ipcMain.handle("dialog:openDirectory", async () => {
+  const res = await dialog.showOpenDialog({
+    properties: ["openDirectory"],
+  });
+  if (res.canceled || res.filePaths.length === 0) {
+    return null;
+  }
+  return res.filePaths[0];
+});
+
 ipcMain.handle("dialog:openLlamaExe", async () => {
   const res = await dialog.showOpenDialog({
     properties: ["openFile"],
@@ -1600,6 +2239,69 @@ ipcMain.handle("config:setDevConfig", async (_evt, config: any) => {
       : {};
   return writeDevConfig(payload);
 });
+
+ipcMain.handle("deps:getState", async () => {
+  return getDepsState();
+});
+
+ipcMain.handle("deps:cancel", async (_evt, taskId: any) => {
+  const id = String(taskId || "").trim();
+  const fn = _depsCancel[id];
+  if (!id || !fn) {
+    return { ok: false, error: "NO_SUCH_TASK" };
+  }
+  try {
+    fn();
+  } catch {}
+  return { ok: true };
+});
+
+ipcMain.handle(
+  "deps:downloadLlamaServer",
+  async (_evt, args: { flavor?: any; destDir?: any } | null) => {
+    const id = `llama_${Date.now()}`;
+    const flavor = String(args?.flavor || "cpu").toLowerCase() === "cuda" ? "cuda" : "cpu";
+    const destDir = String(args?.destDir || "").trim() || undefined;
+    void downloadAndInstallLlamaServer({
+      taskId: id,
+      flavor,
+      destDir,
+    }).catch(() => {
+    });
+    return { ok: true, task_id: id, state: getDepsState() };
+  },
+);
+
+ipcMain.handle(
+  "deps:downloadGgufPreset",
+  async (
+    _evt,
+    args:
+      | {
+          slot?: any;
+          repoId?: any;
+          filename?: any;
+          destDir?: any;
+        }
+      | null,
+  ) => {
+    const id = `gguf_${Date.now()}`;
+    const slotRaw = String(args?.slot || "q4").toLowerCase();
+    const slot = slotRaw === "q5" ? "q5" : slotRaw === "small" ? "small" : "q4";
+    const repoId = String(args?.repoId || "").trim();
+    const filename = String(args?.filename || "").trim() || undefined;
+    const destDir = String(args?.destDir || "").trim() || undefined;
+    void downloadGgufPreset({
+      taskId: id,
+      slot,
+      repoId,
+      filename,
+      destDir,
+    }).catch(() => {
+    });
+    return { ok: true, task_id: id, state: getDepsState() };
+  },
+);
 
 ipcMain.handle("llama:getState", async () => {
   return {

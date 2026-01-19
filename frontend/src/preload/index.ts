@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openVideoFile: async (): Promise<string | null> => {
     return await ipcRenderer.invoke('dialog:openVideo')
   },
+  openDirectory: async (): Promise<string | null> => {
+    return await ipcRenderer.invoke('dialog:openDirectory')
+  },
   getAppVersion: async (): Promise<{ version: string; is_packaged: boolean } | null> => {
     try {
       return await ipcRenderer.invoke('app:getVersion')
@@ -71,6 +74,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return await ipcRenderer.invoke('config:setDevConfig', config)
   },
 
+  depsGetState: async (): Promise<any> => {
+    return await ipcRenderer.invoke('deps:getState')
+  },
+  depsDownloadLlamaServer: async (args: any): Promise<any> => {
+    return await ipcRenderer.invoke('deps:downloadLlamaServer', args)
+  },
+  depsDownloadGgufPreset: async (args: any): Promise<any> => {
+    return await ipcRenderer.invoke('deps:downloadGgufPreset', args)
+  },
+  depsCancel: async (taskId: string): Promise<any> => {
+    return await ipcRenderer.invoke('deps:cancel', taskId)
+  },
+  onDepsEvent: (callback: (payload: any) => void): (() => void) => {
+    const handler = (_evt: any, payload: any) => {
+      try {
+        callback(payload)
+      } catch {}
+    }
+    ipcRenderer.on('deps:event', handler)
+    return () => {
+      try {
+        ipcRenderer.removeListener('deps:event', handler)
+      } catch {}
+    }
+  },
+
   llamaGetState: async (): Promise<any> => {
     return await ipcRenderer.invoke('llama:getState')
   },
@@ -106,6 +135,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 export type ElectronAPI = {
   openVideoFile: () => Promise<string | null>
+  openDirectory: () => Promise<string | null>
   getAppVersion: () => Promise<{ version: string; is_packaged: boolean } | null>
   checkUpdates: () => Promise<any>
   openExternal: (url: string) => Promise<any>
@@ -120,6 +150,12 @@ export type ElectronAPI = {
   pickLlamaModel: () => Promise<string | null>
   getDevConfig: () => Promise<{ path: string; config: Record<string, unknown> }>
   setDevConfig: (config: Record<string, unknown>) => Promise<{ path: string; config: Record<string, unknown> }>
+
+  depsGetState: () => Promise<any>
+  depsDownloadLlamaServer: (args: any) => Promise<any>
+  depsDownloadGgufPreset: (args: any) => Promise<any>
+  depsCancel: (taskId: string) => Promise<any>
+  onDepsEvent: (callback: (payload: any) => void) => () => void
 
   llamaGetState: () => Promise<any>
   llamaGetLogs: () => Promise<any>

@@ -60,11 +60,46 @@ type LlamaLogs = {
   stderr?: string[];
 };
 
+type DepsTask = {
+  id: string;
+  kind: string;
+  status: string;
+  label?: string;
+  url?: string;
+  transferred?: number;
+  total?: number;
+  bytes_per_second?: number;
+  percent?: number;
+  started_at?: string;
+  finished_at?: string;
+  dest_path?: string;
+  error?: string;
+  meta?: Record<string, unknown>;
+};
+
+type DepsState = {
+  tasks?: DepsTask[];
+  default_dirs?: { data_dir: string; llama_server: string; gguf_models: string };
+};
+
 function toNumberOrUndefined(v: string): number | undefined {
   const s = (v ?? "").trim();
   if (!s) return undefined;
   const n = Number(s);
   return Number.isFinite(n) ? n : undefined;
+}
+
+function formatBytes(n?: number): string {
+  const v = typeof n === "number" && Number.isFinite(n) ? n : 0;
+  if (!v || v < 0) return "0";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let x = v;
+  let i = 0;
+  while (x >= 1024 && i < units.length - 1) {
+    x /= 1024;
+    i += 1;
+  }
+  return `${x.toFixed(i === 0 ? 0 : 2)} ${units[i]}`;
 }
 
 export default function SettingsPage({ uiLang = "zh" }: Props) {
@@ -84,6 +119,10 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
 
   const [llamaState, setLlamaState] = useState<LlamaState | null>(null);
   const [llamaLogs, setLlamaLogs] = useState<LlamaLogs | null>(null);
+
+  const [depsState, setDepsState] = useState<DepsState | null>(null);
+  const [depsLlamaDir, setDepsLlamaDir] = useState<string>("");
+  const [depsGgufDir, setDepsGgufDir] = useState<string>("");
 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -393,7 +432,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
     setInfo(null);
     setBusy("loading");
     try {
-      const [rt, llm, prov, status, asr, diag, devCfg, ver, llama] = await Promise.all([
+      const [rt, llm, prov, status, asr, diag, devCfg, ver, llama, deps] = await Promise.all([
         api.getRuntimeProfile(),
         api.getDefaultLlmPreferences(),
         api.listLlmProviders(),
@@ -408,6 +447,9 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           : Promise.resolve(null),
         window.electronAPI?.llamaGetState
           ? window.electronAPI.llamaGetState().catch(() => null)
+          : Promise.resolve(null),
+        window.electronAPI?.depsGetState
+          ? window.electronAPI.depsGetState().catch(() => null)
           : Promise.resolve(null),
       ]);
 
@@ -478,6 +520,10 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           setLlamaLogs(logs as LlamaLogs);
         }
       }
+
+      if (deps && typeof deps === "object") {
+        setDepsState(deps as DepsState);
+      }
     } catch (e: any) {
       setError(String(e?.message || e));
     } finally {
@@ -503,6 +549,120 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
         off();
       } catch {}
     };
+  }, []);
+
+  useEffect(() => {
+    if (!window.electronAPI?.onDepsEvent) {
+      return;
+    }
+    const off = window.electronAPI.onDepsEvent((payload: any) => {
+      if (payload?.state) {
+        setDepsState(payload.state as DepsState);
+      }
+    });
+    return () => {
+      try {
+        off();
+      } catch {}
+    };
+  }, []);
+
+  const pickDir = useCallback(async (): Promise<string | null> => {
+    if (!window.electronAPI?.openDirectory) {
+      return null;
+    }
+    try {
+      return await window.electronAPI.openDirectory();
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const depsDownloadLlamaServer = useCallback(
+    async (flavor: "cpu" | "cuda") => {
+      if (!window.electronAPI?.depsDownloadLlamaServer) {
+        setError(uiLang === "en" ? "Not running in Electron." : "当前不是 Electron 环境。"
+        );
+        return;
+      }
+      setError(null);
+      setInfo(null);
+      setBusy(`deps_llama_${flavor}`);
+      try {
+        const res: any = await window.electronAPI.depsDownloadLlamaServer({
+          flavor,
+          destDir: depsLlamaDir || undefined,
+        });
+        if (res?.state) setDepsState(res.state as DepsState);
+        if (res?.ok) {
+          setInfo(
+            uiLang === "en" ? "Started download." : "已开始下载。"
+          );
+        } else {
+          setError(String(res?.error || "DOWNLOAD_FAILED"));
+        }
+      } catch (e: any) {
+        setError(String(e?.message || e));
+      } finally {
+        setBusy(null);
+      }
+    },
+    [depsLlamaDir, uiLang]
+  );
+
+  const depsDownloadGgufPreset = useCallback(
+    async (slot: "q4" | "q5" | "small") => {
+      if (!window.electronAPI?.depsDownloadGgufPreset) {
+        setError(uiLang === "en" ? "Not running in Electron." : "当前不是 Electron 环境。"
+        );
+        return;
+      }
+      const repoId =
+        slot === "small"
+          ? "Qwen/Qwen2.5-3B-Instruct-GGUF"
+          : "Qwen/Qwen2.5-7B-Instruct-GGUF";
+      setError(null);
+      setInfo(null);
+      setBusy(`deps_gguf_${slot}`);
+      try {
+        const res: any = await window.electronAPI.depsDownloadGgufPreset({
+          slot,
+          repoId,
+          destDir: depsGgufDir || undefined,
+        });
+        if (res?.state) setDepsState(res.state as DepsState);
+        if (res?.ok) {
+          setInfo(uiLang === "en" ? "Started download." : "已开始下载。"
+          );
+        } else {
+          setError(String(res?.error || "DOWNLOAD_FAILED"));
+        }
+      } catch (e: any) {
+        setError(String(e?.message || e));
+      } finally {
+        setBusy(null);
+      }
+    },
+    [depsGgufDir, uiLang]
+  );
+
+  const depsCancel = useCallback(async (taskId: string) => {
+    if (!window.electronAPI?.depsCancel) {
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setBusy("deps_cancel");
+    try {
+      const res: any = await window.electronAPI.depsCancel(taskId);
+      if (!res?.ok) {
+        setError(String(res?.error || "CANCEL_FAILED"));
+      }
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setBusy(null);
+    }
   }, []);
 
   const refreshLlama = useCallback(async () => {
@@ -1684,6 +1844,192 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           </div>
         ) : (
           <div className="muted">{t("no_status_yet")}</div>
+        )}
+      </div>
+
+      <div className="card">
+        <h3>
+          {uiLang === "en"
+            ? "Dependencies auto-download"
+            : "\u4f9d\u8d56\u81ea\u52a8\u4e0b\u8f7d"}
+        </h3>
+        <div className="muted">
+          {uiLang === "en"
+            ? "Download llama-server and preset GGUF models, with progress and cancel."
+            : "\u4e00\u952e\u4e0b\u8f7d llama-server \u4e0e\u9884\u7f6e GGUF \u6a21\u578b\uff0c\u5e76\u663e\u793a\u8fdb\u5ea6\uff0c\u53ef\u53d6\u6d88\u3002"}
+        </div>
+
+        {!depsLlamaDir && depsState?.default_dirs?.llama_server ? (
+          <div className="muted" style={{ marginTop: 6, wordBreak: "break-all" }}>
+            {uiLang === "en" ? "Default llama-server dir: " : "默认 llama-server 目录:"}
+            <code>{depsState.default_dirs.llama_server}</code>
+          </div>
+        ) : null}
+
+        {!depsGgufDir && depsState?.default_dirs?.gguf_models ? (
+          <div className="muted" style={{ marginTop: 6, wordBreak: "break-all" }}>
+            {uiLang === "en" ? "Default GGUF dir: " : "默认 GGUF 目录:"}
+            <code>{depsState.default_dirs.gguf_models}</code>
+          </div>
+        ) : null}
+
+        <div className="grid" style={{ marginTop: 8 }}>
+          <label className="field">
+            <div className="label">
+              {uiLang === "en" ? "llama-server install dir" : "llama-server \u5b89\u88c5\u76ee\u5f55"}
+            </div>
+            <input
+              className="input"
+              value={depsLlamaDir}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setDepsLlamaDir(e.target.value)
+              }
+              placeholder={uiLang === "en" ? "(optional)" : "（可选）"}
+            />
+          </label>
+          <div className="field">
+            <div className="label">{t("pick_file")}</div>
+            <button
+              className="btn"
+              onClick={async () => {
+                const p = await pickDir();
+                if (p) setDepsLlamaDir(p);
+              }}
+              disabled={!!busy}
+            >
+              {uiLang === "en" ? "Pick dir" : "选择目录"}
+            </button>
+          </div>
+
+          <label className="field">
+            <div className="label">
+              {uiLang === "en" ? "GGUF download dir" : "GGUF 下载目录"}
+            </div>
+            <input
+              className="input"
+              value={depsGgufDir}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setDepsGgufDir(e.target.value)
+              }
+              placeholder={uiLang === "en" ? "(optional)" : "（可选）"}
+            />
+          </label>
+          <div className="field">
+            <div className="label">{t("pick_file")}</div>
+            <button
+              className="btn"
+              onClick={async () => {
+                const p = await pickDir();
+                if (p) setDepsGgufDir(p);
+              }}
+              disabled={!!busy}
+            >
+              {uiLang === "en" ? "Pick dir" : "选择目录"}
+            </button>
+          </div>
+        </div>
+
+        <div className="row" style={{ marginTop: 8, flexWrap: "wrap" }}>
+          <button
+            className="btn"
+            onClick={() => void depsDownloadLlamaServer("cpu")}
+            disabled={!!busy}
+          >
+            {uiLang === "en" ? "Download llama-server (CPU)" : "下载 llama-server（CPU）"}
+          </button>
+          <button
+            className="btn"
+            onClick={() => void depsDownloadLlamaServer("cuda")}
+            disabled={!!busy}
+          >
+            {uiLang === "en" ? "Download llama-server (CUDA)" : "下载 llama-server（CUDA）"}
+          </button>
+        </div>
+
+        <div className="row" style={{ marginTop: 8, flexWrap: "wrap" }}>
+          <button
+            className="btn"
+            onClick={() => void depsDownloadGgufPreset("q4")}
+            disabled={!!busy}
+          >
+            {uiLang === "en" ? "Download preset GGUF (Q4)" : "下载预置 GGUF（Q4）"}
+          </button>
+          <button
+            className="btn"
+            onClick={() => void depsDownloadGgufPreset("q5")}
+            disabled={!!busy}
+          >
+            {uiLang === "en" ? "Download preset GGUF (Q5)" : "下载预置 GGUF（Q5）"}
+          </button>
+          <button
+            className="btn"
+            onClick={() => void depsDownloadGgufPreset("small")}
+            disabled={!!busy}
+          >
+            {uiLang === "en" ? "Download preset GGUF (Small)" : "下载预置 GGUF（小模型）"}
+          </button>
+        </div>
+
+        {depsState?.tasks?.length ? (
+          <div className="subcard" style={{ marginTop: 8 }}>
+            <div className="label">
+              {uiLang === "en" ? "Download tasks" : "下载任务"}
+            </div>
+            {(depsState.tasks || []).slice().reverse().slice(0, 6).map((t) => {
+              const transferred = typeof t.transferred === "number" ? t.transferred : 0;
+              const total = typeof t.total === "number" ? t.total : undefined;
+              const pct =
+                typeof t.percent === "number"
+                  ? Math.max(0, Math.min(100, t.percent))
+                  : total && total > 0
+                    ? Math.max(0, Math.min(100, (transferred / total) * 100))
+                    : undefined;
+              const canCancel =
+                String(t.status || "") === "downloading" ||
+                String(t.status || "") === "extracting";
+              return (
+                <div key={t.id} className="subcard" style={{ marginTop: 8 }}>
+                  <div className="kv">
+                    <div className="k">{t.label || t.kind}</div>
+                    <div className="v">{String(t.status || "")}</div>
+                  </div>
+                  <div className="kv">
+                    <div className="k">progress</div>
+                    <div className="v">
+                      {pct !== undefined ? `${pct.toFixed(1)}%` : "-"} | {formatBytes(transferred)}
+                      {total ? ` / ${formatBytes(total)}` : ""}
+                      {typeof t.bytes_per_second === "number"
+                        ? ` | ${formatBytes(t.bytes_per_second)}/s`
+                        : ""}
+                    </div>
+                  </div>
+                  {t.dest_path ? (
+                    <div className="muted" style={{ wordBreak: "break-all" }}>
+                      {String(t.dest_path)}
+                    </div>
+                  ) : null}
+                  {t.error ? (
+                    <div className="alert alert-error compact">{String(t.error)}</div>
+                  ) : null}
+                  {canCancel ? (
+                    <div className="row">
+                      <button
+                        className="btn"
+                        onClick={() => void depsCancel(t.id)}
+                        disabled={!!busy}
+                      >
+                        {uiLang === "en" ? "Cancel" : "取消"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="muted" style={{ marginTop: 8 }}>
+            {uiLang === "en" ? "No tasks yet." : "暂无任务。"}
+          </div>
         )}
       </div>
 
