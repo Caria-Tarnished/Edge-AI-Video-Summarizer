@@ -694,7 +694,10 @@ def asr_models_repair_api(req: AsrModelRepairRequest) -> Dict[str, Any]:
         want_files += list(optional_files)
 
     try:
-        from huggingface_hub import hf_hub_download, try_to_load_from_cache  # type: ignore
+        from huggingface_hub import (
+            hf_hub_download,
+            try_to_load_from_cache,  # type: ignore
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,
