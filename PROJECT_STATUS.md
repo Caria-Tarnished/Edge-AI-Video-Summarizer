@@ -153,6 +153,25 @@
   - 脚本：`scripts/stop_release_apps.ps1`
 - 已发布：`v0.0.1-beta.1` 预发布版（GitHub Releases，Windows installer + portable zip）
 
+#### 桌面端自动更新（electron-updater，已验证）
+
+- 已发布 stable：`v0.0.2`、`v0.0.3`
+- 已验证：本地安装 `0.0.2` 后，应用内“一键更新”可成功升级到 `0.0.3`
+- Windows Release assets（稳定更新推荐上传）：
+  - `latest.yml`
+  - `Edge-Video-Agent-Setup-<version>.exe`
+  - `Edge-Video-Agent-Setup-<version>.exe.blockmap`
+  - （可选）`Edge-Video-Agent-<version>-win.zip` + `*.zip.blockmap`
+- Windows 文件锁/卸载失败兜底：
+  - Electron 主进程在 `autoUpdater.quitAndInstall()` 前会尝试停止并强杀 `llama-server` 与后端进程
+  - NSIS 安装器/卸载器通过 `build/installer.nsh` 在安装前/卸载时执行 `taskkill /T /F`（强制释放占用文件）
+
+#### Windows 构建命令备忘
+
+- `dist:stable` 脚本定义在 `frontend/package.json`，不要在仓库根目录直接 `npm run dist:stable`
+- 在仓库根目录执行（推荐）：`npm --prefix frontend run dist:stable`
+- 或在 `frontend/` 目录执行：`npm run dist:stable`
+
 ## API 一览（MVP-1 + MVP-2 + MVP-3 + MVP-4）
 
 - `GET /health`
@@ -638,6 +657,22 @@ powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\
 
 ---
 
+## GitHub Releases 清理建议（维护者备忘）
+
+> 目标：**保留所有 tags**；Releases 页面只保留“对用户有价值的下载入口”，减少噪声。
+
+- 建议保留：
+  - 最新 stable（当前：`v0.0.3`）
+  - 上一个 stable（当前：`v0.0.2`，用于短期回滚/应急）
+  - 最新 beta/prerelease（如果你希望继续维护 beta 通道）
+- 建议优先删除：
+  - 早期 beta/prerelease（例如 `v0.0.1-beta.1`、`v0.0.1-beta.4` 等），在确认不再需要回滚/对照后再删
+- 删除 Release 时注意：
+  - 只删除 Release（assets + 页面），**不要删除 tag**（除非你明确要移除该版本）
+  - 不要删除最新 stable 的 `latest.yml` / `*.exe` / `*.blockmap`，否则会影响自动更新
+
+---
+
 ## 变更记录（手动维护）
 
 - 2026-01-09：新增 SSE/WS job 进度推送；新增 PROJECT_STATUS 文档与更详细测试步骤。
@@ -652,3 +687,7 @@ powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\
 - 2026-01-14：桌面端体验增强（Video Detail）：Notes/Chat 侧栏 Tab 落地并优化阅读体验（摘要 markdown 渲染、大纲可折叠与自动展开开关、aligned keyframes 缩略图与去重）；Chat 支持答案 markdown、引用跳转与快捷键；播放器增加 `-15s/+15s`、倍速、复制时间戳与自动字幕开关，并优化转录高亮与自动滚动。
 - 2026-01-14：国际化与输出语言：新增全局 UI 语言切换（中文/English，localStorage 持久化）；Settings 新增 LLM 输出语言 `output_language`（`zh/en/auto`），并在 Chat/摘要/大纲/云摘要全链路生效；修复 `SettingsPage.tsx` 文件编码为 UTF-8 以便继续迭代 UI 文案。
 - 2026-01-15：Windows 打包与发布：后端 PyInstaller onedir exe 集成到 Electron；引入 electron-builder 并将后端作为 extraResources；release 目录按 stable/beta 分流并按版本隔离输出；增加构建前自动停止 release/win-unpacked 进程以规避 `app.asar` 文件锁；已创建并上传 `v0.0.1-beta.1` GitHub 预发布版资产。
+
+- 2026-01-20：发布与更新链路推进：
+  - `v0.0.2`：修复/验证 ASR 模型缓存路径（`Systran/faster-whisper-small`）可用
+  - `v0.0.3`：新增 ASR 一键下载/修复接口与前端按钮；支持自定义 ASR 缓存目录（`HF_HUB_CACHE`）；NSIS 安装/卸载侧 `taskkill /T /F` 兜底；已验证 `0.0.2 -> 0.0.3` 应用内更新成功；主分支质量检测恢复通过
