@@ -5,13 +5,19 @@ import os
 import shutil
 import threading
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from urllib.error import HTTPError, URLError
 from urllib.request import Request as UrlRequest, urlopen
 
-from fastapi import FastAPI, HTTPException, Request, Response, WebSocket
-from fastapi import WebSocketDisconnect
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Request,
+    Response,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
@@ -225,6 +231,13 @@ class RuntimeProfileRequest(BaseModel):
     asr_model: Optional[str] = None
     asr_device: Optional[str] = None
     asr_compute_type: Optional[str] = None
+
+
+class AsrModelRepairRequest(BaseModel):
+    model: Optional[str] = None
+    cache_dir: Optional[str] = None
+    include_optional: bool = True
+    force: bool = False
 
 
 class ModelManifestRequest(BaseModel):
@@ -524,11 +537,8 @@ def activate_models_api(req: ActivateModelsRequest) -> Dict[str, Any]:
     }
 
 
-@app.get("/asr/models/status")
-def asr_models_status_api() -> Dict[str, Any]:
-    selected = str(os.getenv("ASR_MODEL", settings.asr_model) or "").strip()
-    model_name = selected or "small"
-
+def _resolve_asr_repo_id(model_name: str) -> str:
+    name = str(model_name or "").strip()
     known_repo = {
         "large-v3": "Systran/faster-whisper-large-v3",
         "large": "Systran/faster-whisper-large-v3",
@@ -537,9 +547,10 @@ def asr_models_status_api() -> Dict[str, Any]:
         "base": "Systran/faster-whisper-base",
         "tiny": "Systran/faster-whisper-tiny",
     }
+    return str(known_repo.get(name, "") or "")
 
-    repo_id = str(known_repo.get(model_name, "") or "")
 
+def _asr_required_optional_files() -> tuple[List[str], List[str]]:
     required_files = [
         "model.bin",
         "config.json",
@@ -552,6 +563,18 @@ def asr_models_status_api() -> Dict[str, Any]:
         "special_tokens_map.json",
         "preprocessor_config.json",
     ]
+    return required_files, optional_files
+
+
+@app.get("/asr/models/status")
+def asr_models_status_api() -> Dict[str, Any]:
+    selected = str(os.getenv("ASR_MODEL", settings.asr_model) or "").strip()
+    model_name = selected or "small"
+
+    cache_dir = str(os.getenv("HF_HUB_CACHE", "") or "").strip() or None
+
+    repo_id = _resolve_asr_repo_id(model_name)
+    required_files, optional_files = _asr_required_optional_files()
 
     local: Dict[str, Any] = {"ok": False}
     download: Dict[str, Any] = {"ok": False}
@@ -567,7 +590,11 @@ def asr_models_status_api() -> Dict[str, Any]:
         missing_required_files: list[str] = []
         missing_optional_files: list[str] = []
         for fn in (required_files + optional_files):
-            cached = try_to_load_from_cache(repo_id, fn)
+            cached = try_to_load_from_cache(
+                repo_id,
+                fn,
+                cache_dir=cache_dir,
+            )
             path = (
                 os.fspath(cached)
                 if isinstance(cached, (str, os.PathLike))
@@ -631,6 +658,92 @@ def asr_models_status_api() -> Dict[str, Any]:
         "local": local,
         "download": download,
         "huggingface_hub": hub,
+    }
+
+
+@app.post("/asr/models/repair")
+def asr_models_repair_api(req: AsrModelRepairRequest) -> Dict[str, Any]:
+    selected = str(
+        req.model
+        if req.model is not None
+        else os.getenv("ASR_MODEL", settings.asr_model)
+        or ""
+    ).strip()
+    cache_dir = str(req.cache_dir or "").strip() or None
+    if cache_dir:
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+        except Exception:
+            pass
+        try:
+            os.environ["HF_HUB_CACHE"] = cache_dir
+        except Exception:
+            pass
+        try:
+            os.environ.setdefault("HF_HOME", os.path.dirname(cache_dir))
+        except Exception:
+            pass
+    model_name = selected or "small"
+    repo_id = _resolve_asr_repo_id(model_name)
+    if not repo_id:
+        raise HTTPException(status_code=400, detail="UNKNOWN_MODEL")
+
+    required_files, optional_files = _asr_required_optional_files()
+    want_files = list(required_files)
+    if bool(req.include_optional):
+        want_files += list(optional_files)
+
+    try:
+        from huggingface_hub import hf_hub_download, try_to_load_from_cache  # type: ignore
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"HUGGINGFACE_HUB_NOT_AVAILABLE:{type(e).__name__}:{e}",
+        )
+
+    downloaded: List[str] = []
+    skipped: List[str] = []
+    errors: List[str] = []
+
+    for fn in want_files:
+        try:
+            if not bool(req.force):
+                cached = try_to_load_from_cache(
+                    repo_id,
+                    fn,
+                    cache_dir=cache_dir,
+                )
+                path = (
+                    os.fspath(cached)
+                    if isinstance(cached, (str, os.PathLike))
+                    else ""
+                )
+                if bool(path) and os.path.exists(path):
+                    skipped.append(fn)
+                    continue
+
+            hf_hub_download(
+                repo_id=repo_id,
+                filename=fn,
+                cache_dir=cache_dir,
+                force_download=bool(req.force),
+            )
+            downloaded.append(fn)
+        except Exception as e:
+            errors.append(f"{fn}:ERROR:{type(e).__name__}:{e}")
+
+    status = asr_models_status_api()
+    local = (status or {}).get("local") or {}
+    missing_required = list(local.get("missing_required_files") or [])
+
+    return {
+        "ok": len(missing_required) == 0,
+        "model": model_name,
+        "repo_id": repo_id,
+        "downloaded": downloaded,
+        "skipped": skipped,
+        "errors": errors,
+        "status": status,
     }
 
 

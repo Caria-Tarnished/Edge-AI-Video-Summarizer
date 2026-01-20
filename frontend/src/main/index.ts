@@ -716,6 +716,19 @@ function applyCacheEnvFromDataDir(dataDir: string): void {
   process.env.HF_HUB_CACHE = join(dd, "hf", "hub");
 }
 
+function applyHfHubCacheOverrideFromDevConfig(): void {
+  try {
+    const cfg = readDevConfig();
+    const hub = String((cfg as any).hf_hub_cache || "").trim();
+    if (!hub) return;
+    process.env.HF_HUB_CACHE = hub;
+    process.env.HF_HOME = dirname(hub);
+    try {
+      mkdirSync(hub, { recursive: true });
+    } catch {}
+  } catch {}
+}
+
 function isDirEmpty(p: string): boolean {
   try {
     if (!existsSync(p)) return true;
@@ -1387,6 +1400,7 @@ async function ensureDataDirSelectedAndMigrated(): Promise<void> {
   const env = String(process.env.EDGE_VIDEO_AGENT_DATA_DIR || "").trim();
   if (env) {
     applyCacheEnvFromDataDir(env);
+    applyHfHubCacheOverrideFromDevConfig();
     try {
       mkdirSync(env, { recursive: true });
     } catch {}
@@ -1397,6 +1411,7 @@ async function ensureDataDirSelectedAndMigrated(): Promise<void> {
   const cfgDir = String(cfg.data_dir || "").trim();
   if (cfgDir) {
     applyCacheEnvFromDataDir(cfgDir);
+    applyHfHubCacheOverrideFromDevConfig();
     try {
       mkdirSync(cfgDir, { recursive: true });
     } catch {}
@@ -1525,6 +1540,7 @@ async function ensureDataDirSelectedAndMigrated(): Promise<void> {
   }
 
   applyCacheEnvFromDataDir(selectedDir);
+  applyHfHubCacheOverrideFromDevConfig();
   writeDataDirConfig({ data_dir: selectedDir });
 
   if (migratedFromOld) {

@@ -43,6 +43,7 @@ type DevConfigDraft = {
   llama_port?: number;
   local_llm_base_url?: string;
   backend_base_url?: string;
+  hf_hub_cache?: string;
 };
 
 type LlamaState = {
@@ -116,6 +117,8 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
 
   const [devConfigPath, setDevConfigPath] = useState<string | null>(null);
   const [devConfigDraft, setDevConfigDraft] = useState<DevConfigDraft>({});
+
+  const [asrCacheDir, setAsrCacheDir] = useState<string>("");
 
   const [llamaState, setLlamaState] = useState<LlamaState | null>(null);
   const [llamaLogs, setLlamaLogs] = useState<LlamaLogs | null>(null);
@@ -488,12 +491,24 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
 
       if (diag && typeof diag === "object") {
         setDiagnostics(diag as DiagnosticsResponse);
+        try {
+          if (!String((devCfg as any)?.config?.hf_hub_cache || "").trim()) {
+            const v = String((diag as any)?.huggingface?.HF_HUB_CACHE || "").trim();
+            if (v) setAsrCacheDir(v);
+          }
+        } catch {
+        }
       }
 
       if (devCfg && typeof devCfg === "object") {
         const p = String((devCfg as any).path || "").trim();
         const cfg = ((devCfg as any).config || {}) as Record<string, unknown>;
         setDevConfigPath(p || null);
+        try {
+          const hub = String((cfg as any).hf_hub_cache || "").trim();
+          if (hub) setAsrCacheDir(hub);
+        } catch {
+        }
         setDevConfigDraft({
           llama_server_exe: String(cfg.llama_server_exe || ""),
           llama_model_path: String(cfg.llama_model_path || ""),
@@ -507,6 +522,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
               : undefined,
           local_llm_base_url: String(cfg.local_llm_base_url || ""),
           backend_base_url: String(cfg.backend_base_url || ""),
+          hf_hub_cache: String(cfg.hf_hub_cache || ""),
         });
       }
 
@@ -530,6 +546,62 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
       setBusy(null);
     }
   }, []);
+
+  const repairAsrModel = useCallback(async () => {
+    setError(null);
+    setInfo(null);
+    setBusy("repairing_asr");
+
+    const cacheDir = String(asrCacheDir || "").trim();
+    const model = String(runtimeDraft.asr_model ?? "").trim();
+
+    try {
+      if (window.electronAPI?.setDevConfig) {
+        try {
+          let prev: Record<string, unknown> = {};
+          if (window.electronAPI?.getDevConfig) {
+            const cur = await window.electronAPI.getDevConfig();
+            prev = ((cur as any)?.config || {}) as Record<string, unknown>;
+          }
+          const res = await window.electronAPI.setDevConfig({
+            ...prev,
+            hf_hub_cache: cacheDir,
+          });
+          const cfg = ((res as any).config || {}) as Record<string, unknown>;
+          setDevConfigDraft((d) => ({
+            ...d,
+            hf_hub_cache: String(cfg.hf_hub_cache || ""),
+          }));
+        } catch {
+        }
+      }
+
+      const r = await api.repairAsrModel({
+        model: model || undefined,
+        cache_dir: cacheDir || undefined,
+        include_optional: true,
+        force: false,
+      });
+      if (r?.status) {
+        setAsrStatus(r.status as any);
+      } else {
+        try {
+          const st = await api.getAsrModelStatus();
+          setAsrStatus(st);
+        } catch {
+        }
+      }
+      setInfo(
+        uiLang === "en"
+          ? `ASR repair done. downloaded=${(r?.downloaded || []).length}, skipped=${(r?.skipped || []).length}`
+          : `ASR 修复完成。已下载=${(r?.downloaded || []).length}，已跳过=${(r?.skipped || []).length}`
+      );
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setBusy(null);
+    }
+  }, [asrCacheDir, runtimeDraft, uiLang]);
 
   useEffect(() => {
     if (!window.electronAPI?.onLlamaEvent) {
@@ -988,6 +1060,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           typeof port === "number" && Number.isFinite(port) ? port : undefined,
         local_llm_base_url: baseUrl,
         backend_base_url: String(devConfigDraft.backend_base_url || "").trim(),
+        hf_hub_cache: String(devConfigDraft.hf_hub_cache || "").trim(),
       };
 
       const payload: Record<string, unknown> = {
@@ -1012,6 +1085,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
             : undefined,
         local_llm_base_url: String(cfg.local_llm_base_url || ""),
         backend_base_url: String(cfg.backend_base_url || ""),
+        hf_hub_cache: String(cfg.hf_hub_cache || ""),
       });
 
       setInfo(
@@ -1107,6 +1181,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           typeof port === "number" && Number.isFinite(port) ? port : undefined,
         local_llm_base_url: baseUrl,
         backend_base_url: String(devConfigDraft.backend_base_url || "").trim(),
+        hf_hub_cache: String(devConfigDraft.hf_hub_cache || "").trim(),
       };
 
       const res = await window.electronAPI.setDevConfig(nextCfg);
@@ -1124,6 +1199,7 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
             : undefined,
         local_llm_base_url: String(cfg.local_llm_base_url || ""),
         backend_base_url: String(cfg.backend_base_url || ""),
+        hf_hub_cache: String(cfg.hf_hub_cache || ""),
       });
 
       const rr: any = await window.electronAPI.llamaRestart();
@@ -1497,6 +1573,50 @@ export default function SettingsPage({ uiLang = "zh" }: Props) {
           </div>
           <div className="muted" style={{ marginTop: 8 }}>
             {String(asrStatus?.model || t("asr_large_v3"))} | local: {asrStatus?.local?.ok ? "OK" : "NOT_FOUND"} | download: {asrStatus?.download?.ok ? "OK" : "ERROR"}
+          </div>
+
+          <div className="grid" style={{ marginTop: 8 }}>
+            <label className="field" style={{ gridColumn: "1 / -1" }}>
+              <div className="label">
+                {uiLang === "en" ? "ASR cache dir (HF_HUB_CACHE)" : "ASR 缓存目录（HF_HUB_CACHE）"}
+              </div>
+              <input
+                className="input"
+                value={asrCacheDir}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                  const v = e.target.value;
+                  setAsrCacheDir(v);
+                  setDevConfigDraft((d) => ({ ...d, hf_hub_cache: v }));
+                }}
+                placeholder={uiLang === "en" ? "(optional)" : "（可选）"}
+              />
+            </label>
+
+            <div className="field">
+              <div className="label">{t("pick_file")}</div>
+              <button
+                className="btn"
+                onClick={async () => {
+                  const p = await pickDir();
+                  if (p) {
+                    setAsrCacheDir(p);
+                    setDevConfigDraft((d) => ({ ...d, hf_hub_cache: p }));
+                  }
+                }}
+                disabled={!!busy}
+              >
+                {uiLang === "en" ? "Pick dir" : "选择目录"}
+              </button>
+            </div>
+
+            <div className="field">
+              <div className="label">
+                {uiLang === "en" ? "One-click" : "一键操作"}
+              </div>
+              <button className="btn primary" onClick={repairAsrModel} disabled={!!busy}>
+                {uiLang === "en" ? "Download / Repair ASR model" : "下载 / 修复 ASR 模型"}
+              </button>
+            </div>
           </div>
           {asrStatus ? (
             <div style={{ marginTop: 8 }}>

@@ -1,7 +1,7 @@
 {
   "name": "edge-video-agent-frontend",
   "private": true,
-  "version": "0.0.2",
+  "version": "0.0.3",
   "repository": {
     "type": "git",
     "url": "https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer.git"
@@ -61,7 +61,8 @@
     "nsis": {
       "artifactName": "Edge-Video-Agent-Setup-${version}.${ext}",
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "include": "build/installer.nsh"
     }
   },
   "dependencies": {

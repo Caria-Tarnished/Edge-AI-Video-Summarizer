@@ -59,6 +59,17 @@ export type TranscriptSegment = {
   [k: string]: any;
 };
 
+export type AsrModelRepairResponse = {
+  ok: boolean;
+  model: string;
+  repo_id: string;
+  downloaded?: string[];
+  skipped?: string[];
+  errors?: string[];
+  status?: AsrModelStatusResponse;
+  [k: string]: any;
+};
+
 export type DiagnosticsResponse = {
   backend: {
     data_dir: string;
@@ -382,6 +393,17 @@ export const api = {
 
   getAsrModelStatus: () =>
     fetchJson<AsrModelStatusResponse>("/asr/models/status"),
+
+  repairAsrModel: (payload: {
+    model?: string;
+    cache_dir?: string;
+    include_optional?: boolean;
+    force?: boolean;
+  }) =>
+    fetchJson<AsrModelRepairResponse>("/asr/models/repair", {
+      method: "POST",
+      body: JSON.stringify(payload || {}),
+    }),
 
   getDiagnostics: () => fetchJson<DiagnosticsResponse>("/diagnostics"),
 
