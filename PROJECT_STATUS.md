@@ -102,7 +102,7 @@
 
 ### 桌面端（Electron/React）开发环境（已跑通）
 
-- 一键启动：双击 `start_dev.cmd`（默认启动 llama-server + backend + Electron 前端）
+- 一键启动：双击 `start_dev.cmd`（默认启动 backend + Electron 前端；如需本地 LLM，可手动传参 `start_dev.cmd -StartLlama` 启动 llama-server）
 - 启动脚本：
   - `scripts/run_dev.ps1`：后端健康检查（避免重复启动）、前端注入 `VITE_BACKEND_BASE_URL`、可选/默认启动 llama-server
   - `scripts/stop_dev.ps1`：按 `artifacts/dev_pids.json` 停止前端/llama-server，并通过端口兜底释放 backend 端口
@@ -691,3 +691,9 @@ powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\
 - 2026-01-20：发布与更新链路推进：
   - `v0.0.2`：修复/验证 ASR 模型缓存路径（`Systran/faster-whisper-small`）可用
   - `v0.0.3`：新增 ASR 一键下载/修复接口与前端按钮；支持自定义 ASR 缓存目录（`HF_HUB_CACHE`）；NSIS 安装/卸载侧 `taskkill /T /F` 兜底；已验证 `0.0.2 -> 0.0.3` 应用内更新成功；主分支质量检测恢复通过
+
+- 2026-02-05：长视频导入稳定性与可诊断性增强：
+  - 前端：`fetchJson/fetchJsonWithStatus` 支持后端非 JSON 500 响应（避免 `Unexpected token`），并在错误时回显文本片段
+  - 后端：`POST /videos/import` 捕获异常并返回 JSON `detail`（`IMPORT_VIDEO_FAILED:<Type>:<message>`），便于 UI 直接展示根因
+  - 时长探测：`get_duration_seconds` 增强（Windows 下探测 `ffprobe.exe`、兼容逗号小数、`stream=duration` 兜底、失败输出包含 cmd/returncode/tail）
+  - 开发启动：`start_dev.cmd` 不再默认强制启动 llama-server（需要本地 LLM 时显式 `-StartLlama`）；`run_llama_server.ps1` 启动超时提升并在失败时输出日志尾部便于定位

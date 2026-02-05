@@ -5,7 +5,7 @@ import subprocess
 from typing import List, Optional
 
 
-_DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)")
+_DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d+):(\d+(?:[\.,]\d+)?)")
 
 _PTS_TIME_RE = re.compile(r"pts_time:(\d+(?:\.\d+)?)")
 _SCENE_SCORE_RE = re.compile(r"lavfi\.scene_score=(\d+(?:\.\d+)?)")
@@ -22,7 +22,21 @@ def resolve_ffmpeg_bin() -> str:
 
 
 def resolve_ffprobe_bin() -> Optional[str]:
-    return shutil.which("ffprobe")
+    found = shutil.which("ffprobe")
+    if found:
+        return found
+
+    try:
+        ffmpeg = resolve_ffmpeg_bin()
+        if ffmpeg:
+            d = os.path.dirname(ffmpeg)
+            name = "ffprobe.exe" if os.name == "nt" else "ffprobe"
+            cand = os.path.join(d, name)
+            if os.path.exists(cand):
+                return cand
+    except Exception:
+        return None
+    return None
 
 
 def run(cmd: List[str]) -> subprocess.CompletedProcess:
@@ -33,6 +47,8 @@ def run(cmd: List[str]) -> subprocess.CompletedProcess:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
     except subprocess.CalledProcessError as e:
         detail = (e.stderr or e.stdout or "").strip()
@@ -58,24 +74,66 @@ def get_duration_seconds(media_path: str) -> float:
                 media_path,
             ]
         ).stdout.strip()
-        return float(out)
+        out_norm = str(out or "").strip()
+        if not out_norm or out_norm.upper() == "N/A":
+            out2 = run(
+                [
+                    ffprobe,
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "stream=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    media_path,
+                ]
+            ).stdout.strip()
+            vals: list[float] = []
+            for line in str(out2 or "").splitlines():
+                s = str(line or "").strip()
+                if not s or s.upper() == "N/A":
+                    continue
+                try:
+                    vals.append(float(s.replace(",", ".")))
+                except Exception:
+                    continue
+            if vals:
+                return float(max(vals))
+            raise RuntimeError(
+                f"ffprobe returned empty duration: {out_norm[:2000]}"
+            )
+        try:
+            return float(out_norm.replace(",", "."))
+        except Exception as e:
+            raise RuntimeError(
+                f"ffprobe returned non-numeric duration: {out_norm[:2000]}"
+            ) from e
 
     ffmpeg = resolve_ffmpeg_bin()
+    cmd = [ffmpeg, "-hide_banner", "-i", media_path]
     proc = subprocess.run(
-        [ffmpeg, "-i", media_path],
+        cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         check=False,
+        encoding="utf-8",
+        errors="replace",
     )
-    m = _DURATION_RE.search(proc.stderr or "")
+    combined = ((proc.stderr or "") + "\n" + (proc.stdout or "")).strip()
+    m = _DURATION_RE.search(combined)
     if not m:
-        detail = (proc.stderr or proc.stdout or "").strip()
-        raise RuntimeError(f"Unable to parse duration: {detail[:2000]}")
+        tail = combined[-2000:] if combined else ""
+        raise RuntimeError(
+            "Unable to parse duration:\n"
+            f"  cmd: {' '.join(cmd)}\n"
+            f"  returncode: {proc.returncode}\n"
+            f"  tail: {tail}"
+        )
 
     hours = int(m.group(1))
     minutes = int(m.group(2))
-    seconds = float(m.group(3))
+    seconds = float(m.group(3).replace(",", "."))
     return hours * 3600 + minutes * 60 + seconds
 
 

@@ -3,7 +3,7 @@ setlocal
 set ROOT=%~dp0
 set EXTRA=
 echo %* | findstr /I /C:"-StartLlama" >nul
-if errorlevel 1 set EXTRA=-StartLlama
+if not errorlevel 1 set EXTRA=-StartLlama
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%scripts\run_dev.ps1" %EXTRA% %*
 set CODE=%ERRORLEVEL%
 if not "%CODE%"=="0" (

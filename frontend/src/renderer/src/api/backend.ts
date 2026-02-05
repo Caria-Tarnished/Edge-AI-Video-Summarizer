@@ -3,11 +3,10 @@ function resolveApiBase(): string {
     const w: any = typeof window !== "undefined" ? (window as any) : null;
     const injected = String(w?.edgeVideoAgent?.backendBaseUrl || "").trim();
     if (injected) return injected;
-  } catch {
-  }
+  } catch {}
 
   return String(
-    import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8001"
+    import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8001",
   );
 }
 
@@ -332,17 +331,41 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
   const text = await res.text();
-  const data = text ? (JSON.parse(text) as unknown) : null;
+  const ct = String(res.headers.get("content-type") || "").toLowerCase();
+  let data: unknown = null;
+  let parsed = false;
+  if (text) {
+    if (
+      ct.includes("application/json") ||
+      ct.includes("application/problem+json")
+    ) {
+      try {
+        data = JSON.parse(text) as unknown;
+        parsed = true;
+      } catch {}
+    } else {
+      try {
+        data = JSON.parse(text) as unknown;
+        parsed = true;
+      } catch {}
+    }
+  }
   if (!res.ok) {
-    const detail = (data as any)?.detail || res.statusText;
-    throw new Error(`${res.status} ${detail}`);
+    const detail =
+      (parsed ? (data as any)?.detail : null) ||
+      (text ? text.slice(0, 800) : "") ||
+      res.statusText;
+    throw new Error(`${res.status} ${String(detail)}`);
+  }
+  if (!parsed && text) {
+    throw new Error(`NON_JSON_RESPONSE ${text.slice(0, 120)}`);
   }
   return data as T;
 }
 
 async function fetchJsonWithStatus<T>(
   path: string,
-  init?: RequestInit
+  init?: RequestInit,
 ): Promise<{ status: number; data: T }> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: {
@@ -351,16 +374,40 @@ async function fetchJsonWithStatus<T>(
     ...init,
   });
   const text = await res.text();
-  const data = text ? (JSON.parse(text) as unknown) : null;
+  const ct = String(res.headers.get("content-type") || "").toLowerCase();
+  let data: unknown = null;
+  let parsed = false;
+  if (text) {
+    if (
+      ct.includes("application/json") ||
+      ct.includes("application/problem+json")
+    ) {
+      try {
+        data = JSON.parse(text) as unknown;
+        parsed = true;
+      } catch {}
+    } else {
+      try {
+        data = JSON.parse(text) as unknown;
+        parsed = true;
+      } catch {}
+    }
+  }
   if (!res.ok) {
-    const detail = (data as any)?.detail || res.statusText;
-    throw new Error(`${res.status} ${detail}`);
+    const detail =
+      (parsed ? (data as any)?.detail : null) ||
+      (text ? text.slice(0, 800) : "") ||
+      res.statusText;
+    throw new Error(`${res.status} ${String(detail)}`);
+  }
+  if (!parsed && text) {
+    throw new Error(`NON_JSON_RESPONSE ${text.slice(0, 120)}`);
   }
   return { status: res.status, data: data as T };
 }
 
 function toQuery(
-  params: Record<string, string | number | boolean | null | undefined>
+  params: Record<string, string | number | boolean | null | undefined>,
 ): string {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
@@ -413,7 +460,7 @@ export const api = {
         status: params?.status || null,
         limit: params?.limit ?? 50,
         offset: params?.offset ?? 0,
-      })}`
+      })}`,
     ),
   importVideo: (file_path: string) =>
     fetchJson<VideoItem>("/videos/import", {
@@ -429,40 +476,40 @@ export const api = {
       })}`,
       {
         method: "DELETE",
-      }
+      },
     ),
   getTranscript: (video_id: string, params?: { limit?: number }) =>
     fetchJson<TranscriptResponse>(
       `/videos/${encodeURIComponent(video_id)}/transcript${toQuery({
         limit: typeof params?.limit === "number" ? params?.limit : null,
-      })}`
+      })}`,
     ),
   getVideoIndex: (video_id: string) =>
     fetchJson<VideoIndexStatus>(
-      `/videos/${encodeURIComponent(video_id)}/index`
+      `/videos/${encodeURIComponent(video_id)}/index`,
     ),
   getVideoSummary: (video_id: string) =>
     fetchJson<VideoSummaryStatus>(
-      `/videos/${encodeURIComponent(video_id)}/summary`
+      `/videos/${encodeURIComponent(video_id)}/summary`,
     ),
   getVideoOutline: (video_id: string) =>
     fetchJson<OutlineResponse>(
-      `/videos/${encodeURIComponent(video_id)}/outline`
+      `/videos/${encodeURIComponent(video_id)}/outline`,
     ),
   getKeyframesIndex: (video_id: string) =>
     fetchJson<KeyframesIndexStatus>(
-      `/videos/${encodeURIComponent(video_id)}/keyframes/index`
+      `/videos/${encodeURIComponent(video_id)}/keyframes/index`,
     ),
   listKeyframes: (
     video_id: string,
-    params?: { method?: string; limit?: number; offset?: number }
+    params?: { method?: string; limit?: number; offset?: number },
   ) =>
     fetchJson<ListKeyframesResponse>(
       `/videos/${encodeURIComponent(video_id)}/keyframes${toQuery({
         method: params?.method || null,
         limit: params?.limit ?? 50,
         offset: params?.offset ?? 0,
-      })}`
+      })}`,
     ),
   getAlignedKeyframes: (
     video_id: string,
@@ -471,7 +518,7 @@ export const api = {
       per_section?: number;
       min_gap_seconds?: number;
       fallback?: "none" | "nearest";
-    }
+    },
   ) =>
     fetchJson<AlignedKeyframesResponse>(
       `/videos/${encodeURIComponent(video_id)}/keyframes/aligned${toQuery({
@@ -479,7 +526,7 @@ export const api = {
         per_section: params?.per_section ?? 2,
         min_gap_seconds: params?.min_gap_seconds ?? 2,
         fallback: params?.fallback || "none",
-      })}`
+      })}`,
     ),
   createTranscribeJob: (payload: {
     video_id: string;
@@ -507,7 +554,7 @@ export const api = {
         job_type: params?.job_type || null,
         limit: params?.limit ?? 50,
         offset: params?.offset ?? 0,
-      })}`
+      })}`,
     ),
   cancelJob: (job_id: string) =>
     fetchJson<JobItem>(`/jobs/${encodeURIComponent(job_id)}/cancel`, {
@@ -527,14 +574,14 @@ export const api = {
     }),
   createIndexJob: async (
     video_id: string,
-    payload: { from_scratch: boolean }
+    payload: { from_scratch: boolean },
   ) => {
     const res = await fetchJsonWithStatus<any>(
       `/videos/${encodeURIComponent(video_id)}/index`,
       {
         method: "POST",
         body: JSON.stringify(payload),
-      }
+      },
     );
     const obj = res.data as any;
     return {
@@ -547,14 +594,14 @@ export const api = {
   },
   createSummarizeJob: async (
     video_id: string,
-    payload: { from_scratch: boolean }
+    payload: { from_scratch: boolean },
   ) => {
     const res = await fetchJsonWithStatus<any>(
       `/videos/${encodeURIComponent(video_id)}/summarize`,
       {
         method: "POST",
         body: JSON.stringify(payload),
-      }
+      },
     );
     const obj = res.data as any;
     return {
@@ -575,14 +622,14 @@ export const api = {
       min_gap_seconds?: number;
       max_frames?: number;
       target_width?: number;
-    }
+    },
   ) => {
     const res = await fetchJsonWithStatus<any>(
       `/videos/${encodeURIComponent(video_id)}/keyframes`,
       {
         method: "POST",
         body: JSON.stringify(payload),
-      }
+      },
     );
     const obj = res.data as any;
     return {

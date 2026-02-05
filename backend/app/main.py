@@ -756,10 +756,20 @@ def import_video(req: ImportVideoRequest) -> Dict[str, Any]:
     if not path or not os.path.exists(path):
         raise HTTPException(status_code=400, detail="FILE_NOT_FOUND")
 
-    duration = get_duration_seconds(path)
-    file_hash = sha256_file(path)
-    video = create_or_get_video(path, file_hash, duration)
-    return video
+    try:
+        duration = get_duration_seconds(path)
+        file_hash = sha256_file(path)
+        video = create_or_get_video(path, file_hash, duration)
+        return video
+    except HTTPException:
+        raise
+    except Exception as e:
+        msg = str(e) if e is not None else ""
+        msg = msg.replace("\r", " ").replace("\n", " ").strip()
+        if len(msg) > 800:
+            msg = msg[:800]
+        detail = f"IMPORT_VIDEO_FAILED:{type(e).__name__}:{msg}"
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @app.get("/videos/{video_id}")

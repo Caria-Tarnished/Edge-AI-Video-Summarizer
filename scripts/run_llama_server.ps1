@@ -8,7 +8,7 @@ param(
     [int]$Threads = 0,
     [int]$GpuLayers = -1,
     [string]$ApiBaseUrl = "",
-    [int]$StartupTimeoutSeconds = 60,
+    [int]$StartupTimeoutSeconds = 180,
     [switch]$Foreground,
     [string]$OutDir = "artifacts",
     [string[]]$ExtraArgs = @()
@@ -53,12 +53,37 @@ try {
     $iwrHasBasic = $false
 }
 
-function Wait-Models([int]$timeoutSeconds) {
+function Wait-Models([System.Diagnostics.Process]$process, [int]$timeoutSeconds) {
     $deadline = (Get-Date).AddSeconds($timeoutSeconds)
     $url = "$ApiBaseUrl/models"
     while ($true) {
         try {
-            $args = @{ Uri = $url; Method = "Get" }
+            if ($process) {
+                $process.Refresh()
+                if ($process.HasExited) {
+                    $tailErr = ""
+                    $tailOut = ""
+                    try {
+                        if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+                            $tailErr = (Get-Content -LiteralPath $stderrPath -Tail 80 | Out-String)
+                        }
+                    } catch {
+                    }
+                    try {
+                        if (Test-Path -LiteralPath $stdoutPath -PathType Leaf) {
+                            $tailOut = (Get-Content -LiteralPath $stdoutPath -Tail 80 | Out-String)
+                        }
+                    } catch {
+                    }
+                    throw "llama-server exited early (pid $($process.Id)). stderr tail:\n$tailErr\nstdout tail:\n$tailOut"
+                }
+            }
+        } catch {
+            throw
+        }
+
+        try {
+            $args = @{ Uri = $url; Method = "Get"; TimeoutSec = 2 }
             if ($iwrHasBasic) {
                 $args["UseBasicParsing"] = $true
             }
@@ -70,7 +95,21 @@ function Wait-Models([int]$timeoutSeconds) {
         }
 
         if ((Get-Date) -gt $deadline) {
-            throw "llama-server not ready at $url (timeout ${timeoutSeconds}s)"
+            $tailErr = ""
+            $tailOut = ""
+            try {
+                if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+                    $tailErr = (Get-Content -LiteralPath $stderrPath -Tail 80 | Out-String)
+                }
+            } catch {
+            }
+            try {
+                if (Test-Path -LiteralPath $stdoutPath -PathType Leaf) {
+                    $tailOut = (Get-Content -LiteralPath $stdoutPath -Tail 80 | Out-String)
+                }
+            } catch {
+            }
+            throw "llama-server not ready at $url (timeout ${timeoutSeconds}s). stderr tail:\n$tailErr\nstdout tail:\n$tailOut"
         }
         Start-Sleep -Milliseconds 500
     }
@@ -114,7 +153,7 @@ Write-Host "llama-server pid: $($p.Id)"
 Write-Host "stdout: $stdoutPath"
 Write-Host "stderr: $stderrPath"
 
-$modelsRaw = Wait-Models $StartupTimeoutSeconds
+$modelsRaw = Wait-Models $p $StartupTimeoutSeconds
 $modelsPath = Join-Path $OutDir "llama_models_${ts}.json"
 $modelsRaw | Set-Content -Encoding utf8 -Path $modelsPath
 
