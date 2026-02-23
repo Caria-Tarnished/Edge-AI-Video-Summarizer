@@ -605,7 +605,7 @@ export const api = {
   },
   createSummarizeJob: async (
     video_id: string,
-    payload: { from_scratch: boolean },
+    payload: { from_scratch: boolean; confirm_send?: boolean },
   ) => {
     const res = await fetchJsonWithStatus<any>(
       `/videos/${encodeURIComponent(video_id)}/summarize`,

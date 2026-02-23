@@ -1050,7 +1050,9 @@ class JobWorker:
         provider = get_provider(provider_name)
         if provider is None:
             raise RuntimeError("LLM_PROVIDER_NOT_FOUND")
-        if bool(getattr(provider, "requires_confirm_send", False)):
+            
+        confirm_send = bool(params.get("confirm_send", False))
+        if bool(getattr(provider, "requires_confirm_send", False)) and not confirm_send:
             raise RuntimeError("CONFIRM_SEND_REQUIRED")
 
         prefs = LLMPreferences(

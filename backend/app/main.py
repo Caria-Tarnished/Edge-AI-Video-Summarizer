@@ -208,6 +208,7 @@ class CreateIndexJobRequest(BaseModel):
 
 class CreateSummarizeJobRequest(BaseModel):
     from_scratch: bool = False
+    confirm_send: bool = False
     target_window_seconds: Optional[float] = None
     max_window_seconds: Optional[float] = None
     min_window_seconds: Optional[float] = None
@@ -1125,7 +1126,10 @@ def create_summarize_job(
         if current_transcript_hash and s_hash != current_transcript_hash:
             from_scratch = True
 
-    params: Dict[str, Any] = {"from_scratch": from_scratch}
+    params: Dict[str, Any] = {
+        "from_scratch": from_scratch,
+        "confirm_send": bool(req.confirm_send),
+    }
     if req.target_window_seconds is not None:
         params["target_window_seconds"] = float(req.target_window_seconds)
     if req.max_window_seconds is not None:

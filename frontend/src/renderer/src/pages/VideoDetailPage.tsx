@@ -1409,7 +1409,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
             void loadIndexStatus({ force: true })
           }
         } else if (kind === 'summarize') {
-          const r = await api.createSummarizeJob(videoId, { from_scratch: false })
+          const r = await api.createSummarizeJob(videoId, { from_scratch: false, confirm_send: chatConfirmSend })
           setLastSummarizeJob(r)
           if (r.status === 202 && r.job_id) {
             setSummaryJobId(r.job_id)
