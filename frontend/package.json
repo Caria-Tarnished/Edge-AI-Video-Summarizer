@@ -2,6 +2,8 @@
   "name": "edge-video-agent-frontend",
   "private": true,
   "version": "0.0.4",
+  "description": "Edge AI Video Summarizer - local AI-powered video transcription and summarization desktop app.",
+  "author": "Caria-Tarnished",
   "repository": {
     "type": "git",
     "url": "https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer.git"
@@ -44,7 +46,6 @@
     ],
     "extraResources": [
       {
-        "_comment": "将 resources/backend（PyInstaller 打包的 Python FastAPI 独立 exe）原封不动地拷贝到安装包的 resources 目录下，是 Electron 内嵌 Python 服务端的关键桥梁。",
         "from": "resources/backend",
         "to": "backend",
         "filter": [
