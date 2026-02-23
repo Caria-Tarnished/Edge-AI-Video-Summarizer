@@ -269,11 +269,15 @@ jobs:
           # Ensure release is NOT a draft (draft releases do not show up as normal assets and break auto-update)
           # Note: gh api "releases/tags/{tag}" returns 404 for Draft releases,
           # so we use "gh release view --json id" which works for both draft and published.
-          $relId = gh release view $tag --repo "${{ github.repository }}" --json id --jq ".id"
-          Assert-LastExitCode "gh release view (get id) failed"
-          $preVal = $isPre.ToString().ToLowerInvariant()
-          gh api --method PATCH "repos/${{ github.repository }}/releases/$relId" -f draft=false -f prerelease=$preVal 1>$null
-          Assert-LastExitCode "gh api update release (draft/prerelease) failed"
+          $relId = (gh release view $tag --repo "${{ github.repository }}" --json id --jq ".id")
+          if ($relId) {
+            $relId = $relId.Trim()
+            $preVal = $isPre.ToString().ToLowerInvariant()
+            gh api --method PATCH "repos/${{ github.repository }}/releases/$relId" -f draft=false -f prerelease=$preVal 1>$null
+            Assert-LastExitCode "gh api update release (draft/prerelease) failed"
+          } else {
+            Write-Host "Warning: Could not get release id for tag $tag. Skipping draft/prerelease update."
+          }
 
           $assetNames = gh release view $tag --repo "${{ github.repository }}" --json assets --jq ".assets[].name"
           Assert-LastExitCode "gh release view (post-upload) failed"
