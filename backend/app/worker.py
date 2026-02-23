@@ -110,7 +110,8 @@ class JobWorker:
         这是一个死循环 (while not self._stop)，作为守护线程运行，不断从数据库捞取任务并执行。
         流程：
         1. 调用 `fetch_next_pending_job` 从数据库捞取一个可以执行的任务。
-        2. 调用 `claim_pending_job` 尝试认领任务（把状态从 pending 更新为 running）。这个操作包含了并发控制（如果当前 ASR/LLM 任务到达上限，会跳过）。
+        2. 调用 `claim_pending_job` 尝试认领任务（把状态从 pending 更新为 running）。
+           该操作包含并发控制（如果当前 ASR/LLM 任务到达上限，会跳过）。
         3. 根据 `job_type` 分发到具体的执行函数：
            - transcribe: 语音转录 (调用 Whisper 模型)
            - index: 建立向量索引 (切片 Chunking + 向量化 Embedding)
@@ -597,10 +598,11 @@ class JobWorker:
         """
         【向量化与索引逻辑 (RAG的核心实现之一)】
         这个步骤紧接在转录之后，用于回答基于视频内容的问题。
-        1. Chunking (切块)：调用 `segments_to_time_chunks`，把零星的包含时间的短句（segments）合并成覆盖更长语义的段落 (Chunks)。
-           这些段落带时间滑动窗口 (`overlap_seconds`) 避免关键信息被生硬截断。
+        1. Chunking (切块)：调用 `segments_to_time_chunks`，把零星的含时间短句（segments）
+           合并成覆盖更长语义的段落 (Chunks)，带时间滑动窗口以避免关键信息被截断。
         2. Embedding (向量化)：调用 `embed_texts` 将文本转化为高维向量数组。
-        3. Upsert (入库)：调用 Vector Store 的 `upsert_vectors`，把带着 metadata (视频ID、首尾时间等) 的向量插入到 ChromaDB 等向量数据库中。
+        3. Upsert (入库)：调用 Vector Store 的 `upsert_vectors`，把带 metadata
+           (视频ID、首尾时间等) 的向量插入到 ChromaDB 等向量数据库中。
         """
         job_id = job["id"]
         video_id = job["video_id"]
@@ -614,7 +616,6 @@ class JobWorker:
             params = json.loads(job.get("params_json") or "{}")
         except Exception:
             params = {}
-
 
         embed_model = str(
             params.get("embed_model") or settings.embedding_model

@@ -167,7 +167,8 @@ class ImportVideoRequest(BaseModel):
     API 设计：Pydantic 数据验证
     FastAPI 强制且优雅地使用 Pydantic 进行输入数据验证和序列化。
     定义了严格的类型提示 (Type Hints)。如果前端传来的 JSON 缺少 `file_path`
-    或者类型不对，FastAPI 底层会自动拦截请求并返回格式统一的 422 Unprocessable Entity 错误，无需我们在代码里手动写 `if ... else ...` 的判空逻辑。
+    或者类型不对，FastAPI 底层会自动拦截请求并返回 422 Unprocessable Entity 错误，
+    无需手动写 `if ... else ...` 的判空逻辑。
     """
     file_path: str
 
@@ -307,8 +308,8 @@ if _cors_raw:
             CORSMiddleware,
             allow_origins=_cors_origins,
             allow_credentials=True,
-            allow_methods=["*"], # 允许所有 HTTP 方法 (GET, POST, PUT, DELETE等)
-            allow_headers=["*"], # 允许所有 HTTP 头
+            allow_methods=["*"],  # 允许所有 HTTP 方法 (GET, POST, PUT, DELETE等)
+            allow_headers=["*"],  # 允许所有 HTTP 头
         )
 
 _worker: Optional[JobWorker] = None
