@@ -66,7 +66,7 @@ function emitLlamaEvent(type: string, payload: any): void {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("llama:event", { type, ...payload });
     }
-  } catch {}
+  } catch { }
 }
 
 function setLlamaState(next: Partial<LlamaServerState>): void {
@@ -218,7 +218,7 @@ async function downloadGgufPreset(opts: {
           .filter(Boolean);
         const picked = pickFromList(names);
         if (picked) filename = picked;
-      } catch {}
+      } catch { }
     }
 
     if (!filename) {
@@ -245,7 +245,7 @@ async function downloadGgufPreset(opts: {
     const tmpPath = join(tmpRoot, `gguf_${taskId}.gguf`);
     try {
       mkdirSync(tmpRoot, { recursive: true });
-    } catch {}
+    } catch { }
 
     await httpDownloadToFile({
       url,
@@ -267,18 +267,18 @@ async function downloadGgufPreset(opts: {
 
     try {
       mkdirSync(dirname(outPath), { recursive: true });
-    } catch {}
+    } catch { }
 
     try {
       try {
         rmSync(outPath, { force: true });
-      } catch {}
+      } catch { }
       renameSync(tmpPath, outPath);
     } catch {
       copyFileSync(tmpPath, outPath);
       try {
         rmSync(tmpPath, { force: true });
-      } catch {}
+      } catch { }
     }
 
     try {
@@ -288,7 +288,7 @@ async function downloadGgufPreset(opts: {
       else if (slot === "q5") patch.llama_model_q5_path = outPath;
       else patch.llama_model_small_path = outPath;
       writeDevConfig(patch);
-    } catch {}
+    } catch { }
 
     setDepsTask(taskId, {
       status: "done",
@@ -311,7 +311,7 @@ async function downloadGgufPreset(opts: {
   } finally {
     try {
       delete _depsCancel[taskId];
-    } catch {}
+    } catch { }
   }
 }
 
@@ -368,7 +368,7 @@ function getLlamaConfigFromDevConfig(): {
       const u = new URL(baseUrlRaw || "http://127.0.0.1:8080/v1");
       const p = Number(u.port || 0);
       if (p > 0) port = p;
-    } catch {}
+    } catch { }
   }
 
   const baseUrl = baseUrlRaw || `http://127.0.0.1:${port}/v1`;
@@ -446,7 +446,7 @@ async function waitForLlamaReady(
     try {
       await probeHttpOk(u, 1200);
       return;
-    } catch {}
+    } catch { }
     if (Date.now() - start > timeoutMs) {
       throw new Error(`llama-server not reachable: ${u}`);
     }
@@ -525,7 +525,7 @@ async function startLlamaServer(): Promise<LlamaServerState> {
 
   try {
     setLlamaState({ pid: _llamaProc.pid });
-  } catch {}
+  } catch { }
 
   _llamaProc.stdout.on("data", (buf) => {
     _llamaStdoutBuf += String(buf || "");
@@ -561,7 +561,7 @@ async function startLlamaServer(): Promise<LlamaServerState> {
       if (_llamaProc) {
         _llamaProc.kill();
       }
-    } catch {}
+    } catch { }
   }
 
   return _llamaState;
@@ -577,7 +577,7 @@ async function stopLlamaServer(): Promise<LlamaServerState> {
 
   try {
     _llamaProc.kill();
-  } catch {}
+  } catch { }
 
   const start = Date.now();
   while (_llamaProc && Date.now() - start < 8000) {
@@ -587,7 +587,7 @@ async function stopLlamaServer(): Promise<LlamaServerState> {
   if (_llamaProc) {
     try {
       _llamaProc.kill();
-    } catch {}
+    } catch { }
   }
 
   if (!_llamaProc) {
@@ -695,12 +695,12 @@ function writeDataDirConfig(config: DataDirConfig): DataDirConfig {
   const p = getDataDirConfigPath();
   try {
     mkdirSync(dirname(p), { recursive: true });
-  } catch {}
+  } catch { }
   try {
     writeFileSync(p, JSON.stringify(config || {}, null, 2), {
       encoding: "utf-8",
     });
-  } catch {}
+  } catch { }
   return readDataDirConfig();
 }
 
@@ -725,8 +725,8 @@ function applyHfHubCacheOverrideFromDevConfig(): void {
     process.env.HF_HOME = dirname(hub);
     try {
       mkdirSync(hub, { recursive: true });
-    } catch {}
-  } catch {}
+    } catch { }
+  } catch { }
 }
 
 function isDirEmpty(p: string): boolean {
@@ -827,7 +827,7 @@ async function stopBackendForQuit(): Promise<void> {
   const pid = _backendProc.pid || 0;
   try {
     _backendProc.kill();
-  } catch {}
+  } catch { }
   const start = Date.now();
   while (_backendProc && Date.now() - start < 8000) {
     await sleep(200);
@@ -835,7 +835,7 @@ async function stopBackendForQuit(): Promise<void> {
   if (_backendProc) {
     try {
       await runTaskKill(pid);
-    } catch {}
+    } catch { }
     const start2 = Date.now();
     while (_backendProc && Date.now() - start2 < 8000) {
       await sleep(200);
@@ -844,7 +844,7 @@ async function stopBackendForQuit(): Promise<void> {
   if (_backendProc) {
     try {
       _backendProc.kill();
-    } catch {}
+    } catch { }
     _backendProc = null;
   }
 }
@@ -855,7 +855,7 @@ async function stopLlamaForQuit(): Promise<void> {
   if (_llamaProc && pid) {
     try {
       await runTaskKill(pid);
-    } catch {}
+    } catch { }
     const start = Date.now();
     while (_llamaProc && Date.now() - start < 8000) {
       await sleep(200);
@@ -864,7 +864,7 @@ async function stopLlamaForQuit(): Promise<void> {
   if (_llamaProc) {
     try {
       _llamaProc.kill();
-    } catch {}
+    } catch { }
     _llamaProc = null;
   }
 }
@@ -872,10 +872,10 @@ async function stopLlamaForQuit(): Promise<void> {
 async function prepareForUpdateInstall(): Promise<void> {
   try {
     await stopLlamaForQuit();
-  } catch {}
+  } catch { }
   try {
     await stopBackendForQuit();
-  } catch {}
+  } catch { }
   await sleep(300);
 }
 
@@ -914,7 +914,7 @@ function emitDepsEvent(type: string, payload: any): void {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("deps:event", { type, ...payload });
     }
-  } catch {}
+  } catch { }
 }
 
 function getDepsState(): {
@@ -993,7 +993,7 @@ function findFileRecursive(root: string, targetName: string): string | null {
         if (hit) return hit;
       }
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -1019,7 +1019,7 @@ function httpDownloadToFile(opts: {
   const part = dest + ".part";
   try {
     mkdirSync(dirname(dest), { recursive: true });
-  } catch {}
+  } catch { }
 
   const doReq = (
     urlStr: string,
@@ -1040,7 +1040,7 @@ function httpDownloadToFile(opts: {
         if (err) {
           try {
             rmSync(part, { force: true });
-          } catch {}
+          } catch { }
           reject(err);
         } else {
           resolve({ path: dest });
@@ -1050,14 +1050,14 @@ function httpDownloadToFile(opts: {
       const cancel = () => {
         try {
           finish(new Error("CANCELLED"));
-        } catch {}
+        } catch { }
         try {
           req?.destroy(new Error("CANCELLED"));
-        } catch {}
+        } catch { }
       };
       try {
         opts.registerCancel?.(cancel);
-      } catch {}
+      } catch { }
 
       try {
         const url = new URL(urlStr);
@@ -1119,7 +1119,7 @@ function httpDownloadToFile(opts: {
             file.on("error", (e) => {
               try {
                 res.destroy();
-              } catch {}
+              } catch { }
               finish(e);
             });
 
@@ -1145,7 +1145,7 @@ function httpDownloadToFile(opts: {
                     bytes_per_second: bps,
                     percent,
                   });
-                } catch {}
+                } catch { }
               }
             });
 
@@ -1155,11 +1155,11 @@ function httpDownloadToFile(opts: {
             file.on("finish", () => {
               try {
                 file?.close();
-              } catch {}
+              } catch { }
               try {
                 try {
                   rmSync(dest, { force: true });
-                } catch {}
+                } catch { }
                 renameSync(part, dest);
               } catch (e) {
                 finish(e);
@@ -1180,7 +1180,7 @@ function httpDownloadToFile(opts: {
                   bytes_per_second: bps,
                   percent,
                 });
-              } catch {}
+              } catch { }
               finish();
             });
           },
@@ -1189,7 +1189,7 @@ function httpDownloadToFile(opts: {
         req.on("timeout", () => {
           try {
             req?.destroy(new Error("timeout"));
-          } catch {}
+          } catch { }
         });
         req.end();
       } catch (e) {
@@ -1309,13 +1309,13 @@ async function downloadAndInstallLlamaServer(opts: {
     });
     try {
       mkdirSync(tmpRoot, { recursive: true });
-    } catch {}
+    } catch { }
     try {
       rmSync(extractDir, { recursive: true, force: true });
-    } catch {}
+    } catch { }
     try {
       mkdirSync(extractDir, { recursive: true });
-    } catch {}
+    } catch { }
 
     await httpDownloadToFile({
       url: pick.url,
@@ -1350,7 +1350,7 @@ async function downloadAndInstallLlamaServer(opts: {
     const targetExe = join(destDir, tag, "llama-server.exe");
     try {
       mkdirSync(dirname(targetExe), { recursive: true });
-    } catch {}
+    } catch { }
     copyFileSync(exeFound, targetExe);
 
     const cfg = readDevConfig();
@@ -1362,10 +1362,10 @@ async function downloadAndInstallLlamaServer(opts: {
 
     try {
       rmSync(extractDir, { recursive: true, force: true });
-    } catch {}
+    } catch { }
     try {
       rmSync(zipPath, { force: true });
-    } catch {}
+    } catch { }
 
     setDepsTask(taskId, {
       status: "done",
@@ -1388,7 +1388,7 @@ async function downloadAndInstallLlamaServer(opts: {
   } finally {
     try {
       delete _depsCancel[taskId];
-    } catch {}
+    } catch { }
   }
 }
 
@@ -1403,7 +1403,7 @@ async function ensureDataDirSelectedAndMigrated(): Promise<void> {
     applyHfHubCacheOverrideFromDevConfig();
     try {
       mkdirSync(env, { recursive: true });
-    } catch {}
+    } catch { }
     return;
   }
 
@@ -1414,7 +1414,7 @@ async function ensureDataDirSelectedAndMigrated(): Promise<void> {
     applyHfHubCacheOverrideFromDevConfig();
     try {
       mkdirSync(cfgDir, { recursive: true });
-    } catch {}
+    } catch { }
     return;
   }
 
@@ -1507,13 +1507,13 @@ async function ensureDataDirSelectedAndMigrated(): Promise<void> {
 
     try {
       app.quit();
-    } catch {}
+    } catch { }
     throw new Error("DATA_DIR_REQUIRED");
   }
 
   try {
     mkdirSync(selectedDir, { recursive: true });
-  } catch {}
+  } catch { }
 
   if (oldExists && selectedDir !== oldDir && !migratedFromOld) {
     try {
@@ -1536,7 +1536,7 @@ async function ensureDataDirSelectedAndMigrated(): Promise<void> {
           migratedFromOld = true;
         }
       }
-    } catch {}
+    } catch { }
   }
 
   applyCacheEnvFromDataDir(selectedDir);
@@ -1557,9 +1557,9 @@ async function ensureDataDirSelectedAndMigrated(): Promise<void> {
       if (del.response === 1) {
         try {
           rmSync(oldDir, { recursive: true, force: true });
-        } catch {}
+        } catch { }
       }
-    } catch {}
+    } catch { }
   }
 }
 
@@ -1577,7 +1577,7 @@ function getRepoRootGuess(): string {
       if (hasBackend && hasFrontend) {
         return cur;
       }
-    } catch {}
+    } catch { }
     const up = dirname(cur);
     if (!up || up === cur) break;
     cur = up;
@@ -1611,7 +1611,7 @@ function resolveBackendExe(): { exePath: string; cwd: string } | null {
       );
       candidates.push({ exePath: a, cwd: dirname(a) });
     }
-  } catch {}
+  } catch { }
 
   // Dev: use locally built PyInstaller onedir output.
   const repoRoot = getRepoRootGuess();
@@ -1641,7 +1641,7 @@ function resolveBackendExe(): { exePath: string; cwd: string } | null {
       if (c.exePath && existsSync(c.exePath)) {
         return c;
       }
-    } catch {}
+    } catch { }
   }
   return null;
 }
@@ -1688,7 +1688,7 @@ async function waitForHealth(u: string, timeoutMs: number): Promise<void> {
     try {
       await probeHealthOk(u, 1200);
       return;
-    } catch {}
+    } catch { }
     if (Date.now() - start > timeoutMs) {
       throw new Error(`Backend not reachable: ${u}`);
     }
@@ -1720,7 +1720,7 @@ async function ensureBackendStarted(): Promise<void> {
   try {
     await probeHealthOk(healthUrl, 1200);
     return;
-  } catch {}
+  } catch { }
 
   if (!shouldAutoStartBackend()) {
     return;
@@ -1741,10 +1741,10 @@ async function ensureBackendStarted(): Promise<void> {
 
   const port = String(
     process.env.EDGE_VIDEO_AGENT_BACKEND_PORT ||
-      process.env.EDGE_VIDEO_AGENT_PORT ||
-      process.env.PORT ||
-      parsedPort ||
-      "",
+    process.env.EDGE_VIDEO_AGENT_PORT ||
+    process.env.PORT ||
+    parsedPort ||
+    "",
   ).trim();
 
   const env = {
@@ -1761,6 +1761,12 @@ async function ensureBackendStarted(): Promise<void> {
 
   const exe = resolveBackendExe();
   if (exe) {
+    /**
+     * 跨语言进程通信与 Electron 打包架构：
+     * 桌面打包时，此处 `exe.exePath` 指向通过 PyInstaller 独立打包的 FastAPI 后端服务。
+     * Electron 主进程通过 Node.js 的 `spawn` 以子进程方式将其拉起，
+     * 渲染进程再通过标准的 HTTP/Fetch 或 WebSocket 与这个本地微服务交互。
+     */
     console.log(
       "[main] starting backend exe:",
       exe.exePath,
@@ -1825,7 +1831,7 @@ function resolvePreloadPath(): string | null {
   for (const p of candidates) {
     try {
       if (p && existsSync(p)) return p;
-    } catch {}
+    } catch { }
   }
   return null;
 }
@@ -1861,12 +1867,12 @@ function writeDevConfig(config: Record<string, unknown>): {
   const p = getDevConfigPath();
   try {
     mkdirSync(dirname(p), { recursive: true });
-  } catch {}
+  } catch { }
   try {
     writeFileSync(p, JSON.stringify(config || {}, null, 2), {
       encoding: "utf-8",
     });
-  } catch {}
+  } catch { }
   return { path: p, config: readDevConfig() };
 }
 
@@ -1942,7 +1948,7 @@ let _updaterState: UpdaterState = {
 function getUpdateRepo(): string {
   return String(
     process.env.EDGE_VIDEO_AGENT_UPDATE_REPO ||
-      "Caria-Tarnished/Edge-AI-Video-Summarizer",
+    "Caria-Tarnished/Edge-AI-Video-Summarizer",
   ).trim();
 }
 
@@ -1962,7 +1968,7 @@ function emitUpdaterState(): void {
         state: _updaterState,
       });
     }
-  } catch {}
+  } catch { }
 }
 
 function initAutoUpdater(): void {
@@ -2185,7 +2191,7 @@ function httpGetJson(urlStr: string, timeoutMs: number): Promise<any> {
 async function checkForUpdatesManual(): Promise<UpdateCheckResult> {
   const repo = String(
     process.env.EDGE_VIDEO_AGENT_UPDATE_REPO ||
-      "Caria-Tarnished/Edge-AI-Video-Summarizer",
+    "Caria-Tarnished/Edge-AI-Video-Summarizer",
   ).trim();
   const current = String(app.getVersion() || "").trim();
   if (!repo || !current) {
@@ -2299,7 +2305,7 @@ async function waitForUrl(u: string, timeoutMs: number): Promise<void> {
     try {
       await probeUrl(u, 1200);
       return;
-    } catch {}
+    } catch { }
     if (Date.now() - start > timeoutMs) {
       throw new Error(`Dev server not reachable: ${u}`);
     }
@@ -2314,7 +2320,7 @@ async function createWindow(): Promise<void> {
   } catch {
     try {
       app.quit();
-    } catch {}
+    } catch { }
     return;
   }
   await ensureBackendStarted();
@@ -2354,7 +2360,7 @@ async function createWindow(): Promise<void> {
         detail:
           "The Electron preload script could not be located. This will disable file dialogs (window.electronAPI is missing).\n\nTry restarting the dev server or re-running the frontend build/dev command.",
       });
-    } catch {}
+    } catch { }
   }
 
   if (!app.isPackaged) {
@@ -2368,14 +2374,14 @@ async function createWindow(): Promise<void> {
       const msg = e && e.message ? String(e.message) : String(e);
       await mainWindow.loadURL(
         "data:text/html;charset=utf-8," +
-          encodeURIComponent(
-            `<html><body style="font-family: ui-sans-serif, system-ui; padding: 24px;">
+        encodeURIComponent(
+          `<html><body style="font-family: ui-sans-serif, system-ui; padding: 24px;">
               <h2>Dev server not reachable</h2>
               <div><b>URL:</b> ${escapeHtml(u)}</div>
               <pre style="white-space: pre-wrap;">${escapeHtml(msg)}</pre>
               <div>Make sure the renderer dev server is running.</div>
             </body></html>`,
-          ),
+        ),
       );
       return;
     }
@@ -2473,7 +2479,7 @@ ipcMain.handle("deps:cancel", async (_evt, taskId: any) => {
   }
   try {
     fn();
-  } catch {}
+  } catch { }
   return { ok: true };
 });
 
@@ -2488,7 +2494,7 @@ ipcMain.handle(
       taskId: id,
       flavor,
       destDir,
-    }).catch(() => {});
+    }).catch(() => { });
     return { ok: true, task_id: id, state: getDepsState() };
   },
 );
@@ -2623,7 +2629,7 @@ ipcMain.handle("updater:install", async () => {
     setTimeout(() => {
       try {
         autoUpdater.quitAndInstall(true, true);
-      } catch {}
+      } catch { }
     }, 200);
     return { ok: true };
   } catch (e: any) {
@@ -2638,7 +2644,7 @@ ipcMain.handle("data:exportZip", async () => {
   const dataDir = resolvePreferredDataDir() || getDefaultPackagedDataDir();
   try {
     mkdirSync(dataDir, { recursive: true });
-  } catch {}
+  } catch { }
 
   const res = await dialog.showSaveDialog({
     title: "\u5bfc\u51fa\u6570\u636e\u5907\u4efd\uff08zip\uff09",
@@ -2667,7 +2673,7 @@ ipcMain.handle("data:restoreZip", async () => {
   const dataDir = resolvePreferredDataDir() || getDefaultPackagedDataDir();
   try {
     mkdirSync(dataDir, { recursive: true });
-  } catch {}
+  } catch { }
 
   const pick = await dialog.showOpenDialog({
     title: "\u9009\u62e9\u5907\u4efd\u6587\u4ef6\uff08zip\uff09",
@@ -2696,7 +2702,7 @@ ipcMain.handle("data:restoreZip", async () => {
     const restoreTmp = `${dataDir}.restore-${Date.now()}`;
     try {
       rmSync(restoreTmp, { recursive: true, force: true });
-    } catch {}
+    } catch { }
     mkdirSync(restoreTmp, { recursive: true });
 
     const cmd = `Expand-Archive -Path ${psQuote(
@@ -2710,7 +2716,7 @@ ipcMain.handle("data:restoreZip", async () => {
       if (ents.length === 1 && ents[0].isDirectory()) {
         root = join(restoreTmp, ents[0].name);
       }
-    } catch {}
+    } catch { }
 
     const bak = `${dataDir}.backup-${Date.now()}`;
     if (!isDirEmpty(dataDir)) {
@@ -2720,13 +2726,13 @@ ipcMain.handle("data:restoreZip", async () => {
         const msg = e && e.message ? String(e.message) : String(e);
         try {
           rmSync(restoreTmp, { recursive: true, force: true });
-        } catch {}
+        } catch { }
         throw new Error(`BACKUP_FAILED:${msg}`);
       }
     } else {
       try {
         rmSync(dataDir, { recursive: true, force: true });
-      } catch {}
+      } catch { }
     }
 
     try {
@@ -2734,7 +2740,7 @@ ipcMain.handle("data:restoreZip", async () => {
     } finally {
       try {
         rmSync(restoreTmp, { recursive: true, force: true });
-      } catch {}
+      } catch { }
     }
 
     try {
@@ -2742,12 +2748,12 @@ ipcMain.handle("data:restoreZip", async () => {
         _backendProc.kill();
         _backendProc = null;
       }
-    } catch {}
+    } catch { }
 
     await ensureBackendStarted();
     try {
       mainWindow?.webContents.reload();
-    } catch {}
+    } catch { }
     return { ok: true, path: zipPath, data_dir: dataDir };
   } catch (e: any) {
     const msg = e && e.message ? String(e.message) : String(e);
@@ -2773,13 +2779,13 @@ app.on("window-all-closed", () => {
         _backendProc.kill();
         _backendProc = null;
       }
-    } catch {}
+    } catch { }
     try {
       if (_llamaProc) {
         _llamaProc.kill();
         _llamaProc = null;
       }
-    } catch {}
+    } catch { }
     app.quit();
   }
 });
@@ -2790,11 +2796,11 @@ app.on("before-quit", () => {
       _backendProc.kill();
       _backendProc = null;
     }
-  } catch {}
+  } catch { }
   try {
     if (_llamaProc) {
       _llamaProc.kill();
       _llamaProc = null;
     }
-  } catch {}
+  } catch { }
 });

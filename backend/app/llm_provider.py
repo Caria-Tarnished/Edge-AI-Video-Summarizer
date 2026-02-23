@@ -33,6 +33,13 @@ class LLMPreferences:
 
 
 class LLMProvider(Protocol):
+    """
+    【架构设计：策略模式 (Strategy Pattern)】
+    定义了 LLM (大型语言模型) 的调用协议。
+    由于市面上存在本地模型 (Ollama)、OpenAI、通义千问等多种由于端点不同但接口相似的服务，
+    使用 Protocol 抽象出 `generate` 和 `stream_generate` 方法，
+    使得在 `worker.py` 和 `main.py` 中可以无缝切换不同的大模型供应方，而无需修改核心业务逻辑。
+    """
     name: str
     requires_confirm_send: bool
 
@@ -87,6 +94,11 @@ class FakeProvider:
 
 
 class OpenAICompatibleProvider:
+    """
+    【适配器模式：OpenAI 兼容 API 调用】
+    大多数现代云端/本地大语言模型接口都兼容了 OpenAI 的请求格式 (Chat Completions API)。
+    通过底层 `urllib.request` 实现轻量级的 HTTP POST 请求，避免引入庞大的第三方库 (如 openai-python SDK)。
+    """
     def __init__(
         self,
         *,

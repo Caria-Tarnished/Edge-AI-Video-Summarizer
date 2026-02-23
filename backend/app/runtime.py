@@ -68,27 +68,31 @@ _heavy_limiter = DynamicSemaphore(1)
 
 
 def get_llm_concurrency_timeout_seconds() -> float:
+    # LLM 调用本身耗时较长，默认等待信号量的超时设为 30 秒。
+    # 若并发任务多导致信号量长时间资源占用，短超时会导致 LLM_CONCURRENCY_TIMEOUT 异常。
     try:
-        raw = os.getenv("LLM_CONCURRENCY_TIMEOUT_SECONDS", "3")
+        raw = os.getenv("LLM_CONCURRENCY_TIMEOUT_SECONDS", "30")
         return max(0.0, float(raw))
     except Exception:
-        return 3.0
+        return 30.0
 
 
 def get_asr_concurrency_timeout_seconds() -> float:
+    # ASR 转写任务载入模型可能需要数秒，默认等待超时提升至 10 秒。
     try:
-        raw = os.getenv("ASR_CONCURRENCY_TIMEOUT_SECONDS", "3")
+        raw = os.getenv("ASR_CONCURRENCY_TIMEOUT_SECONDS", "10")
         return max(0.0, float(raw))
     except Exception:
-        return 3.0
+        return 10.0
 
 
 def get_heavy_concurrency_timeout_seconds() -> float:
+    # 重型处理任务（如关键帧提取）也有一定排队期待，默认提升至 10 秒。
     try:
-        raw = os.getenv("HEAVY_CONCURRENCY_TIMEOUT_SECONDS", "3")
+        raw = os.getenv("HEAVY_CONCURRENCY_TIMEOUT_SECONDS", "10")
         return max(0.0, float(raw))
     except Exception:
-        return 3.0
+        return 10.0
 
 
 def get_profile_defaults(profile: str) -> Dict[str, Any]:

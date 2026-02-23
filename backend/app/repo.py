@@ -26,6 +26,8 @@ def create_or_get_video(
             return dict(row)
 
         video_id = str(uuid.uuid4())
+        # 使用参数化查询（Parameterized Queries），即 `(?, ?, ...)` 占位符。
+        # sqlite3 驱动会在底层将参数安全转义并绑定，避免因字符串拼接导致的 SQL 注入风险。
         conn.execute(
             (
                 "INSERT INTO videos ("
@@ -77,6 +79,12 @@ def create_job(
     job_type: str,
     params: Dict[str, Any],
 ) -> Dict[str, Any]:
+    """
+    【任务队列写入】
+    在数据库的 `jobs` 表中创建一条新任务，初始状态为 'pending'。
+    该方法被 `main.py` 中的各类异步任务接口（如 /jobs/transcribe, /videos/{id}/index 等）调用。
+    这是典型的异步任务模式：前端请求 -> 后端写入数据库立刻返回 -> 后台 Worker 异步执行。
+    """
     job_id = str(uuid.uuid4())
     with connect() as conn:
         conn.execute(
@@ -124,6 +132,14 @@ def delete_job(job_id: str) -> bool:
 def fetch_next_pending_job(
     job_type: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
+    """
+    【任务队列读取 & 并发控制】
+    从数据库获取下一个待处理 ('pending') 的任务。
+    这个函数会被后台 `worker.py` 不断轮询调用。
+    核心逻辑：
+    基于设定的并发限制（ASR, LLM, Heavy），在 SQL 查询时使用子查询动态判断当前 'running' 的任务数是否达到上限。
+    如果达到上限，则不会 fetch 该类型的任务，以此实现简单的数据库级别并发调度。
+    """
     with connect() as conn:
         asr_limit, llm_limit, heavy_limit = _get_job_type_concurrency_limits()
         if job_type:

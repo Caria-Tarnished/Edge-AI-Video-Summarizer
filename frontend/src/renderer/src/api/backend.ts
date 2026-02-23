@@ -1,9 +1,14 @@
+/**
+ * API Base URL 辨析逻辑：在 Electron 桌面端，Base URL 由 preload.js 注入到 `window.edgeVideoAgent` 中；
+ * 在纯 Web 开发模式下，使用 Vite 的环境变量 `import.meta.env`。
+ * 这种封装使 React 代码能在 Web 浏览器和 Electron 客户端环境间无缝切换。
+ */
 function resolveApiBase(): string {
   try {
     const w: any = typeof window !== "undefined" ? (window as any) : null;
     const injected = String(w?.edgeVideoAgent?.backendBaseUrl || "").trim();
     if (injected) return injected;
-  } catch {}
+  } catch { }
 
   return String(
     import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8001",
@@ -323,6 +328,12 @@ export type DeleteJobResponse = {
   [k: string]: any;
 };
 
+/**
+ * 统一的 Fetch 封装与错误拦截层。
+ * 原生 `fetch` 遇到 4xx/5xx HTTP 状态码时 Promise 依然会被 resolve，
+ * 通过在底层封装收到非 2xx 响应时提取后端的 `detail` 并抛出 Error，
+ * React 组件层只需 `try...catch` 即可匹配业务异常并展示友好提示。
+ */
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: {
@@ -342,12 +353,12 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
       try {
         data = JSON.parse(text) as unknown;
         parsed = true;
-      } catch {}
+      } catch { }
     } else {
       try {
         data = JSON.parse(text) as unknown;
         parsed = true;
-      } catch {}
+      } catch { }
     }
   }
   if (!res.ok) {
@@ -385,12 +396,12 @@ async function fetchJsonWithStatus<T>(
       try {
         data = JSON.parse(text) as unknown;
         parsed = true;
-      } catch {}
+      } catch { }
     } else {
       try {
         data = JSON.parse(text) as unknown;
         parsed = true;
-      } catch {}
+      } catch { }
     }
   }
   if (!res.ok) {

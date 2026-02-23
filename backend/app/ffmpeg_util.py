@@ -143,6 +143,11 @@ def extract_audio_wav(
     start_seconds: float = 0.0,
     duration_seconds: Optional[float] = None,
 ) -> None:
+    """
+    【媒体处理：提取音频】
+    使用 FFmpeg 命令行工具，通过 `subprocess.run` 将视频转换为 16kHz 单声道的 wav 文件。
+    这种格式是语音识别模型 (如 Whisper) 最稳定、处理速度最快的理想格式。
+    """
     ffmpeg = resolve_ffmpeg_bin()
     cmd: List[str] = [ffmpeg, "-y"]
     if start_seconds and start_seconds > 0:
@@ -258,6 +263,11 @@ def detect_scene_changes(
     *,
     scene_threshold: float = 0.3,
 ) -> list[tuple[float, float]]:
+    """
+    【高级视频处理：场景切换检测 (Scene Detection)】
+    使用 FFmpeg 的滤镜 `select='gt(scene, thr)'`，计算视频每一帧的场景变化得分。
+    在关键帧提取时，如果选择 scene 模式，就可以抽出画面发生显著变化的转折点（例如PPT翻页、镜头切换）。
+    """
     thr = float(scene_threshold)
     if thr <= 0:
         thr = 0.3

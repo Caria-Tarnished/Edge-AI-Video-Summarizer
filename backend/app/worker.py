@@ -105,6 +105,19 @@ class JobWorker:
         self._stop = True
 
     def run_forever(self) -> None:
+        """
+        【后台任务调度核心逻辑】
+        这是一个死循环 (while not self._stop)，作为守护线程运行，不断从数据库捞取任务并执行。
+        流程：
+        1. 调用 `fetch_next_pending_job` 从数据库捞取一个可以执行的任务。
+        2. 调用 `claim_pending_job` 尝试认领任务（把状态从 pending 更新为 running）。这个操作包含了并发控制（如果当前 ASR/LLM 任务到达上限，会跳过）。
+        3. 根据 `job_type` 分发到具体的执行函数：
+           - transcribe: 语音转录 (调用 Whisper 模型)
+           - index: 建立向量索引 (切片 Chunking + 向量化 Embedding)
+           - summarize: 基于转录文本生成视频大纲和总结 (调用 LLM)
+           - keyframes: 提取关键帧
+        4. 执行完毕后更新任务状态为 completed 或 failed/cancelled。
+        """
         self._maybe_refresh_runtime_preferences()
         while not self._stop:
             self._maybe_refresh_runtime_preferences()
@@ -463,6 +476,14 @@ class JobWorker:
         job: Dict[str, Any],
         claimed_started_at: str,
     ) -> None:
+        """
+        【ASR 音频转录逻辑】
+        1. 获取视频信息和时长。
+        2. 基于设定的窗口（例如每段 10 分钟），用 FFmpeg 将视频对应的音频切分提取为 wav 格式 (`extract_audio_wav`)。
+        3. 调用 ASR 模型 (Whisper 系列) 将短小的 wav 进行转语音识别 (`_asr.transcribe_wav`)。
+        4. 保存生成的转录段落字典 (含起止时间、文本等)。
+        注意：此处带有断点续传机制，记录了最后完成的 `resume_from` 时间。
+        """
         job_id = job["id"]
         video_id = job["video_id"]
 
@@ -573,6 +594,14 @@ class JobWorker:
         job: Dict[str, Any],
         claimed_started_at: str,
     ) -> None:
+        """
+        【向量化与索引逻辑 (RAG的核心实现之一)】
+        这个步骤紧接在转录之后，用于回答基于视频内容的问题。
+        1. Chunking (切块)：调用 `segments_to_time_chunks`，把零星的包含时间的短句（segments）合并成覆盖更长语义的段落 (Chunks)。
+           这些段落带时间滑动窗口 (`overlap_seconds`) 避免关键信息被生硬截断。
+        2. Embedding (向量化)：调用 `embed_texts` 将文本转化为高维向量数组。
+        3. Upsert (入库)：调用 Vector Store 的 `upsert_vectors`，把带着 metadata (视频ID、首尾时间等) 的向量插入到 ChromaDB 等向量数据库中。
+        """
         job_id = job["id"]
         video_id = job["video_id"]
 
@@ -585,6 +614,7 @@ class JobWorker:
             params = json.loads(job.get("params_json") or "{}")
         except Exception:
             params = {}
+
 
         embed_model = str(
             params.get("embed_model") or settings.embedding_model

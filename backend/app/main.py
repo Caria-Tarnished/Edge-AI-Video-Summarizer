@@ -162,10 +162,25 @@ def _probe_huggingface_resolve(url: str) -> Dict[str, Any]:
 
 
 class ImportVideoRequest(BaseModel):
+    """
+    导入视频请求模型。
+    API 设计：Pydantic 数据验证
+    FastAPI 强制且优雅地使用 Pydantic 进行输入数据验证和序列化。
+    定义了严格的类型提示 (Type Hints)。如果前端传来的 JSON 缺少 `file_path`
+    或者类型不对，FastAPI 底层会自动拦截请求并返回格式统一的 422 Unprocessable Entity 错误，无需我们在代码里手动写 `if ... else ...` 的判空逻辑。
+    """
     file_path: str
 
 
 class CreateTranscribeJobRequest(BaseModel):
+    """
+    创建语音转文本(ASR)任务的请求模型。
+    参数：
+        - video_id: 必须提供，对应数据库中的视频ID
+        - segment_seconds: 语音切片的时长（如果太长需要切分）
+        - overlap_seconds: 切片之间的重叠时间，避免切断单词
+        - from_scratch: 是否完全重新执行（无视已有的缓存或旧结果）
+    """
     video_id: str
     segment_seconds: Optional[int] = None
     overlap_seconds: Optional[int] = None
@@ -173,6 +188,14 @@ class CreateTranscribeJobRequest(BaseModel):
 
 
 class CreateIndexJobRequest(BaseModel):
+    """
+    创建向量索引(Index)任务的请求模型。主要用于 RAG (Retrieval-Augmented Generation) 架构的预处理。
+    参数:
+        - target_window_seconds: 期望的单条文本段（Chunk）覆盖时间的长度基准。
+        - max_window_seconds: 允许的最大时间跨度，防止单条向量包含过多内容导致语义模糊。
+        - min_window_seconds: 允许的最小时间跨度，若太短则会与相邻时间段合并。
+        - overlap_seconds: 两个文本段之间在时间上的重叠部分，保持上下文连贯性。
+    """
     from_scratch: bool = True
     embed_model: Optional[str] = None
     embed_dim: Optional[int] = None
@@ -255,6 +278,11 @@ class RetryJobRequest(BaseModel):
 
 @asynccontextmanager
 async def _lifespan(_: FastAPI):
+    """
+    FastAPI 生命周期管理器。
+    - 在服务启动时调用 `_startup()`，主要做：初始化数据库，恢复中断的任务，启动后台 Worker 线程。
+    - 在服务关闭 (yield 之后) 时调用 `_shutdown()`，主要做：停止后台 Worker。
+    """
     _startup()
     try:
         yield
@@ -274,12 +302,13 @@ if _cors_raw:
         s.strip() for s in _cors_raw.split(",") if str(s or "").strip()
     ]
     if _cors_origins:
+        # 配置 CORS（跨域资源共享），允许前端独立部署时通过 API 访问后端
         app.add_middleware(
             CORSMiddleware,
             allow_origins=_cors_origins,
             allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
+            allow_methods=["*"], # 允许所有 HTTP 方法 (GET, POST, PUT, DELETE等)
+            allow_headers=["*"], # 允许所有 HTTP 头
         )
 
 _worker: Optional[JobWorker] = None
@@ -287,6 +316,13 @@ _worker_thread: Optional[threading.Thread] = None
 
 
 def _startup() -> None:
+    """
+    应用启动时的初始化逻辑。
+    1. 初始化数据库结构（建表）。
+    2. 恢复未完成的任务状态（例如把中断的 running 状态重置为 pending）。
+    3. 刷新运行时的偏好设置（并发数、超时等）。
+    4. 启动一个后台线程运行 `JobWorker` (如果未被环境变量禁用)。
+    """
     global _worker
     global _worker_thread
 
@@ -752,6 +788,14 @@ def asr_models_repair_api(req: AsrModelRepairRequest) -> Dict[str, Any]:
 
 @app.post("/videos/import")
 def import_video(req: ImportVideoRequest) -> Dict[str, Any]:
+    """
+    【核心路由】导入本地视频
+    流程：
+    1. 校验文件路径是否存在。
+    2. 使用 FFmpeg 获取视频时长 (`get_duration_seconds`)。
+    3. 计算文件 SHA256 哈希值保证唯一性。
+    4. 存入 SQLite 数据库 (`repo.create_or_get_video`)。
+    """
     path = req.file_path
     if not path or not os.path.exists(path):
         raise HTTPException(status_code=400, detail="FILE_NOT_FOUND")
@@ -894,6 +938,11 @@ def list_videos_api(
 
 @app.post("/jobs/transcribe")
 def create_transcribe_job(req: CreateTranscribeJobRequest) -> Dict[str, Any]:
+    """
+    【核心路由】发起视频转录 (ASR) 任务。
+    这是一个异步操作，API 不会等待转录完成，只会在数据库中 `jobs` 表插入一条状态为 `pending` 的记录。
+    后台的 `JobWorker` 线程轮询时会抓取此任务并执行。
+    """
     video = get_video(req.video_id)
     if not video:
         raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
@@ -913,6 +962,10 @@ def create_transcribe_job(req: CreateTranscribeJobRequest) -> Dict[str, Any]:
 
 @app.post("/videos/{video_id}/index")
 def create_index_job(video_id: str, req: CreateIndexJobRequest) -> Response:
+    """
+    【核心路由】发起视频向量索引化 (Embedding) 任务。
+    用于 RAG 链路的第一步：将转录文本切块 (Chunking) 并向量化 (Embedding)，最后存入向量数据库 (ChromaDB)。
+    """
     video = get_video(video_id)
     if not video:
         raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
@@ -1018,6 +1071,10 @@ def create_summarize_job(
     video_id: str,
     req: CreateSummarizeJobRequest,
 ) -> Response:
+    """
+    【核心路由】发起视频内容总结 (Summarize) 任务。
+    将基于已生成的字幕/转录文本，切割成时间段调用 LLM 生成段落总结。
+    """
     video = get_video(video_id)
     if not video:
         raise HTTPException(status_code=404, detail="VIDEO_NOT_FOUND")
@@ -1077,14 +1134,34 @@ def create_summarize_job(
     if req.overlap_seconds is not None:
         params["overlap_seconds"] = float(req.overlap_seconds)
 
+    # 在创建任务前检查 LLM provider 配置。
+    # 若 provider 为 "fake"/"none" 或未配置，后台 Worker 实际上不会调用真实 LLM，
+    # 摘要结果将是无意义的 echo 输出。在此提前发出警告，避免用户困惑。
+    llm_warning: Optional[str] = None
+    try:
+        from .repo import get_default_llm_preferences as _get_llm_prefs
+        llm_prefs = _get_llm_prefs()
+        provider = str(llm_prefs.get("provider") or "").strip().lower()
+        if provider in ("fake", "none", ""):
+            llm_warning = (
+                "LLM_PROVIDER_IS_FAKE: 当前 LLM provider 为 '{}'，"
+                "该任务不会调用真实 LLM，摘要结果将无效。"
+                "请在 Settings 中将 Provider 设置为 openai_local 或 openai_cloud。"
+            ).format(provider or "(empty)")
+    except Exception:
+        pass
+
     job = create_job(video_id, "summarize", params)
+    resp_content: Dict[str, Any] = {
+        "detail": "SUMMARIZE_STARTED",
+        "job_id": job["id"],
+        "video_id": video_id,
+    }
+    if llm_warning:
+        resp_content["warning"] = llm_warning
     return UTF8JSONResponse(
         status_code=202,
-        content={
-            "detail": "SUMMARIZE_STARTED",
-            "job_id": job["id"],
-            "video_id": video_id,
-        },
+        content=resp_content,
     )
 
 
@@ -1559,6 +1636,13 @@ def search_api(
     video_id: str,
     top_k: int = 5,
 ) -> Response:
+    """
+    【检索接口】RAG 链路中的 Retrieval 部分（非对话，仅搜索片段）。
+    流程：
+    1. 将用户 Query 转换为向量 (Embedding)。
+    2. 查询 ChromaDB (Vector Store) 中对应 video_id 的集合。
+    3. 返回最相似的 top_k 个视频片段 (Chunks)。
+    """
     q = (query or "").strip()
     if not q:
         raise HTTPException(status_code=400, detail="QUERY_REQUIRED")
@@ -1801,6 +1885,15 @@ def _sse_event(event: str, data: Dict[str, Any]) -> str:
 
 @app.post("/chat")
 def chat_api(req: ChatRequest) -> Response:
+    """
+    【核心路由】视频对话问答接口 (RAG 核心链路)。
+    流程：
+    1. 前置检查：视频是否存在，是否已有转录(Transcript)，是否正在构建索引。
+    2. 如果还没有索引 (Index)，则自动为其创建一个向量索引化任务并返回 202 状态码 (前端可轮询)。
+    3. Retrieval (检索)：将用户 Query 转为向量，从 ChromaDB 检索 top_k 个相关切片(Chunks)。
+    4. Generation (生成)：将检索到的文本切片组装到 System Prompt 中，调用 LLM (本地大模型/云端模型) 生成回答。
+    5. 支持流式 (StreamingResponse) 或普通 JSON 响应。
+    """
     video_id = str(req.video_id or "").strip()
     if not video_id:
         raise HTTPException(status_code=400, detail="VIDEO_ID_REQUIRED")
@@ -2037,6 +2130,8 @@ def chat_api(req: ChatRequest) -> Response:
             "\u5f15\u7528\u7247\u6bb5\uff08\u5e26\u65f6\u95f4\u6233\uff09"
         )
 
+    # 组装 LLM 对话消息 (Messages)
+    # RAG 的关键：把检索到的文本 (items) 附带时间戳喂给模型
     messages: list[ChatMessage] = [
         {
             "role": "system",
@@ -2100,6 +2195,10 @@ def chat_api(req: ChatRequest) -> Response:
                     data = json.dumps(payload, ensure_ascii=False)
                     yield f"event: done\ndata: {data}\n\n"
 
+        # API 设计：StreamingResponse 与 SSE
+        # Server-Sent Events (SSE) 是一种单向的服务器推技术。
+        # 这里使用流式响应返回 `media_type="text/event-stream"`，用于实现 ChatGPT 打字机效果。
+        # 前端无需通过 WebSocket，只需原生 EventSource 就可以监听 `event: token` 和 `data: part` 来实时渲染文本。
         return StreamingResponse(gen(), media_type="text/event-stream")
 
     try:
@@ -2133,6 +2232,13 @@ def chat_api(req: ChatRequest) -> Response:
 
 @app.get("/jobs/{job_id}")
 def get_job_api(job_id: str) -> Dict[str, Any]:
+    """
+    API 设计：RESTful 风格与异常处理
+    - 路径参数 `{job_id}` 会被自动解析为函数的 `job_id` 参数。
+    - 抛出 `HTTPException(status_code=404)` 是 FastAPI 中标准且统一的错误返回方式。
+    后端不应该随意在成功 (200 OK) 的响应体里包一层 `{code: 404, message: "xxx"}`，
+    而是应该合理利用 HTTP 协议本身的状态码，这体现了对 RESTful 规范的掌握程度。
+    """
     job = get_job(job_id)
     if not job:
         raise HTTPException(
@@ -2201,6 +2307,12 @@ async def job_events(
 
 @app.websocket("/ws/jobs/{job_id}")
 async def job_ws(websocket: WebSocket, job_id: str) -> None:
+    """
+    API 设计：WebSocket 实时双向通讯
+    与短轮询（短时间内多次 GET 请求）相比，WebSocket 能在客户端和服务端之间建立持久连接。
+    在这里，它用于将后台任务 (Job) 的进度更新实时推送到前端。
+    配合 `asyncio.sleep` (非阻塞休眠) 和 `wait_for` 检测客户端断开，极大地降低了服务端的压力。
+    """
     await websocket.accept()
     last_updated_at: Optional[str] = None
     try:

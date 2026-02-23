@@ -1,196 +1,196 @@
 # PROJECT_STATUS
 
-> ×÷ÓÃ£º¼ÇÂ¼µ±Ç°ÏîÄ¿½ø¶È¡¢ÏÂÒ»²½¼Æ»®¡¢´ı¸Ä½øµãÓë²âÊÔ±¸Íü¡£
+> ä½œç”¨ï¼šè®°å½•å½“å‰é¡¹ç›®è¿›åº¦ã€ä¸‹ä¸€æ­¥è®¡åˆ’ã€å¾…æ”¹è¿›ç‚¹ä¸æµ‹è¯•å¤‡å¿˜ã€‚
 
-## ÏîÄ¿Ä¿±ê£¨µ±Ç°½×¶Î£©
+## é¡¹ç›®ç›®æ ‡ï¼ˆå½“å‰é˜¶æ®µï¼‰
 
-- MVP-1£¨Backend£©£ºµ¼Èë±¾µØÊÓÆµ ¡ú ³éÒôÆµ ¡ú ASR ·Ö¶Î×ªĞ´£¨¿É¶ÏµãĞøÅÜ£©¡ú ×ªĞ´ÂäÅÌ ¡ú ¿É²¥·Å×ÖÄ»µ¼³ö£¨SRT/VTT£©¡ú ²éÑ¯/ÁĞ±í/ÈÎÎñ¹ÜÀí¡£
-- ÒşË½ÓÅÏÈ£ºÄ¬ÈÏËùÓĞ´¦Àí±¾µØ½øĞĞ¡£
-- ¿ÉÑ¡ÔÆÕªÒª£ºÄ¬ÈÏ¹Ø±Õ£¬±ØĞëÏÔÊ½È·ÈÏÁªÍø£¨`confirm_send=true`£©¡£
+- MVP-1ï¼ˆBackendï¼‰ï¼šå¯¼å…¥æœ¬åœ°è§†é¢‘ â†’ æŠ½éŸ³é¢‘ â†’ ASR åˆ†æ®µè½¬å†™ï¼ˆå¯æ–­ç‚¹ç»­è·‘ï¼‰â†’ è½¬å†™è½ç›˜ â†’ å¯æ’­æ”¾å­—å¹•å¯¼å‡ºï¼ˆSRT/VTTï¼‰â†’ æŸ¥è¯¢/åˆ—è¡¨/ä»»åŠ¡ç®¡ç†ã€‚
+- éšç§ä¼˜å…ˆï¼šé»˜è®¤æ‰€æœ‰å¤„ç†æœ¬åœ°è¿›è¡Œã€‚
+- å¯é€‰äº‘æ‘˜è¦ï¼šé»˜è®¤å…³é—­ï¼Œå¿…é¡»æ˜¾å¼ç¡®è®¤è”ç½‘ï¼ˆ`confirm_send=true`ï¼‰ã€‚
 
-## µ±Ç°Íê³ÉÇé¿ö£¨ÒÑÂäµØµ½´úÂë£©
+## å½“å‰å®Œæˆæƒ…å†µï¼ˆå·²è½åœ°åˆ°ä»£ç ï¼‰
 
 ### Backend
 
-- FastAPI + SQLite£¨WAL£©
-- ÊÓÆµµ¼Èë£º¸ù¾İÎÄ¼şÂ·¾¶¼ÆËã hash£¬È¥ÖØÈë¿â
-- JobRunner£º±¾µØ worker Ïß³ÌÂÖÑ¯Ö´ĞĞ `transcribe` ÈÎÎñ
-- ·Ö¶Î×ªĞ´£ºchunk + overlap£¬°´ JSONL Öğ¶ÎÂäÅÌ£¬Ö§³Ö¶ÏµãĞøÅÜ
-- ÈÎÎñ¹¤³ÌĞÔ£º
-  - ÖØÆô»Ö¸´£º`running -> pending`£¨jobs£©£¬`processing -> pending`£¨videos£©
-  - Ô­×Ó claim£º±ÜÃâ¶à worker ÖØ¸´Ö´ĞĞ
-  - È¡Ïû£º¿ÉÔÚ chunk ±ß½ç°²È«Í£Ö¹
-  - ÖØÊÔ£ºÖ§³Ö±£Áô×ªĞ´ĞøÅÜ»ò´ÓÍ·ÖØĞÂ×ªĞ´
-- µ¼³ö£º
+- FastAPI + SQLiteï¼ˆWALï¼‰
+- è§†é¢‘å¯¼å…¥ï¼šæ ¹æ®æ–‡ä»¶è·¯å¾„è®¡ç®— hashï¼Œå»é‡å…¥åº“
+- JobRunnerï¼šæœ¬åœ° worker çº¿ç¨‹è½®è¯¢æ‰§è¡Œ `transcribe` ä»»åŠ¡
+- åˆ†æ®µè½¬å†™ï¼šchunk + overlapï¼ŒæŒ‰ JSONL é€æ®µè½ç›˜ï¼Œæ”¯æŒæ–­ç‚¹ç»­è·‘
+- ä»»åŠ¡å·¥ç¨‹æ€§ï¼š
+  - é‡å¯æ¢å¤ï¼š`running -> pending`ï¼ˆjobsï¼‰ï¼Œ`processing -> pending`ï¼ˆvideosï¼‰
+  - åŸå­ claimï¼šé¿å…å¤š worker é‡å¤æ‰§è¡Œ
+  - å–æ¶ˆï¼šå¯åœ¨ chunk è¾¹ç•Œå®‰å…¨åœæ­¢
+  - é‡è¯•ï¼šæ”¯æŒä¿ç•™è½¬å†™ç»­è·‘æˆ–ä»å¤´é‡æ–°è½¬å†™
+- å¯¼å‡ºï¼š
   - `GET /videos/{video_id}/subtitles/srt`
   - `GET /videos/{video_id}/subtitles/vtt`
-  - ĞĞÎªÔ¼Êø£ºÎ´Éú³É×ªĞ´£¨transcript ²»´æÔÚ»òÎª¿Õ£©Ê±µ¼³ö·µ»Ø `404 TRANSCRIPT_NOT_FOUND`
-- ÁĞ±í£º
+  - è¡Œä¸ºçº¦æŸï¼šæœªç”Ÿæˆè½¬å†™ï¼ˆtranscript ä¸å­˜åœ¨æˆ–ä¸ºç©ºï¼‰æ—¶å¯¼å‡ºè¿”å› `404 TRANSCRIPT_NOT_FOUND`
+- åˆ—è¡¨ï¼š
   - `GET /videos`
   - `GET /jobs`
 
-### MVP-2£ºÎÄ±¾ÖªÊ¶¿â£¨Chunk/Embedding/Index/Search/Chat£©
+### MVP-2ï¼šæ–‡æœ¬çŸ¥è¯†åº“ï¼ˆChunk/Embedding/Index/Search/Chatï¼‰
 
-- Chunking£º»ùÓÚ×ªĞ´ segments µÄÊ±¼ä´°¾ÛºÏ·Ö¿é£¨Ö§³Ö overlap + ÇáÁ¿×ÔÈ»±ß½ç£©
-- Embedding£ºÌá¹©±¾µØ¿ÉÓÃµÄ embedding£¨µ±Ç°Ä¬ÈÏ `hash` fallback£¬Î¬¶È `384`£©
-- ÏòÁ¿¿â£ºChromaDB ³Ö¾Ã»¯´æ´¢£¨ÓÃÓÚÊÓÆµ chunks µÄÏòÁ¿¼ìË÷£©
-- ĞÂÔö Job ÀàĞÍ£º`index`£¨·Ö¿é ¡ú embedding ¡ú upsert µ½ÏòÁ¿¿â£»Ö§³ÖÈ¡Ïû/ÖØÊÔ/ÖØÆô»Ö¸´£©
-- ĞÂÔö½Ó¿Ú£º
-  - `POST /videos/{video_id}/index`£º´´½¨/¸´ÓÃ index job
-  - `GET /videos/{video_id}/index`£º²é¿´ index ×´Ì¬
-  - `GET /videos/{video_id}/chunks`£º²é¿´ chunk ÁĞ±í
-  - `GET /search`£ºÏòÁ¿¼ìË÷£¨ÈôÎ´Íê³ÉË÷Òı»á×Ô¶¯´¥·¢ index£¬²¢·µ»Ø `202 + job_id`£©
-  - `POST /chat`£ºÎÊ´ğ£¨retrieval-only / ±¾µØ LLM RAG£©£¬·µ»Ø `answer + citations`£¨Í¬ÑùÖ§³Ö×Ô¶¯´¥·¢Ë÷Òı£©
-- Windows PowerShell ¼æÈİĞÔ£ºJSON ÏìÓ¦Ç¿ÖÆ `charset=utf-8`£¬±ÜÃâÖĞÎÄ×ªĞ´/¼ìË÷½á¹ûÂÒÂë
+- Chunkingï¼šåŸºäºè½¬å†™ segments çš„æ—¶é—´çª—èšåˆåˆ†å—ï¼ˆæ”¯æŒ overlap + è½»é‡è‡ªç„¶è¾¹ç•Œï¼‰
+- Embeddingï¼šæä¾›æœ¬åœ°å¯ç”¨çš„ embeddingï¼ˆå½“å‰é»˜è®¤ `hash` fallbackï¼Œç»´åº¦ `384`ï¼‰
+- å‘é‡åº“ï¼šChromaDB æŒä¹…åŒ–å­˜å‚¨ï¼ˆç”¨äºè§†é¢‘ chunks çš„å‘é‡æ£€ç´¢ï¼‰
+- æ–°å¢ Job ç±»å‹ï¼š`index`ï¼ˆåˆ†å— â†’ embedding â†’ upsert åˆ°å‘é‡åº“ï¼›æ”¯æŒå–æ¶ˆ/é‡è¯•/é‡å¯æ¢å¤ï¼‰
+- æ–°å¢æ¥å£ï¼š
+  - `POST /videos/{video_id}/index`ï¼šåˆ›å»º/å¤ç”¨ index job
+  - `GET /videos/{video_id}/index`ï¼šæŸ¥çœ‹ index çŠ¶æ€
+  - `GET /videos/{video_id}/chunks`ï¼šæŸ¥çœ‹ chunk åˆ—è¡¨
+  - `GET /search`ï¼šå‘é‡æ£€ç´¢ï¼ˆè‹¥æœªå®Œæˆç´¢å¼•ä¼šè‡ªåŠ¨è§¦å‘ indexï¼Œå¹¶è¿”å› `202 + job_id`ï¼‰
+  - `POST /chat`ï¼šé—®ç­”ï¼ˆretrieval-only / æœ¬åœ° LLM RAGï¼‰ï¼Œè¿”å› `answer + citations`ï¼ˆåŒæ ·æ”¯æŒè‡ªåŠ¨è§¦å‘ç´¢å¼•ï¼‰
+- Windows PowerShell å…¼å®¹æ€§ï¼šJSON å“åº”å¼ºåˆ¶ `charset=utf-8`ï¼Œé¿å…ä¸­æ–‡è½¬å†™/æ£€ç´¢ç»“æœä¹±ç 
 
-### MVP-2£º±¾µØ LLM ÍÆÀíÒıÇæ£¨ÒÑÅÜÍ¨£©
+### MVP-2ï¼šæœ¬åœ° LLM æ¨ç†å¼•æ“ï¼ˆå·²è·‘é€šï¼‰
 
-- ±¾µØ `llama.cpp` µÄ `llama-server`£¨OpenAI-compatible `/v1/chat/completions`£©
-- ºó¶Ë provider£º`openai_local`
-- Ä¬ÈÏÆ«ºÃ³Ö¾Ã»¯£º`PUT /llm/preferences/default`
-- ĞÂÔö£ºÄ¬ÈÏÆ«ºÃÖ§³Ö `output_language`£¨`zh/en/auto`£©£¬ÓÃÓÚ¿ØÖÆ Chat/ÕªÒª/´ó¸Ù/ÔÆÕªÒªÊä³öÓïÑÔ
-- ÒÑÑéÖ¤£º
-  - `/chat` ·ÇÁ÷Ê½ `200` ·µ»ØÕæÊµ LLM Êä³ö
-  - `/chat` SSE Á÷Ê½ `event: token` + `event: done`
-  - Ë÷ÒıÍê³Éºó RAG Õı³£·µ»Ø `answer + citations`
-  - ·ÇÁ÷Ê½³¬Ê±·çÏÕÒÑ»º½â£º¿ÉÍ¨¹ı `LLM_REQUEST_TIMEOUT_SECONDS` µ÷Õû
+- æœ¬åœ° `llama.cpp` çš„ `llama-server`ï¼ˆOpenAI-compatible `/v1/chat/completions`ï¼‰
+- åç«¯ providerï¼š`openai_local`
+- é»˜è®¤åå¥½æŒä¹…åŒ–ï¼š`PUT /llm/preferences/default`
+- æ–°å¢ï¼šé»˜è®¤åå¥½æ”¯æŒ `output_language`ï¼ˆ`zh/en/auto`ï¼‰ï¼Œç”¨äºæ§åˆ¶ Chat/æ‘˜è¦/å¤§çº²/äº‘æ‘˜è¦è¾“å‡ºè¯­è¨€
+- å·²éªŒè¯ï¼š
+  - `/chat` éæµå¼ `200` è¿”å›çœŸå® LLM è¾“å‡º
+  - `/chat` SSE æµå¼ `event: token` + `event: done`
+  - ç´¢å¼•å®Œæˆå RAG æ­£å¸¸è¿”å› `answer + citations`
+  - éæµå¼è¶…æ—¶é£é™©å·²ç¼“è§£ï¼šå¯é€šè¿‡ `LLM_REQUEST_TIMEOUT_SECONDS` è°ƒæ•´
 
-### MVP-3£º²ã¼¶ÕªÒª£¨Map-Reduce£©Óë´ó¸Ù½á¹¹ + µ¼³ö£¨ÒÑÑéÖ¤£©
+### MVP-3ï¼šå±‚çº§æ‘˜è¦ï¼ˆMap-Reduceï¼‰ä¸å¤§çº²ç»“æ„ + å¯¼å‡ºï¼ˆå·²éªŒè¯ï¼‰
 
-- ĞÂÔö Job ÀàĞÍ£º`summarize`
-- Map-Reduce£º°´Ê±¼ä´°¾ÛºÏ transcript segments ¡ú ·Ö¶ÎÕªÒª£¨map£©¡ú »ã×ÜÕªÒª£¨reduce£©¡ú Éú³É½á¹¹»¯´ó¸Ù
-- ½á¹û³Ö¾Ã»¯£º`video_summaries`£¨summary/outline/segment_summaries/params/transcript_hash£©
-- ÒÑÑéÖ¤£º
-  - `outline` Êä³öÎª½á¹¹»¯ JSON Êı×é£¨²»ÔÙÊÇ `{ "raw": ... }`£©
-  - `export/markdown` ·µ»ØÍêÕû Markdown£¨²»ÔÙ³öÏÖÃ÷ÏÔ½Ø¶Ï£©
+- æ–°å¢ Job ç±»å‹ï¼š`summarize`
+- Map-Reduceï¼šæŒ‰æ—¶é—´çª—èšåˆ transcript segments â†’ åˆ†æ®µæ‘˜è¦ï¼ˆmapï¼‰â†’ æ±‡æ€»æ‘˜è¦ï¼ˆreduceï¼‰â†’ ç”Ÿæˆç»“æ„åŒ–å¤§çº²
+- ç»“æœæŒä¹…åŒ–ï¼š`video_summaries`ï¼ˆsummary/outline/segment_summaries/params/transcript_hashï¼‰
+- å·²éªŒè¯ï¼š
+  - `outline` è¾“å‡ºä¸ºç»“æ„åŒ– JSON æ•°ç»„ï¼ˆä¸å†æ˜¯ `{ "raw": ... }`ï¼‰
+  - `export/markdown` è¿”å›å®Œæ•´ Markdownï¼ˆä¸å†å‡ºç°æ˜æ˜¾æˆªæ–­ï¼‰
 
-### MVP-4£º¹Ø¼üÖ¡ÌáÈ¡£¨ÒÑÍê³É²¢ÑéÖ¤£©
+### MVP-4ï¼šå…³é”®å¸§æå–ï¼ˆå·²å®Œæˆå¹¶éªŒè¯ï¼‰
 
-- ĞÂÔö Job ÀàĞÍ£º`keyframes`
-- Stage 1£¨¹Ì¶¨¼ä¸ô³éÖ¡£©£º
-  - `ffmpeg` ³éÖ¡Êä³ö JPG£¨Ö§³Ö `target_width`£©
-  - SQLite ÂäÅÌ£º`video_keyframe_indexes` / `video_keyframes`
-  - keyframe metadata£º`timestamp_ms`¡¢`width/height`
-- Stage 2£¨³¡¾°ÇĞ»»¼ì²â£©£º
-  - `ffmpeg select=gt(scene,thr)` ¼ì²âºòÑ¡Ö¡
-  - `score` Âä¿â£¨`video_keyframes.score`£©
-  - Óë´ó¸Ù¶ÔÆëÊ±ÓÅÏÈ¸ß·ÖÖ¡£¬²¢Ö§³Ö `min_gap` È¥ÖØ
-  - ¿ÉÑ¡ÕÂ½Ú¶µµ×£º`fallback=nearest`£¨ÕÂ½ÚÄÚ²»×ãÊ±°´ÕÂ½ÚÖĞµã×î½ü²¹Æë£»Ä¬ÈÏ¹Ø±Õ£©
+- æ–°å¢ Job ç±»å‹ï¼š`keyframes`
+- Stage 1ï¼ˆå›ºå®šé—´éš”æŠ½å¸§ï¼‰ï¼š
+  - `ffmpeg` æŠ½å¸§è¾“å‡º JPGï¼ˆæ”¯æŒ `target_width`ï¼‰
+  - SQLite è½ç›˜ï¼š`video_keyframe_indexes` / `video_keyframes`
+  - keyframe metadataï¼š`timestamp_ms`ã€`width/height`
+- Stage 2ï¼ˆåœºæ™¯åˆ‡æ¢æ£€æµ‹ï¼‰ï¼š
+  - `ffmpeg select=gt(scene,thr)` æ£€æµ‹å€™é€‰å¸§
+  - `score` è½åº“ï¼ˆ`video_keyframes.score`ï¼‰
+  - ä¸å¤§çº²å¯¹é½æ—¶ä¼˜å…ˆé«˜åˆ†å¸§ï¼Œå¹¶æ”¯æŒ `min_gap` å»é‡
+  - å¯é€‰ç« èŠ‚å…œåº•ï¼š`fallback=nearest`ï¼ˆç« èŠ‚å†…ä¸è¶³æ—¶æŒ‰ç« èŠ‚ä¸­ç‚¹æœ€è¿‘è¡¥é½ï¼›é»˜è®¤å…³é—­ï¼‰
 
-### ÊµÊ±½ø¶ÈÍÆËÍ£¨ÒÑĞÂÔö½Ó¿Ú£©
+### å®æ—¶è¿›åº¦æ¨é€ï¼ˆå·²æ–°å¢æ¥å£ï¼‰
 
-- SSE£º`GET /jobs/{job_id}/events`
-  - »ùÓÚ DB ÂÖÑ¯ + `jobs.updated_at` ±ä¸ü¼ì²â
-  - ÊÂ¼ş£º`event: job`£¨°üº¬×îĞÂ job row£©
-- WebSocket£º`GET ws://127.0.0.1:8001/ws/jobs/{job_id}`
-  - Í¬Ñù»ùÓÚ `jobs.updated_at` µÄ±ä¸üÍÆËÍ
+- SSEï¼š`GET /jobs/{job_id}/events`
+  - åŸºäº DB è½®è¯¢ + `jobs.updated_at` å˜æ›´æ£€æµ‹
+  - äº‹ä»¶ï¼š`event: job`ï¼ˆåŒ…å«æœ€æ–° job rowï¼‰
+- WebSocketï¼š`GET ws://127.0.0.1:8001/ws/jobs/{job_id}`
+  - åŒæ ·åŸºäº `jobs.updated_at` çš„å˜æ›´æ¨é€
 
-### ×Ô¶¯»¯ÑéÖ¤½Å±¾£¨PowerShell£¬Ò»¼ü£©
+### è‡ªåŠ¨åŒ–éªŒè¯è„šæœ¬ï¼ˆPowerShellï¼Œä¸€é”®ï¼‰
 
-- `scripts/cancel_retry_test.ps1`£º×Ô¶¯´´½¨ job ¡ú µÈ´ı running ¡ú cancel ¡ú È·ÈÏ cancelled ¡ú retry ¡ú µÈ´ıÍê³É²¢µ¼³ö artifacts
-- `scripts/restart_recovery_test.ps1`£ºÄ£Äâºó¶Ë crash/restart£¬ÑéÖ¤ running¡úpending »Ö¸´¡¢¼ÌĞø×ªĞ´²¢×îÖÕÍê³É
-- `scripts/list_pagination_test.ps1`£ºÑÏ¸ñ¶ÏÑÔ `/videos` Óë `/jobs` µÄ filter/limit/offset/sort ĞĞÎª
-- `scripts/export_error_test.ps1`£ºÑÏ¸ñ¶ÏÑÔµ¼³öÓë´íÎóÂë£¨FILE_NOT_FOUND/VIDEO_NOT_FOUND/JOB_NOT_FOUND/UNSUPPORTED_SUBTITLE_FORMAT/TRANSCRIPT_NOT_FOUND µÈ£©
-- `scripts/cloud_summary_toggle_test.ps1`£ºÑÏ¸ñ¶ÏÑÔ `ENABLE_CLOUD_SUMMARY=0/1` ÒÔ¼° `confirm_send` Ç¿ÖÆÈ·ÈÏÂß¼­
-- `scripts/index_search_chat_test.ps1`£º»Ø¹éÑéÖ¤ `/index`¡¢`/search`¡¢`/chat`£º
-  - Ë÷Òı½øĞĞÖĞÔÊĞí `202`£¬²¢ÑÏ¸ñ¶ÏÑÔ `job_id` ¸´ÓÃ£¨È¥ÖØ²ßÂÔ£©
-  - ÈôË÷ÒıÍê³É¹ı¿ìÔÊĞíÖ±½Ó `200`
-- `scripts/local_llm_e2e_test.ps1`£º¶Ëµ½¶ËÑéÖ¤±¾µØ LLM£¨llama-server£©+ ÉèÖÃÄ¬ÈÏ LLM Æ«ºÃ + index + `/chat` ·ÇÁ÷Ê½Óë SSE
-- `scripts/run_llama_server.ps1`£ºÒ»¼üÆô¶¯±¾µØ `llama-server`£¨º¬ `/v1/models` ½¡¿µ¼ì²éÓëÈÕÖ¾ÂäÅÌ£©
-- `scripts/run_local_stack.ps1`£ºÒ»¼üÆô¶¯ llama-server + backend£¬²¢¿ÉÑ¡×Ô¶¯ÔËĞĞ `local_llm_e2e_test.ps1`£¨Ö§³Ö `-ForceReindex`£¬²¢¾¡Á¿¸´ÓÃÒÑÔËĞĞ·şÎñ£©
-- `scripts/stop_local_stack.ps1`£ºÍ£Ö¹ `run_local_stack.ps1` Æô¶¯µÄ½ø³Ì£¨¶ÁÈ¡ `artifacts/*.pid` Óë `artifacts/local_stack_pids.json`£©
+- `scripts/cancel_retry_test.ps1`ï¼šè‡ªåŠ¨åˆ›å»º job â†’ ç­‰å¾… running â†’ cancel â†’ ç¡®è®¤ cancelled â†’ retry â†’ ç­‰å¾…å®Œæˆå¹¶å¯¼å‡º artifacts
+- `scripts/restart_recovery_test.ps1`ï¼šæ¨¡æ‹Ÿåç«¯ crash/restartï¼ŒéªŒè¯ runningâ†’pending æ¢å¤ã€ç»§ç»­è½¬å†™å¹¶æœ€ç»ˆå®Œæˆ
+- `scripts/list_pagination_test.ps1`ï¼šä¸¥æ ¼æ–­è¨€ `/videos` ä¸ `/jobs` çš„ filter/limit/offset/sort è¡Œä¸º
+- `scripts/export_error_test.ps1`ï¼šä¸¥æ ¼æ–­è¨€å¯¼å‡ºä¸é”™è¯¯ç ï¼ˆFILE_NOT_FOUND/VIDEO_NOT_FOUND/JOB_NOT_FOUND/UNSUPPORTED_SUBTITLE_FORMAT/TRANSCRIPT_NOT_FOUND ç­‰ï¼‰
+- `scripts/cloud_summary_toggle_test.ps1`ï¼šä¸¥æ ¼æ–­è¨€ `ENABLE_CLOUD_SUMMARY=0/1` ä»¥åŠ `confirm_send` å¼ºåˆ¶ç¡®è®¤é€»è¾‘
+- `scripts/index_search_chat_test.ps1`ï¼šå›å½’éªŒè¯ `/index`ã€`/search`ã€`/chat`ï¼š
+  - ç´¢å¼•è¿›è¡Œä¸­å…è®¸ `202`ï¼Œå¹¶ä¸¥æ ¼æ–­è¨€ `job_id` å¤ç”¨ï¼ˆå»é‡ç­–ç•¥ï¼‰
+  - è‹¥ç´¢å¼•å®Œæˆè¿‡å¿«å…è®¸ç›´æ¥ `200`
+- `scripts/local_llm_e2e_test.ps1`ï¼šç«¯åˆ°ç«¯éªŒè¯æœ¬åœ° LLMï¼ˆllama-serverï¼‰+ è®¾ç½®é»˜è®¤ LLM åå¥½ + index + `/chat` éæµå¼ä¸ SSE
+- `scripts/run_llama_server.ps1`ï¼šä¸€é”®å¯åŠ¨æœ¬åœ° `llama-server`ï¼ˆå« `/v1/models` å¥åº·æ£€æŸ¥ä¸æ—¥å¿—è½ç›˜ï¼‰
+- `scripts/run_local_stack.ps1`ï¼šä¸€é”®å¯åŠ¨ llama-server + backendï¼Œå¹¶å¯é€‰è‡ªåŠ¨è¿è¡Œ `local_llm_e2e_test.ps1`ï¼ˆæ”¯æŒ `-ForceReindex`ï¼Œå¹¶å°½é‡å¤ç”¨å·²è¿è¡ŒæœåŠ¡ï¼‰
+- `scripts/stop_local_stack.ps1`ï¼šåœæ­¢ `run_local_stack.ps1` å¯åŠ¨çš„è¿›ç¨‹ï¼ˆè¯»å– `artifacts/*.pid` ä¸ `artifacts/local_stack_pids.json`ï¼‰
 
-### ×ÀÃæ¶Ë£¨Electron/React£©¿ª·¢»·¾³£¨ÒÑÅÜÍ¨£©
+### æ¡Œé¢ç«¯ï¼ˆElectron/Reactï¼‰å¼€å‘ç¯å¢ƒï¼ˆå·²è·‘é€šï¼‰
 
-- Ò»¼üÆô¶¯£ºË«»÷ `start_dev.cmd`£¨Ä¬ÈÏÆô¶¯ backend + Electron Ç°¶Ë£»ÈçĞè±¾µØ LLM£¬¿ÉÊÖ¶¯´«²Î `start_dev.cmd -StartLlama` Æô¶¯ llama-server£©
-- Æô¶¯½Å±¾£º
-  - `scripts/run_dev.ps1`£ººó¶Ë½¡¿µ¼ì²é£¨±ÜÃâÖØ¸´Æô¶¯£©¡¢Ç°¶Ë×¢Èë `VITE_BACKEND_BASE_URL`¡¢¿ÉÑ¡/Ä¬ÈÏÆô¶¯ llama-server
-  - `scripts/stop_dev.ps1`£º°´ `artifacts/dev_pids.json` Í£Ö¹Ç°¶Ë/llama-server£¬²¢Í¨¹ı¶Ë¿Ú¶µµ×ÊÍ·Å backend ¶Ë¿Ú
-- Electron-Vite£ºÏÔÊ½ÅäÖÃ main/preload/renderer entry Óë build Êä³ö£¬renderer dev server °ó¶¨ `127.0.0.1`
-- Electron main£º
-  - dev Ä£Ê½µÈ´ı renderer dev server ready ºóÔÙ¼ÓÔØ
-  - preload Êä³ö¼æÈİ `.js` / `.mjs`£¨µ±Ç° dev Ê¹ÓÃ CommonJS `index.js`£©
-  - dev Ä£Ê½¹Ø±Õ `webSecurity`£¨½ö¿ª·¢ÆÚ£©ÒÔ¹æ±Ü CORS ×è¶Ïµ¼ÖÂµÄ `Failed to fetch`
-- Renderer£º
-  - Settings Ò³ÒÑÁªÍ¨ºó¶Ë API£¨runtime profile / LLM preferences / llama-server status£©£¬²¢½«ÖĞÎÄ UI ÎÄ°¸Ìæ»»Îª Unicode escape£¬±ÜÃâÔ´ÂëÎÄ¼ş±» GBK/GB2312 ±àÂë±£´æÊ±³öÏÖÂÒÂë
-  - ĞÂÔö£ºÈ«¾Ö UI ÓïÑÔÇĞ»»£¨ÖĞÎÄ/English£¬localStorage ³Ö¾Ã»¯£©£»Ä¬ÈÏ LLM Æ«ºÃĞÂÔö `output_language`£¨`zh/en/auto`£©²¢³Ö¾Ã»¯µ½ `/llm/preferences/default`£¬ÓÃÓÚ¿ØÖÆ Chat/ÕªÒª/´ó¸Ù/ÔÆÕªÒªÊä³öÓïÑÔ
-  - Library£¨ÊÓÆµ¿â£©£º
-    - `GET /videos` ÊÓÆµÁĞ±í + Ë¢ĞÂ
-    - Electron ÎÄ¼şÑ¡ÔñÆ÷µ¼ÈëÊÓÆµ£¨`POST /videos/import`£©£¬µ¼Èëºó×Ô¶¯Ë¢ĞÂÁĞ±í
-    - µã»÷ÊÓÆµ½øÈëÏêÇéÒ³
-  - Video Detail£¨ÊÓÆµÏêÇé£©£º
-    - Õ¹Ê¾»ù´¡ÊÓÆµĞÅÏ¢
-    - ²¥·ÅÆ÷£¨HTML5 video£©£º
-      - ÊÓÆµ²¥·Å£º`GET /videos/{video_id}/file`
-      - ×ÖÄ»£ºÄ¬ÈÏ¹ÒÔØ×Ô¶¯Éú³É VTT£¨`GET /videos/{video_id}/subtitles/vtt`£©£¬²¢Ìá¹©¡°×ÖÄ»¿ª/¹Ø¡±°´Å¥±ÜÃâÓëÊÓÆµ×Ô´ø×ÖÄ»³åÍ»
-      - ¿ØÖÆ£º`-15s/+15s` Ìø×ª¡¢±¶ËÙ¡¢¸´ÖÆµ±Ç°Ê±¼ä´Á
-      - Áª¶¯£ºµã»÷×ªĞ´¶ÎÂä / ´ó¸Ù / ÒıÓÃ / ¹Ø¼üÖ¡¿ÉÌø×ªµ½¶ÔÓ¦Ê±¼ä´Á
-    - ×ªĞ´£¨transcribe£©£º²ÎÊıÃæ°å£¨segment_seconds/overlap_seconds/from_scratch£©+ SSE ½ø¶È¶©ÔÄ + transcript Ô¤ÀÀ£¨`GET /videos/{id}/transcript`£©
-    - Ë÷Òı/ÕªÒª/¹Ø¼üÖ¡£ºSSE ½ø¶È¶©ÔÄ + ½á¹ûÔ¤ÀÀ
-      - index£º`GET /videos/{id}/index`
-      - summary£º`GET /videos/{id}/summary` + outline£¨¿ÉÑ¡£©`GET /videos/{id}/outline`
-      - keyframes£º`GET /videos/{id}/keyframes/index` + ËõÂÔÍ¼ÁĞ±í `GET /videos/{id}/keyframes`
-    - Notes£¨ÕªÒª/´ó¸Ù²àÀ¸£¬Tab£©£º
-      - ÕªÒª£ºÇáÁ¿ markdown äÖÈ¾£¨±êÌâ/ÁĞ±í/´úÂë¿é£©+ Õ¹¿ª/ÊÕÆğ£¨°´¸ß¶ÈÕÛµş£©
-      - ´ó¸Ù£ºÖ§³Ö×Ô¶¯Õ¹¿ª¿ª¹Ø£»½Úµã¿ÉÕÛµş + È«²¿Õ¹¿ª/È«²¿ÊÕÆğ£»µã»÷±êÌâÀ¸¿ÉÌø×ª²¥·Å
-      - aligned keyframes£ºËõÂÔÍ¼Ê±¼ä´Á overlay¡¢ÊıÁ¿Õ¹Ê¾¡¢¿ÕÌ¬/¼ÓÔØÌ¬¸üÇåÎú£»²¢¶ÔÇëÇó×öÈ¥ÖØ/ºÏ²¢±ÜÃâÖØ¸´Ë¢ĞÂ
-    - AI ÖúÊÖ£¨Chat ²àÀ¸£¬Tab£©£º
-      - `/chat` SSE streaming£ºÖ§³ÖÈ¡Ïû¡¢confirm_send È·ÈÏÌáÊ¾£»Ë÷ÒıÎ´¾ÍĞ÷×Ô¶¯µÈ´ı²¢ÖØÊÔ
-      - »Ø´ğ£ºÇáÁ¿ markdown äÖÈ¾£»ÒıÓÃÁĞ±íÔöÇ¿£¨ÏÔÊ¾¸ü¶à/ÊÕÆğ¡¢Ò»¼üÌø×ªµ½Ê±¼ä´Á£©
-      - ¿ì½İ¼ü£ºCtrl/Cmd + Enter ·¢ËÍ£»Ö§³ÖÇå¿Õ½á¹û
-    - ĞŞ¸´£º±ÜÃâÔ¤ÀÀÇøÒò React effect ÒÀÀµµ¼ÖÂµÄÖØ¸´ÇëÇó·ç±©ÓëÅ¼·¢ ¡°Failed to fetch¡±
+- ä¸€é”®å¯åŠ¨ï¼šåŒå‡» `start_dev.cmd`ï¼ˆé»˜è®¤å¯åŠ¨ backend + Electron å‰ç«¯ï¼›å¦‚éœ€æœ¬åœ° LLMï¼Œå¯æ‰‹åŠ¨ä¼ å‚ `start_dev.cmd -StartLlama` å¯åŠ¨ llama-serverï¼‰
+- å¯åŠ¨è„šæœ¬ï¼š
+  - `scripts/run_dev.ps1`ï¼šåç«¯å¥åº·æ£€æŸ¥ï¼ˆé¿å…é‡å¤å¯åŠ¨ï¼‰ã€å‰ç«¯æ³¨å…¥ `VITE_BACKEND_BASE_URL`ã€å¯é€‰/é»˜è®¤å¯åŠ¨ llama-server
+  - `scripts/stop_dev.ps1`ï¼šæŒ‰ `artifacts/dev_pids.json` åœæ­¢å‰ç«¯/llama-serverï¼Œå¹¶é€šè¿‡ç«¯å£å…œåº•é‡Šæ”¾ backend ç«¯å£
+- Electron-Viteï¼šæ˜¾å¼é…ç½® main/preload/renderer entry ä¸ build è¾“å‡ºï¼Œrenderer dev server ç»‘å®š `127.0.0.1`
+- Electron mainï¼š
+  - dev æ¨¡å¼ç­‰å¾… renderer dev server ready åå†åŠ è½½
+  - preload è¾“å‡ºå…¼å®¹ `.js` / `.mjs`ï¼ˆå½“å‰ dev ä½¿ç”¨ CommonJS `index.js`ï¼‰
+  - dev æ¨¡å¼å…³é—­ `webSecurity`ï¼ˆä»…å¼€å‘æœŸï¼‰ä»¥è§„é¿ CORS é˜»æ–­å¯¼è‡´çš„ `Failed to fetch`
+- Rendererï¼š
+  - Settings é¡µå·²è”é€šåç«¯ APIï¼ˆruntime profile / LLM preferences / llama-server statusï¼‰ï¼Œå¹¶å°†ä¸­æ–‡ UI æ–‡æ¡ˆæ›¿æ¢ä¸º Unicode escapeï¼Œé¿å…æºç æ–‡ä»¶è¢« GBK/GB2312 ç¼–ç ä¿å­˜æ—¶å‡ºç°ä¹±ç 
+  - æ–°å¢ï¼šå…¨å±€ UI è¯­è¨€åˆ‡æ¢ï¼ˆä¸­æ–‡/Englishï¼ŒlocalStorage æŒä¹…åŒ–ï¼‰ï¼›é»˜è®¤ LLM åå¥½æ–°å¢ `output_language`ï¼ˆ`zh/en/auto`ï¼‰å¹¶æŒä¹…åŒ–åˆ° `/llm/preferences/default`ï¼Œç”¨äºæ§åˆ¶ Chat/æ‘˜è¦/å¤§çº²/äº‘æ‘˜è¦è¾“å‡ºè¯­è¨€
+  - Libraryï¼ˆè§†é¢‘åº“ï¼‰ï¼š
+    - `GET /videos` è§†é¢‘åˆ—è¡¨ + åˆ·æ–°
+    - Electron æ–‡ä»¶é€‰æ‹©å™¨å¯¼å…¥è§†é¢‘ï¼ˆ`POST /videos/import`ï¼‰ï¼Œå¯¼å…¥åè‡ªåŠ¨åˆ·æ–°åˆ—è¡¨
+    - ç‚¹å‡»è§†é¢‘è¿›å…¥è¯¦æƒ…é¡µ
+  - Video Detailï¼ˆè§†é¢‘è¯¦æƒ…ï¼‰ï¼š
+    - å±•ç¤ºåŸºç¡€è§†é¢‘ä¿¡æ¯
+    - æ’­æ”¾å™¨ï¼ˆHTML5 videoï¼‰ï¼š
+      - è§†é¢‘æ’­æ”¾ï¼š`GET /videos/{video_id}/file`
+      - å­—å¹•ï¼šé»˜è®¤æŒ‚è½½è‡ªåŠ¨ç”Ÿæˆ VTTï¼ˆ`GET /videos/{video_id}/subtitles/vtt`ï¼‰ï¼Œå¹¶æä¾›â€œå­—å¹•å¼€/å…³â€æŒ‰é’®é¿å…ä¸è§†é¢‘è‡ªå¸¦å­—å¹•å†²çª
+      - æ§åˆ¶ï¼š`-15s/+15s` è·³è½¬ã€å€é€Ÿã€å¤åˆ¶å½“å‰æ—¶é—´æˆ³
+      - è”åŠ¨ï¼šç‚¹å‡»è½¬å†™æ®µè½ / å¤§çº² / å¼•ç”¨ / å…³é”®å¸§å¯è·³è½¬åˆ°å¯¹åº”æ—¶é—´æˆ³
+    - è½¬å†™ï¼ˆtranscribeï¼‰ï¼šå‚æ•°é¢æ¿ï¼ˆsegment_seconds/overlap_seconds/from_scratchï¼‰+ SSE è¿›åº¦è®¢é˜… + transcript é¢„è§ˆï¼ˆ`GET /videos/{id}/transcript`ï¼‰
+    - ç´¢å¼•/æ‘˜è¦/å…³é”®å¸§ï¼šSSE è¿›åº¦è®¢é˜… + ç»“æœé¢„è§ˆ
+      - indexï¼š`GET /videos/{id}/index`
+      - summaryï¼š`GET /videos/{id}/summary` + outlineï¼ˆå¯é€‰ï¼‰`GET /videos/{id}/outline`
+      - keyframesï¼š`GET /videos/{id}/keyframes/index` + ç¼©ç•¥å›¾åˆ—è¡¨ `GET /videos/{id}/keyframes`
+    - Notesï¼ˆæ‘˜è¦/å¤§çº²ä¾§æ ï¼ŒTabï¼‰ï¼š
+      - æ‘˜è¦ï¼šè½»é‡ markdown æ¸²æŸ“ï¼ˆæ ‡é¢˜/åˆ—è¡¨/ä»£ç å—ï¼‰+ å±•å¼€/æ”¶èµ·ï¼ˆæŒ‰é«˜åº¦æŠ˜å ï¼‰
+      - å¤§çº²ï¼šæ”¯æŒè‡ªåŠ¨å±•å¼€å¼€å…³ï¼›èŠ‚ç‚¹å¯æŠ˜å  + å…¨éƒ¨å±•å¼€/å…¨éƒ¨æ”¶èµ·ï¼›ç‚¹å‡»æ ‡é¢˜æ å¯è·³è½¬æ’­æ”¾
+      - aligned keyframesï¼šç¼©ç•¥å›¾æ—¶é—´æˆ³ overlayã€æ•°é‡å±•ç¤ºã€ç©ºæ€/åŠ è½½æ€æ›´æ¸…æ™°ï¼›å¹¶å¯¹è¯·æ±‚åšå»é‡/åˆå¹¶é¿å…é‡å¤åˆ·æ–°
+    - AI åŠ©æ‰‹ï¼ˆChat ä¾§æ ï¼ŒTabï¼‰ï¼š
+      - `/chat` SSE streamingï¼šæ”¯æŒå–æ¶ˆã€confirm_send ç¡®è®¤æç¤ºï¼›ç´¢å¼•æœªå°±ç»ªè‡ªåŠ¨ç­‰å¾…å¹¶é‡è¯•
+      - å›ç­”ï¼šè½»é‡ markdown æ¸²æŸ“ï¼›å¼•ç”¨åˆ—è¡¨å¢å¼ºï¼ˆæ˜¾ç¤ºæ›´å¤š/æ”¶èµ·ã€ä¸€é”®è·³è½¬åˆ°æ—¶é—´æˆ³ï¼‰
+      - å¿«æ·é”®ï¼šCtrl/Cmd + Enter å‘é€ï¼›æ”¯æŒæ¸…ç©ºç»“æœ
+    - ä¿®å¤ï¼šé¿å…é¢„è§ˆåŒºå›  React effect ä¾èµ–å¯¼è‡´çš„é‡å¤è¯·æ±‚é£æš´ä¸å¶å‘ â€œFailed to fetchâ€
 
-### ×ÀÃæ¶Ë´ò°üÓë·¢²¼£¨Windows£¬ÒÑÅÜÍ¨£©
+### æ¡Œé¢ç«¯æ‰“åŒ…ä¸å‘å¸ƒï¼ˆWindowsï¼Œå·²è·‘é€šï¼‰
 
-- ºó¶Ë·¢²¼Ì¬£ºÊ¹ÓÃ PyInstaller ²ú³ö onedir exe£¨º¬ `_internal/`£©£¬Electron Ö÷½ø³ÌÓÅÏÈÆô¶¯ exe£¬²¢±£Áô×Ô¶¯¶Ë¿ÚÑ¡Ôñ + `/health` Ì½²â + ¹Ø±ÕÊ±ÇåÀí½ø³Ì
-- Ä¿Â¼Ô¼¶¨£ººó¶Ë·¢²¼ÎïÍ¨¹ı staging ·ÅÈë `frontend/resources/backend/edge-video-agent-backend/`
-  - staging ½Å±¾£º`scripts/stage_backend_for_frontend.ps1`
-- ´ò°ü¹¤¾ß£º`electron-builder`
-  - ½« `frontend/resources/backend/**` ×÷Îª `extraResources` ´òÈë `win-unpacked/resources/backend/`
-  - ²úÎïÊä³öÄ¿Â¼°´°æ±¾ºÅ¸ôÀë£¬±ÜÃâ Windows ÎÄ¼şËøµ¼ÖÂµÄ¸²¸ÇÊ§°Ü
-- Release Ä¿Â¼·ÖÁ÷£º¸ù¾İ°æ±¾ºÅÊÇ·ñ°üº¬ `-`£¬×Ô¶¯Êä³öµ½ `release/stable/<version>/` »ò `release/beta/<version>/`
-- Windows ÎÄ¼şËø¹æ±Ü£º`npm run dist/pack` Ç°×Ô¶¯Í£Ö¹´Ó `release/**/win-unpacked` ÔËĞĞµÄ½ø³Ì£¨±ÜÃâ `resources/app.asar` ±»Õ¼ÓÃ£©
-  - ½Å±¾£º`scripts/stop_release_apps.ps1`
-- ÒÑ·¢²¼£º`v0.0.1-beta.1` Ô¤·¢²¼°æ£¨GitHub Releases£¬Windows installer + portable zip£©
+- åç«¯å‘å¸ƒæ€ï¼šä½¿ç”¨ PyInstaller äº§å‡º onedir exeï¼ˆå« `_internal/`ï¼‰ï¼ŒElectron ä¸»è¿›ç¨‹ä¼˜å…ˆå¯åŠ¨ exeï¼Œå¹¶ä¿ç•™è‡ªåŠ¨ç«¯å£é€‰æ‹© + `/health` æ¢æµ‹ + å…³é—­æ—¶æ¸…ç†è¿›ç¨‹
+- ç›®å½•çº¦å®šï¼šåç«¯å‘å¸ƒç‰©é€šè¿‡ staging æ”¾å…¥ `frontend/resources/backend/edge-video-agent-backend/`
+  - staging è„šæœ¬ï¼š`scripts/stage_backend_for_frontend.ps1`
+- æ‰“åŒ…å·¥å…·ï¼š`electron-builder`
+  - å°† `frontend/resources/backend/**` ä½œä¸º `extraResources` æ‰“å…¥ `win-unpacked/resources/backend/`
+  - äº§ç‰©è¾“å‡ºç›®å½•æŒ‰ç‰ˆæœ¬å·éš”ç¦»ï¼Œé¿å… Windows æ–‡ä»¶é”å¯¼è‡´çš„è¦†ç›–å¤±è´¥
+- Release ç›®å½•åˆ†æµï¼šæ ¹æ®ç‰ˆæœ¬å·æ˜¯å¦åŒ…å« `-`ï¼Œè‡ªåŠ¨è¾“å‡ºåˆ° `release/stable/<version>/` æˆ– `release/beta/<version>/`
+- Windows æ–‡ä»¶é”è§„é¿ï¼š`npm run dist/pack` å‰è‡ªåŠ¨åœæ­¢ä» `release/**/win-unpacked` è¿è¡Œçš„è¿›ç¨‹ï¼ˆé¿å… `resources/app.asar` è¢«å ç”¨ï¼‰
+  - è„šæœ¬ï¼š`scripts/stop_release_apps.ps1`
+- å·²å‘å¸ƒï¼š`v0.0.1-beta.1` é¢„å‘å¸ƒç‰ˆï¼ˆGitHub Releasesï¼ŒWindows installer + portable zipï¼‰
 
-#### ×ÀÃæ¶Ë×Ô¶¯¸üĞÂ£¨electron-updater£¬ÒÑÑéÖ¤£©
+#### æ¡Œé¢ç«¯è‡ªåŠ¨æ›´æ–°ï¼ˆelectron-updaterï¼Œå·²éªŒè¯ï¼‰
 
-- ÒÑ·¢²¼ stable£º`v0.0.2`¡¢`v0.0.3`
-- ÒÑÑéÖ¤£º±¾µØ°²×° `0.0.2` ºó£¬Ó¦ÓÃÄÚ¡°Ò»¼ü¸üĞÂ¡±¿É³É¹¦Éı¼¶µ½ `0.0.3`
-- Windows Release assets£¨ÎÈ¶¨¸üĞÂÍÆ¼öÉÏ´«£©£º
+- å·²å‘å¸ƒ stableï¼š`v0.0.2`ã€`v0.0.3`
+- å·²éªŒè¯ï¼šæœ¬åœ°å®‰è£… `0.0.2` åï¼Œåº”ç”¨å†…â€œä¸€é”®æ›´æ–°â€å¯æˆåŠŸå‡çº§åˆ° `0.0.3`
+- Windows Release assetsï¼ˆç¨³å®šæ›´æ–°æ¨èä¸Šä¼ ï¼‰ï¼š
   - `latest.yml`
   - `Edge-Video-Agent-Setup-<version>.exe`
   - `Edge-Video-Agent-Setup-<version>.exe.blockmap`
-  - £¨¿ÉÑ¡£©`Edge-Video-Agent-<version>-win.zip` + `*.zip.blockmap`
-- Windows ÎÄ¼şËø/Ğ¶ÔØÊ§°Ü¶µµ×£º
-  - Electron Ö÷½ø³ÌÔÚ `autoUpdater.quitAndInstall()` Ç°»á³¢ÊÔÍ£Ö¹²¢Ç¿É± `llama-server` Óëºó¶Ë½ø³Ì
-  - NSIS °²×°Æ÷/Ğ¶ÔØÆ÷Í¨¹ı `build/installer.nsh` ÔÚ°²×°Ç°/Ğ¶ÔØÊ±Ö´ĞĞ `taskkill /T /F`£¨Ç¿ÖÆÊÍ·ÅÕ¼ÓÃÎÄ¼ş£©
+  - ï¼ˆå¯é€‰ï¼‰`Edge-Video-Agent-<version>-win.zip` + `*.zip.blockmap`
+- Windows æ–‡ä»¶é”/å¸è½½å¤±è´¥å…œåº•ï¼š
+  - Electron ä¸»è¿›ç¨‹åœ¨ `autoUpdater.quitAndInstall()` å‰ä¼šå°è¯•åœæ­¢å¹¶å¼ºæ€ `llama-server` ä¸åç«¯è¿›ç¨‹
+  - NSIS å®‰è£…å™¨/å¸è½½å™¨é€šè¿‡ `build/installer.nsh` åœ¨å®‰è£…å‰/å¸è½½æ—¶æ‰§è¡Œ `taskkill /T /F`ï¼ˆå¼ºåˆ¶é‡Šæ”¾å ç”¨æ–‡ä»¶ï¼‰
 
-#### Windows ¹¹½¨ÃüÁî±¸Íü
+#### Windows æ„å»ºå‘½ä»¤å¤‡å¿˜
 
-- `dist:stable` ½Å±¾¶¨ÒåÔÚ `frontend/package.json`£¬²»ÒªÔÚ²Ö¿â¸ùÄ¿Â¼Ö±½Ó `npm run dist:stable`
-- ÔÚ²Ö¿â¸ùÄ¿Â¼Ö´ĞĞ£¨ÍÆ¼ö£©£º`npm --prefix frontend run dist:stable`
-- »òÔÚ `frontend/` Ä¿Â¼Ö´ĞĞ£º`npm run dist:stable`
+- `dist:stable` è„šæœ¬å®šä¹‰åœ¨ `frontend/package.json`ï¼Œä¸è¦åœ¨ä»“åº“æ ¹ç›®å½•ç›´æ¥ `npm run dist:stable`
+- åœ¨ä»“åº“æ ¹ç›®å½•æ‰§è¡Œï¼ˆæ¨èï¼‰ï¼š`npm --prefix frontend run dist:stable`
+- æˆ–åœ¨ `frontend/` ç›®å½•æ‰§è¡Œï¼š`npm run dist:stable`
 
-## API Ò»ÀÀ£¨MVP-1 + MVP-2 + MVP-3 + MVP-4£©
+## API ä¸€è§ˆï¼ˆMVP-1 + MVP-2 + MVP-3 + MVP-4ï¼‰
 
 - `GET /health`
 - `POST /videos/import`
 - `GET /videos/{video_id}`
-- `GET /videos`£¨¿É´ø `status`£©
+- `GET /videos`ï¼ˆå¯å¸¦ `status`ï¼‰
 - `POST /videos/{video_id}/index`
 - `GET /videos/{video_id}/index`
 - `GET /videos/{video_id}/chunks`
 - `POST /jobs/transcribe`
 - `GET /jobs/{job_id}`
-- `GET /jobs`£¨¿É´ø `status/video_id/job_type`£©
+- `GET /jobs`ï¼ˆå¯å¸¦ `status/video_id/job_type`ï¼‰
 - `POST /jobs/{job_id}/cancel`
-- `POST /jobs/{job_id}/retry`£¨`from_scratch` ¿ÉÑ¡£©
+- `POST /jobs/{job_id}/retry`ï¼ˆ`from_scratch` å¯é€‰ï¼‰
 - `GET /videos/{video_id}/transcript`
 - `GET /videos/{video_id}/subtitles/{srt|vtt}`
 - `GET /search`
 - `POST /chat`
-- `POST /summaries/cloud`£¨¿ÉÑ¡£¬Ä¬ÈÏ¹Ø±Õ£©
+- `POST /summaries/cloud`ï¼ˆå¯é€‰ï¼Œé»˜è®¤å…³é—­ï¼‰
 - `POST /videos/{video_id}/summarize`
 - `GET /videos/{video_id}/summary`
 - `GET /videos/{video_id}/outline`
@@ -202,67 +202,67 @@
 - `GET /videos/{video_id}/keyframes/aligned`
 - `GET /videos/{video_id}/keyframes/{keyframe_id}/image`
 
-## ´ı°ì£¨ÏÂÒ»²½ÈÎÎñ£©
+## å¾…åŠï¼ˆä¸‹ä¸€æ­¥ä»»åŠ¡ï¼‰
 
-- °´ Architecture_Design µÄÀï³Ì±®ÍÆ½ø£¨½¨ÒéË³Ğò£©£º
-  - MVP-2£º¹¤³ÌĞÔÊÕÎ²ÓëÖÊÁ¿ÌáÉı
-    - Íê³É£ºÎª `/index`¡¢`/search`¡¢`/chat` Ôö¼Ó»Ø¹é½Å±¾£¨PowerShell£©²¢¸²¸Ç¾ºÌ¬£¨200/202£©
-    - Íê³É£ºÍ³Ò» ChromaDB Òì³£°ü×°Îª `VectorStoreUnavailable`£¬ÌáÉı worker/API ÎÈ¶¨ĞÔ
-    - Íê³É£ºÍêÉÆ `/search`¡¢`/chat` µÄ index job È¥ÖØÂß¼­£¨ÓÅÏÈ¸´ÓÃ pending/running job£©
-    - Íê³É£ºÒıÈë²¢ÅÜÍ¨¾²Ì¬¼ì²é£¨mypy/pyright£©£¬²¹Æë `backend/pyrightconfig.json`£¬²¢ĞÂÔö `backend/requirements-dev.txt`¡¢`backend/.flake8`
-    - Íê³É£º½«ÖÊÁ¿¼ì²éÄÉÈë CI£¨GitHub Actions£ºflake8 + mypy + pyright + pytest£©
-    - Íê³É£º²¹×îĞ¡ pytest »Ø¹é£¨`TestClient`£©¸²¸Ç `/health`¡¢`/index`¡¢`/search`¡¢`/chat` ¹Ø¼ü·ÖÖ§Óë´íÎóÂë
-  - ÖÊÁ¿ÓëĞÔÄÜ£¨ÏÂÒ»²½£¬½¨ÒéÓÅÏÈ£©£º
-    - Runtime Profiles£¨CPU ÓÑºÃ / ¾ùºâ / GPU ÍÆ¼ö£©ºó¶ËÂäµØ£¨settings + API + worker ¶ÁÈ¡£©
-    - ²¢·¢¿ØÖÆ£ºÄ¬ÈÏÏŞÖÆÎª `1 ASR + 1 LLM`£¨±ÜÃâÍ¬Ê±ÅÜ¶à¸öÖØÈÎÎñµ¼ÖÂ¿¨¶Ù/³¬Ê±£©
-    - Embedding£ºÌæ»»Ä¬ÈÏ `hash` fallback£¨»òÖÁÉÙ½«Æä½µ¼¶Îª fallback£¬½öÔÚÕæÊµ embedding ²»¿ÉÓÃÊ±ÆôÓÃ£©
-    - ×îĞ¡ pytest ¸²¸ÇÓëÎÈ¶¨ĞÔ»Ø¹é£º¸²¸Ç `/summarize`¡¢`/keyframes`£¨interval/scene/aligned£©¹Ø¼ü·ÖÖ§Óë´íÎóÂë
-    - ×Ô¶¯»¯½Å±¾²¹Æë£¨¿ÉÑ¡£©£ºĞÂÔö keyframes ¶Ëµ½¶ËÑéÖ¤½Å±¾£¨Àà±È `index_search_chat_test.ps1`£©
-  - ×ÀÃæ¶Ë£¨¿ÉÑ¡ÔöÇ¿£©£º
-    - ÈÎÎñÖĞĞÄ£¨È«¾Ö jobs ÁĞ±í + È¡Ïû/ÖØÊÔ + ½ø¶È¶©ÔÄ£©
-  - ´ò°üÓë·Ö·¢£¨ÏÂÒ»²½£¬½¨Òé½øÈë P3£©£º
-    - Release ¹¤³Ì»¯£ºCI ¹¹½¨²úÎï£¨Windows£©+ ×Ô¶¯·¢²¼ GitHub Release£¨º¬Ğ£ÑéÎÄ¼ş£©
-    - ×Ô¶¯¸üĞÂ²ßÂÔ£¨¿ÉÑ¡£©£ºelectron-updater / ÊÖ¶¯¼ì²é¸üĞÂ£¨¶şÑ¡Ò»£©
-    - °²×°°üÌåÑé£ºÊı¾İÄ¿Â¼Ñ¡Ôñ/Ç¨ÒÆ¡¢Ê×´ÎÔËĞĞÏòµ¼£¨Ä£ĞÍ/llama-server/whisper Ä£ĞÍ¿ÉÓÃĞÔ¼ì²â£©
-    - ¶àÆ½Ì¨£¨¿ÉÑ¡£©£ºmacOS/Linux ´ò°üÓëÇ©Ãû£¨ÈçĞèÒª£©
+- æŒ‰ Architecture_Design çš„é‡Œç¨‹ç¢‘æ¨è¿›ï¼ˆå»ºè®®é¡ºåºï¼‰ï¼š
+  - MVP-2ï¼šå·¥ç¨‹æ€§æ”¶å°¾ä¸è´¨é‡æå‡
+    - å®Œæˆï¼šä¸º `/index`ã€`/search`ã€`/chat` å¢åŠ å›å½’è„šæœ¬ï¼ˆPowerShellï¼‰å¹¶è¦†ç›–ç«æ€ï¼ˆ200/202ï¼‰
+    - å®Œæˆï¼šç»Ÿä¸€ ChromaDB å¼‚å¸¸åŒ…è£…ä¸º `VectorStoreUnavailable`ï¼Œæå‡ worker/API ç¨³å®šæ€§
+    - å®Œæˆï¼šå®Œå–„ `/search`ã€`/chat` çš„ index job å»é‡é€»è¾‘ï¼ˆä¼˜å…ˆå¤ç”¨ pending/running jobï¼‰
+    - å®Œæˆï¼šå¼•å…¥å¹¶è·‘é€šé™æ€æ£€æŸ¥ï¼ˆmypy/pyrightï¼‰ï¼Œè¡¥é½ `backend/pyrightconfig.json`ï¼Œå¹¶æ–°å¢ `backend/requirements-dev.txt`ã€`backend/.flake8`
+    - å®Œæˆï¼šå°†è´¨é‡æ£€æŸ¥çº³å…¥ CIï¼ˆGitHub Actionsï¼šflake8 + mypy + pyright + pytestï¼‰
+    - å®Œæˆï¼šè¡¥æœ€å° pytest å›å½’ï¼ˆ`TestClient`ï¼‰è¦†ç›– `/health`ã€`/index`ã€`/search`ã€`/chat` å…³é”®åˆ†æ”¯ä¸é”™è¯¯ç 
+  - è´¨é‡ä¸æ€§èƒ½ï¼ˆä¸‹ä¸€æ­¥ï¼Œå»ºè®®ä¼˜å…ˆï¼‰ï¼š
+    - Runtime Profilesï¼ˆCPU å‹å¥½ / å‡è¡¡ / GPU æ¨èï¼‰åç«¯è½åœ°ï¼ˆsettings + API + worker è¯»å–ï¼‰
+    - å¹¶å‘æ§åˆ¶ï¼šé»˜è®¤é™åˆ¶ä¸º `1 ASR + 1 LLM`ï¼ˆé¿å…åŒæ—¶è·‘å¤šä¸ªé‡ä»»åŠ¡å¯¼è‡´å¡é¡¿/è¶…æ—¶ï¼‰
+    - Embeddingï¼šæ›¿æ¢é»˜è®¤ `hash` fallbackï¼ˆæˆ–è‡³å°‘å°†å…¶é™çº§ä¸º fallbackï¼Œä»…åœ¨çœŸå® embedding ä¸å¯ç”¨æ—¶å¯ç”¨ï¼‰
+    - æœ€å° pytest è¦†ç›–ä¸ç¨³å®šæ€§å›å½’ï¼šè¦†ç›– `/summarize`ã€`/keyframes`ï¼ˆinterval/scene/alignedï¼‰å…³é”®åˆ†æ”¯ä¸é”™è¯¯ç 
+    - è‡ªåŠ¨åŒ–è„šæœ¬è¡¥é½ï¼ˆå¯é€‰ï¼‰ï¼šæ–°å¢ keyframes ç«¯åˆ°ç«¯éªŒè¯è„šæœ¬ï¼ˆç±»æ¯” `index_search_chat_test.ps1`ï¼‰
+  - æ¡Œé¢ç«¯ï¼ˆå¯é€‰å¢å¼ºï¼‰ï¼š
+    - ä»»åŠ¡ä¸­å¿ƒï¼ˆå…¨å±€ jobs åˆ—è¡¨ + å–æ¶ˆ/é‡è¯• + è¿›åº¦è®¢é˜…ï¼‰
+  - æ‰“åŒ…ä¸åˆ†å‘ï¼ˆä¸‹ä¸€æ­¥ï¼Œå»ºè®®è¿›å…¥ P3ï¼‰ï¼š
+    - Release å·¥ç¨‹åŒ–ï¼šCI æ„å»ºäº§ç‰©ï¼ˆWindowsï¼‰+ è‡ªåŠ¨å‘å¸ƒ GitHub Releaseï¼ˆå«æ ¡éªŒæ–‡ä»¶ï¼‰
+    - è‡ªåŠ¨æ›´æ–°ç­–ç•¥ï¼ˆå¯é€‰ï¼‰ï¼šelectron-updater / æ‰‹åŠ¨æ£€æŸ¥æ›´æ–°ï¼ˆäºŒé€‰ä¸€ï¼‰
+    - å®‰è£…åŒ…ä½“éªŒï¼šæ•°æ®ç›®å½•é€‰æ‹©/è¿ç§»ã€é¦–æ¬¡è¿è¡Œå‘å¯¼ï¼ˆæ¨¡å‹/llama-server/whisper æ¨¡å‹å¯ç”¨æ€§æ£€æµ‹ï¼‰
+    - å¤šå¹³å°ï¼ˆå¯é€‰ï¼‰ï¼šmacOS/Linux æ‰“åŒ…ä¸ç­¾åï¼ˆå¦‚éœ€è¦ï¼‰
 
-## ±¸Íü / ´ıÑéÖ¤ÊÂÏî£¨ÖØÒª£©
+## å¤‡å¿˜ / å¾…éªŒè¯äº‹é¡¹ï¼ˆé‡è¦ï¼‰
 
-- ºó¶ËºËĞÄ¹¦ÄÜÒÑÍ¨¹ıÒ»¼ü½Å±¾»Ø¹éÑéÖ¤£¨¼û¡°×Ô¶¯»¯ÑéÖ¤½Å±¾¡±£©¡£
-- ÒÔÏÂ²âÊÔ²½ÖèÄ¬ÈÏÕë¶Ô **Windows PowerShell**£º
-  - PowerShell ÖĞ `curl` Í¨³£ÊÇ `Invoke-WebRequest` µÄ±ğÃû£¬ĞĞÎªÓë curl ²»Í¬¡£
-  - ½¨ÒéÏÔÊ½Ê¹ÓÃ `curl.exe`£¬»òÊ¹ÓÃ `Invoke-RestMethod (irm)`¡£
-- SSE/WS Ïà¹Ø£º
-  - SSE ½¨ÒéÓÃä¯ÀÀÆ÷»ò `curl.exe -N` ÑéÖ¤£»WS ½¨ÒéÓÃ Node/Python ¿Í»§¶Ë½Å±¾ÑéÖ¤¡£
+- åç«¯æ ¸å¿ƒåŠŸèƒ½å·²é€šè¿‡ä¸€é”®è„šæœ¬å›å½’éªŒè¯ï¼ˆè§â€œè‡ªåŠ¨åŒ–éªŒè¯è„šæœ¬â€ï¼‰ã€‚
+- ä»¥ä¸‹æµ‹è¯•æ­¥éª¤é»˜è®¤é’ˆå¯¹ **Windows PowerShell**ï¼š
+  - PowerShell ä¸­ `curl` é€šå¸¸æ˜¯ `Invoke-WebRequest` çš„åˆ«åï¼Œè¡Œä¸ºä¸ curl ä¸åŒã€‚
+  - å»ºè®®æ˜¾å¼ä½¿ç”¨ `curl.exe`ï¼Œæˆ–ä½¿ç”¨ `Invoke-RestMethod (irm)`ã€‚
+- SSE/WS ç›¸å…³ï¼š
+  - SSE å»ºè®®ç”¨æµè§ˆå™¨æˆ– `curl.exe -N` éªŒè¯ï¼›WS å»ºè®®ç”¨ Node/Python å®¢æˆ·ç«¯è„šæœ¬éªŒè¯ã€‚
 
-### P3-5£ºÊı¾İÄ¿Â¼Ç¨ÒÆ / ±¸·İ / »Ö¸´£¨×ÀÃæ¶Ë´ò°ü°æ£©ÑéÖ¤±¸Íü
+### P3-5ï¼šæ•°æ®ç›®å½•è¿ç§» / å¤‡ä»½ / æ¢å¤ï¼ˆæ¡Œé¢ç«¯æ‰“åŒ…ç‰ˆï¼‰éªŒè¯å¤‡å¿˜
 
-> Ä¿±ê£º**´ò°ü°æÓ¦ÓÃ**Ä¬ÈÏ½«ºó¶ËÊı¾İÄ¿Â¼Ç¨ÒÆµ½ Electron µÄ `app.getPath('userData')` ÏÂ£»²¢Ìá¹©¡°Ò»¼üµ¼³ö zip / Ò»¼ü»Ö¸´ zip¡±¡£
+> ç›®æ ‡ï¼š**æ‰“åŒ…ç‰ˆåº”ç”¨**é»˜è®¤å°†åç«¯æ•°æ®ç›®å½•è¿ç§»åˆ° Electron çš„ `app.getPath('userData')` ä¸‹ï¼›å¹¶æä¾›â€œä¸€é”®å¯¼å‡º zip / ä¸€é”®æ¢å¤ zipâ€ã€‚
 
-#### 0) ÎªÊ²Ã´ÄãÔÚÇ°¶Ë½çÃæÃ»ÓĞ¿´µ½¡°Ç¨ÒÆÈë¿Ú/Ç¨ÒÆÒ³Ãæ¡±£¿
+#### 0) ä¸ºä»€ä¹ˆä½ åœ¨å‰ç«¯ç•Œé¢æ²¡æœ‰çœ‹åˆ°â€œè¿ç§»å…¥å£/è¿ç§»é¡µé¢â€ï¼Ÿ
 
-- **Ç¨ÒÆ²»ÊÇÒ»¸öÒ³Ãæ/°´Å¥**¡£
-- Ç¨ÒÆÂß¼­·¢ÉúÔÚ **Electron Ö÷½ø³ÌÆô¶¯ºó¶ËÖ®Ç°**£¬Ö»ÓĞÔÚÂú×ãÌõ¼şÊ±£¬²Å»áÔÚÆô¶¯Ê±µ¯Ò»¸öÏµÍ³¶Ô»°¿ò¡£
-- Í¬Ê±£¬¡°µ¼³ö/»Ö¸´ zip¡±°´Å¥Ä¿Ç°Ò²×öÁË **½ö´ò°ü°æÏÔÊ¾**£º
-  - ÄãÓÃ `start_dev.cmd` Æô¶¯µÄÊÇ¿ª·¢Ä£Ê½£¨·Ç´ò°ü£©£¬Òò´Ë²»»á³öÏÖÇ¨ÒÆµ¯´°£¬Ò²²»»áÏÔÊ¾µ¼³ö/»Ö¸´°´Å¥¡£
+- **è¿ç§»ä¸æ˜¯ä¸€ä¸ªé¡µé¢/æŒ‰é’®**ã€‚
+- è¿ç§»é€»è¾‘å‘ç”Ÿåœ¨ **Electron ä¸»è¿›ç¨‹å¯åŠ¨åç«¯ä¹‹å‰**ï¼Œåªæœ‰åœ¨æ»¡è¶³æ¡ä»¶æ—¶ï¼Œæ‰ä¼šåœ¨å¯åŠ¨æ—¶å¼¹ä¸€ä¸ªç³»ç»Ÿå¯¹è¯æ¡†ã€‚
+- åŒæ—¶ï¼Œâ€œå¯¼å‡º/æ¢å¤ zipâ€æŒ‰é’®ç›®å‰ä¹Ÿåšäº† **ä»…æ‰“åŒ…ç‰ˆæ˜¾ç¤º**ï¼š
+  - ä½ ç”¨ `start_dev.cmd` å¯åŠ¨çš„æ˜¯å¼€å‘æ¨¡å¼ï¼ˆéæ‰“åŒ…ï¼‰ï¼Œå› æ­¤ä¸ä¼šå‡ºç°è¿ç§»å¼¹çª—ï¼Œä¹Ÿä¸ä¼šæ˜¾ç¤ºå¯¼å‡º/æ¢å¤æŒ‰é’®ã€‚
 
-#### 1) Ç°ÖÃÌõ¼ş£¨±ØĞëÊÇ¡°´ò°ü°æÓ¦ÓÃ¡±£©
+#### 1) å‰ç½®æ¡ä»¶ï¼ˆå¿…é¡»æ˜¯â€œæ‰“åŒ…ç‰ˆåº”ç”¨â€ï¼‰
 
-- ÄãĞèÒªÔËĞĞ´ò°üºóµÄÓ¦ÓÃ£¨ÀıÈç `release/**/win-unpacked/` ÏÂµÄ exe£¬»ò°²×°°ü°²×°ºóµÄ exe£©¡£
-- ´ò°ü°æÆô¶¯ºó£¬ºó¶Ë»áÓÉ Electron Ö÷½ø³ÌÆô¶¯£¨²»»áÒÀÀµÄãÊÖ¶¯ÔÚÃüÁîĞĞÆô¶¯ backend£©¡£
+- ä½ éœ€è¦è¿è¡Œæ‰“åŒ…åçš„åº”ç”¨ï¼ˆä¾‹å¦‚ `release/**/win-unpacked/` ä¸‹çš„ exeï¼Œæˆ–å®‰è£…åŒ…å®‰è£…åçš„ exeï¼‰ã€‚
+- æ‰“åŒ…ç‰ˆå¯åŠ¨åï¼Œåç«¯ä¼šç”± Electron ä¸»è¿›ç¨‹å¯åŠ¨ï¼ˆä¸ä¼šä¾èµ–ä½ æ‰‹åŠ¨åœ¨å‘½ä»¤è¡Œå¯åŠ¨ backendï¼‰ã€‚
 
-#### 2) ¹Ø¼üÂ·¾¶ËµÃ÷£¨ÓÃÓÚ¼ì²éÊÇ·ñÕæµÄÉúĞ§£©
+#### 2) å…³é”®è·¯å¾„è¯´æ˜ï¼ˆç”¨äºæ£€æŸ¥æ˜¯å¦çœŸçš„ç”Ÿæ•ˆï¼‰
 
-- **¾ÉÄ¬ÈÏÄ¿Â¼£¨legacy£©**£º`%USERPROFILE%\.edge-video-agent`
-  - Àı£º`C:\Users\<ÄãÓÃ»§Ãû>\.edge-video-agent`
-- **´ò°ü°æĞÂÄ¬ÈÏÄ¿Â¼£¨packaged default£©**£º`<Electron userData>\edge-video-agent-data`
-  - ¾ßÌå `userData` ÔÚ²»Í¬»úÆ÷/°²×°·½Ê½¿ÉÄÜ²»Í¬£»×îÎÈÍ×µÄ°ì·¨ÊÇ£º
-    - ´ò¿ªÓ¦ÓÃ `Settings -> Diagnostics -> Ë¢ĞÂ`£¬²é¿´ºó¶Ë·µ»ØµÄ `data_dir` ×Ö¶Î£¨Õâ¾ÍÊÇµ±Ç°Êµ¼ÊÊ¹ÓÃµÄÊı¾İÄ¿Â¼£©¡£
+- **æ—§é»˜è®¤ç›®å½•ï¼ˆlegacyï¼‰**ï¼š`%USERPROFILE%\.edge-video-agent`
+  - ä¾‹ï¼š`C:\Users\<ä½ ç”¨æˆ·å>\.edge-video-agent`
+- **æ‰“åŒ…ç‰ˆæ–°é»˜è®¤ç›®å½•ï¼ˆpackaged defaultï¼‰**ï¼š`<Electron userData>\edge-video-agent-data`
+  - å…·ä½“ `userData` åœ¨ä¸åŒæœºå™¨/å®‰è£…æ–¹å¼å¯èƒ½ä¸åŒï¼›æœ€ç¨³å¦¥çš„åŠæ³•æ˜¯ï¼š
+    - æ‰“å¼€åº”ç”¨ `Settings -> Diagnostics -> åˆ·æ–°`ï¼ŒæŸ¥çœ‹åç«¯è¿”å›çš„ `data_dir` å­—æ®µï¼ˆè¿™å°±æ˜¯å½“å‰å®é™…ä½¿ç”¨çš„æ•°æ®ç›®å½•ï¼‰ã€‚
 
-#### 3) ÑéÖ¤¡°Æô¶¯Ê±Ç¨ÒÆµ¯´°¡±³öÏÖµÄ¸´ÏÖ²½Öè£¨½¨ÒéÑÏ¸ñ°´²½Öè£©
+#### 3) éªŒè¯â€œå¯åŠ¨æ—¶è¿ç§»å¼¹çª—â€å‡ºç°çš„å¤ç°æ­¥éª¤ï¼ˆå»ºè®®ä¸¥æ ¼æŒ‰æ­¥éª¤ï¼‰
 
-1. ¹Ø±ÕÓ¦ÓÃ£¨È·±£Ã»ÓĞ `Edge Video Agent` Ïà¹Ø½ø³ÌÕ¼ÓÃÎÄ¼ş£©¡£
-2. ×¼±¸¾ÉÄ¿Â¼£¨Èô²»´æÔÚ¾Í´´½¨£©£¬²¢·ÅÈëÒ»¸öÃ÷ÏÔµÄ¡°ÉÚ±øÎÄ¼ş¡±£¬ÓÃÓÚÈ·ÈÏÊÇ·ñ±»¸´ÖÆ£º
+1. å…³é—­åº”ç”¨ï¼ˆç¡®ä¿æ²¡æœ‰ `Edge Video Agent` ç›¸å…³è¿›ç¨‹å ç”¨æ–‡ä»¶ï¼‰ã€‚
+2. å‡†å¤‡æ—§ç›®å½•ï¼ˆè‹¥ä¸å­˜åœ¨å°±åˆ›å»ºï¼‰ï¼Œå¹¶æ”¾å…¥ä¸€ä¸ªæ˜æ˜¾çš„â€œå“¨å…µæ–‡ä»¶â€ï¼Œç”¨äºç¡®è®¤æ˜¯å¦è¢«å¤åˆ¶ï¼š
 
 ```powershell
 $Old = Join-Path $env:USERPROFILE ".edge-video-agent"
@@ -270,194 +270,194 @@ New-Item -ItemType Directory -Force -Path $Old | Out-Null
 "migration_sentinel" | Out-File -Encoding utf8 (Join-Path $Old "__MIGRATION_SENTINEL__.txt")
 ```
 
-3. È·±£ĞÂÄ¿Â¼ÊÇ¡°¿ÕµÄ¡±£¨¹Ø¼ü£º**Ö»ÓĞĞÂÄ¿Â¼Îª¿ÕÊ±²Å»á´¥·¢Ç¨ÒÆ**£©£º
-   - ĞÂÄ¿Â¼Ò»°ãÔÚ `userData\edge-video-agent-data`¡£
-   - Èç¹ûÄãÖ®Ç°ÔËĞĞ¹ı´ò°ü°æ£¬Ëü¿ÉÄÜÒÑ¾­ÓĞÄÚÈİ£»´ËÊ±Ç¨ÒÆµ¯´°²»»á³öÏÖ¡£
-   - Äã¿ÉÒÔÏÈÊÖ¶¯±¸·İ²¢É¾³ıĞÂÄ¿Â¼£¨½÷É÷²Ù×÷£©£¬»ò»»Ò»Ì¨¸É¾»»·¾³/ĞÂ Windows ÓÃ»§¡£
+3. ç¡®ä¿æ–°ç›®å½•æ˜¯â€œç©ºçš„â€ï¼ˆå…³é”®ï¼š**åªæœ‰æ–°ç›®å½•ä¸ºç©ºæ—¶æ‰ä¼šè§¦å‘è¿ç§»**ï¼‰ï¼š
 
-4. Æô¶¯´ò°ü°æÓ¦ÓÃ¡£
-5. Ô¤ÆÚ£º»áµ¯³ö¶Ô»°¿òÌáÊ¾¼ì²âµ½¾É°æÊı¾İÄ¿Â¼£¬²¢¸ø³öÁ½¸öÑ¡Ïî£º
-   - ¡°¸´ÖÆÇ¨ÒÆ£¨ÍÆ¼ö£©¡±
-   - ¡°¼ÌĞøÊ¹ÓÃ¾ÉÄ¿Â¼¡±
+   - æ–°ç›®å½•ä¸€èˆ¬åœ¨ `userData\edge-video-agent-data`ã€‚
+   - å¦‚æœä½ ä¹‹å‰è¿è¡Œè¿‡æ‰“åŒ…ç‰ˆï¼Œå®ƒå¯èƒ½å·²ç»æœ‰å†…å®¹ï¼›æ­¤æ—¶è¿ç§»å¼¹çª—ä¸ä¼šå‡ºç°ã€‚
+   - ä½ å¯ä»¥å…ˆæ‰‹åŠ¨å¤‡ä»½å¹¶åˆ é™¤æ–°ç›®å½•ï¼ˆè°¨æ…æ“ä½œï¼‰ï¼Œæˆ–æ¢ä¸€å°å¹²å‡€ç¯å¢ƒ/æ–° Windows ç”¨æˆ·ã€‚
+4. å¯åŠ¨æ‰“åŒ…ç‰ˆåº”ç”¨ã€‚
+5. é¢„æœŸï¼šä¼šå¼¹å‡ºå¯¹è¯æ¡†æç¤ºæ£€æµ‹åˆ°æ—§ç‰ˆæ•°æ®ç›®å½•ï¼Œå¹¶ç»™å‡ºä¸¤ä¸ªé€‰é¡¹ï¼š
 
-6. Ñ¡Ôñ¡°¸´ÖÆÇ¨ÒÆ£¨ÍÆ¼ö£©¡±¡£
-7. Ô¤ÆÚ£º¸´ÖÆÍê³Éºó»áÔÙ´Îµ¯´°Ñ¯ÎÊÊÇ·ñÉ¾³ı¾ÉÄ¿Â¼ÒÔÊÍ·Å¿Õ¼ä£¨Ä¬ÈÏ²»É¾³ı£©¡£
+   - â€œå¤åˆ¶è¿ç§»ï¼ˆæ¨èï¼‰â€
+   - â€œç»§ç»­ä½¿ç”¨æ—§ç›®å½•â€
+6. é€‰æ‹©â€œå¤åˆ¶è¿ç§»ï¼ˆæ¨èï¼‰â€ã€‚
+7. é¢„æœŸï¼šå¤åˆ¶å®Œæˆåä¼šå†æ¬¡å¼¹çª—è¯¢é—®æ˜¯å¦åˆ é™¤æ—§ç›®å½•ä»¥é‡Šæ”¾ç©ºé—´ï¼ˆé»˜è®¤ä¸åˆ é™¤ï¼‰ã€‚
 
-#### 4) ÑéÖ¤¡°¸´ÖÆÇ¨ÒÆÈ·Êµ³É¹¦¡±µÄ¼ì²éµã
+#### 4) éªŒè¯â€œå¤åˆ¶è¿ç§»ç¡®å®æˆåŠŸâ€çš„æ£€æŸ¥ç‚¹
 
-1. Ó¦ÓÃÆô¶¯½øÈëÖ÷½çÃæºó£¬½øÈë `Settings -> Diagnostics -> Ë¢ĞÂ`¡£
-2. ÕÒµ½ `data_dir` ×Ö¶Î£º
-   - Ô¤ÆÚ£º`data_dir` Ö¸ÏòĞÂÄ¿Â¼£¨`...\edge-video-agent-data`£©¡£
-3. ÓÃ×ÊÔ´¹ÜÀíÆ÷´ò¿ª¸ÃÄ¿Â¼£¬¼ì²éÊÇ·ñ´æÔÚÄãÔÚ¾ÉÄ¿Â¼´´½¨µÄÉÚ±øÎÄ¼ş£º
-   - Ô¤ÆÚ£ºĞÂÄ¿Â¼ÖĞÓ¦ÄÜÕÒµ½ `__MIGRATION_SENTINEL__.txt`¡£
-4. Èç¹ûÄãÔÚµÚ¶ş¸öµ¯´°Ñ¡ÔñÁË¡°É¾³ı¾ÉÄ¿Â¼¡±£º
-   - Ô¤ÆÚ£º`%USERPROFILE%\.edge-video-agent` ±»É¾³ı£¨»òÖÁÉÙ²»´æÔÚ/Îª¿Õ£©¡£
+1. åº”ç”¨å¯åŠ¨è¿›å…¥ä¸»ç•Œé¢åï¼Œè¿›å…¥ `Settings -> Diagnostics -> åˆ·æ–°`ã€‚
+2. æ‰¾åˆ° `data_dir` å­—æ®µï¼š
+   - é¢„æœŸï¼š`data_dir` æŒ‡å‘æ–°ç›®å½•ï¼ˆ`...\edge-video-agent-data`ï¼‰ã€‚
+3. ç”¨èµ„æºç®¡ç†å™¨æ‰“å¼€è¯¥ç›®å½•ï¼Œæ£€æŸ¥æ˜¯å¦å­˜åœ¨ä½ åœ¨æ—§ç›®å½•åˆ›å»ºçš„å“¨å…µæ–‡ä»¶ï¼š
+   - é¢„æœŸï¼šæ–°ç›®å½•ä¸­åº”èƒ½æ‰¾åˆ° `__MIGRATION_SENTINEL__.txt`ã€‚
+4. å¦‚æœä½ åœ¨ç¬¬äºŒä¸ªå¼¹çª—é€‰æ‹©äº†â€œåˆ é™¤æ—§ç›®å½•â€ï¼š
+   - é¢„æœŸï¼š`%USERPROFILE%\.edge-video-agent` è¢«åˆ é™¤ï¼ˆæˆ–è‡³å°‘ä¸å­˜åœ¨/ä¸ºç©ºï¼‰ã€‚
 
-#### 5) ÑéÖ¤¡°Ò»¼üµ¼³ö zip¡±²½Öè£¨´ò°ü°æ Settings ÄÚ£©
+#### 5) éªŒè¯â€œä¸€é”®å¯¼å‡º zipâ€æ­¥éª¤ï¼ˆæ‰“åŒ…ç‰ˆ Settings å†…ï¼‰
 
-1. ´ò°ü°æÓ¦ÓÃ´ò¿ªºó£º½øÈë `Settings -> Diagnostics`¡£
-2. µã»÷£º
-   - ¡°µ¼³öÊı¾İ£¨zip£©¡±
-3. Ñ¡Ôñ±£´æÎ»ÖÃ£¨½¨Òé±£´æµ½ `Downloads`£©¡£
-4. Ô¤ÆÚ£ºÌáÊ¾µ¼³ö³É¹¦£¬²¢·µ»Ø zip ÎÄ¼şÂ·¾¶¡£
-5. £¨¿ÉÑ¡£©¼ì²é zip ÄÚÈİ£º
-   - zip ÀïÍ¨³£»á°üº¬Ò»¸ö¶¥²ãÄ¿Â¼£¨ÀıÈç `edge-video-agent-data`£©£¬ÕâÊÇÕı³£µÄ¡£
+1. æ‰“åŒ…ç‰ˆåº”ç”¨æ‰“å¼€åï¼šè¿›å…¥ `Settings -> Diagnostics`ã€‚
+2. ç‚¹å‡»ï¼š
+   - â€œå¯¼å‡ºæ•°æ®ï¼ˆzipï¼‰â€
+3. é€‰æ‹©ä¿å­˜ä½ç½®ï¼ˆå»ºè®®ä¿å­˜åˆ° `Downloads`ï¼‰ã€‚
+4. é¢„æœŸï¼šæç¤ºå¯¼å‡ºæˆåŠŸï¼Œå¹¶è¿”å› zip æ–‡ä»¶è·¯å¾„ã€‚
+5. ï¼ˆå¯é€‰ï¼‰æ£€æŸ¥ zip å†…å®¹ï¼š
+   - zip é‡Œé€šå¸¸ä¼šåŒ…å«ä¸€ä¸ªé¡¶å±‚ç›®å½•ï¼ˆä¾‹å¦‚ `edge-video-agent-data`ï¼‰ï¼Œè¿™æ˜¯æ­£å¸¸çš„ã€‚
 
-#### 6) ÑéÖ¤¡°Ò»¼ü»Ö¸´ zip¡±²½Öè£¨´ò°ü°æ Settings ÄÚ£©
+#### 6) éªŒè¯â€œä¸€é”®æ¢å¤ zipâ€æ­¥éª¤ï¼ˆæ‰“åŒ…ç‰ˆ Settings å†…ï¼‰
 
-> ×¢Òâ£º»Ö¸´»á¸²¸Çµ±Ç°Êı¾İ¡£ÊµÏÖÉÏ»áÏÈ°Ñµ±Ç°Êı¾İÄ¿Â¼ÖØÃüÃûÎª `*.backup-<timestamp>`£¬ÔÙÇĞ»»µ½»Ö¸´ºóµÄÊı¾İ¡£
+> æ³¨æ„ï¼šæ¢å¤ä¼šè¦†ç›–å½“å‰æ•°æ®ã€‚å®ç°ä¸Šä¼šå…ˆæŠŠå½“å‰æ•°æ®ç›®å½•é‡å‘½åä¸º `*.backup-<timestamp>`ï¼Œå†åˆ‡æ¢åˆ°æ¢å¤åçš„æ•°æ®ã€‚
 
-1. ½øÈë `Settings -> Diagnostics`¡£
-2. µã»÷£º
-   - ¡°»Ö¸´Êı¾İ£¨zip£©¡±
-3. Ñ¡Ôñ¸Õ²Åµ¼³öµÄ zip¡£
-4. »áµ¯³ö¡°¸²¸ÇÈ·ÈÏ¡±¶Ô»°¿ò£¬µã»÷¼ÌĞø¡£
-5. Ô¤ÆÚ£º
-   - µ±Ç°Êı¾İÄ¿Â¼»á±»±¸·İÎª `...backup-<timestamp>`£¨Í¬¼¶Ä¿Â¼£©
-   - »Ö¸´Íê³ÉºóÓ¦ÓÃ»á³¢ÊÔÖØÆôºó¶Ë²¢Ë¢ĞÂÒ³Ãæ
-6. ÔÙ´Î `Settings -> Diagnostics -> Ë¢ĞÂ`£º
-   - Ô¤ÆÚ£º`data_dir` ²»±ä
-   - Êı¾İÄÚÈİ»Øµ½±¸·İÊ±µÄ×´Ì¬
+1. è¿›å…¥ `Settings -> Diagnostics`ã€‚
+2. ç‚¹å‡»ï¼š
+   - â€œæ¢å¤æ•°æ®ï¼ˆzipï¼‰â€
+3. é€‰æ‹©åˆšæ‰å¯¼å‡ºçš„ zipã€‚
+4. ä¼šå¼¹å‡ºâ€œè¦†ç›–ç¡®è®¤â€å¯¹è¯æ¡†ï¼Œç‚¹å‡»ç»§ç»­ã€‚
+5. é¢„æœŸï¼š
+   - å½“å‰æ•°æ®ç›®å½•ä¼šè¢«å¤‡ä»½ä¸º `...backup-<timestamp>`ï¼ˆåŒçº§ç›®å½•ï¼‰
+   - æ¢å¤å®Œæˆååº”ç”¨ä¼šå°è¯•é‡å¯åç«¯å¹¶åˆ·æ–°é¡µé¢
+6. å†æ¬¡ `Settings -> Diagnostics -> åˆ·æ–°`ï¼š
+   - é¢„æœŸï¼š`data_dir` ä¸å˜
+   - æ•°æ®å†…å®¹å›åˆ°å¤‡ä»½æ—¶çš„çŠ¶æ€
 
-#### 7) ³£¼ûÔ­ÒòÅÅ²é£¨¿´²»µ½µ¯´°/°´Å¥£©
+#### 7) å¸¸è§åŸå› æ’æŸ¥ï¼ˆçœ‹ä¸åˆ°å¼¹çª—/æŒ‰é’®ï¼‰
 
-- **¿´²»µ½Ç¨ÒÆµ¯´°**£º
-  - ÄãÔËĞĞµÄ²»ÊÇ´ò°ü°æ£¨¿ª·¢Ä£Ê½²»»á´¥·¢£©¡£
-  - ĞÂÄ¿Â¼²»ÊÇ¿ÕµÄ£¨Ç¨ÒÆ²ßÂÔÊÇ¡°½öÔÚĞÂÄ¿Â¼Îª¿ÕÊ±¡±²ÅÌáÊ¾Ç¨ÒÆ£¬±ÜÃâ¸²¸ÇÒÑÓĞÊı¾İ£©¡£
-- **Settings Àï¿´²»µ½¡°µ¼³ö/»Ö¸´¡±°´Å¥**£º
-  - ÄãÔËĞĞµÄ²»ÊÇ´ò°ü°æ£¨°´Å¥½ö´ò°ü°æÏÔÊ¾£©¡£
+- **çœ‹ä¸åˆ°è¿ç§»å¼¹çª—**ï¼š
+  - ä½ è¿è¡Œçš„ä¸æ˜¯æ‰“åŒ…ç‰ˆï¼ˆå¼€å‘æ¨¡å¼ä¸ä¼šè§¦å‘ï¼‰ã€‚
+  - æ–°ç›®å½•ä¸æ˜¯ç©ºçš„ï¼ˆè¿ç§»ç­–ç•¥æ˜¯â€œä»…åœ¨æ–°ç›®å½•ä¸ºç©ºæ—¶â€æ‰æç¤ºè¿ç§»ï¼Œé¿å…è¦†ç›–å·²æœ‰æ•°æ®ï¼‰ã€‚
+- **Settings é‡Œçœ‹ä¸åˆ°â€œå¯¼å‡º/æ¢å¤â€æŒ‰é’®**ï¼š
+  - ä½ è¿è¡Œçš„ä¸æ˜¯æ‰“åŒ…ç‰ˆï¼ˆæŒ‰é’®ä»…æ‰“åŒ…ç‰ˆæ˜¾ç¤ºï¼‰ã€‚
 
-### P3-3£ºÄ£ĞÍÈÈÌæ»» / ¹ÜÀí£¨´ıÑéÖ¤£¬Ôİ²»×èÈû P3-4£©
+### P3-3ï¼šæ¨¡å‹çƒ­æ›¿æ¢ / ç®¡ç†ï¼ˆå¾…éªŒè¯ï¼Œæš‚ä¸é˜»å¡ P3-4ï¼‰
 
-> Ä¿±ê£ºÖ§³ÖÔÚ²»ÖØÆôºó¶ËµÄÇé¿öÏÂÇĞ»» ASR Ä£ĞÍ£¨ÒÔ¼°ÇĞ»»Ä¬ÈÏ LLM Ä£ĞÍÆ«ºÃ£©£¬²¢¾ß±¸¡°¿É»Ø¹ö¡±µÄÊı¾İ½á¹¹¡£
+> ç›®æ ‡ï¼šæ”¯æŒåœ¨ä¸é‡å¯åç«¯çš„æƒ…å†µä¸‹åˆ‡æ¢ ASR æ¨¡å‹ï¼ˆä»¥åŠåˆ‡æ¢é»˜è®¤ LLM æ¨¡å‹åå¥½ï¼‰ï¼Œå¹¶å…·å¤‡â€œå¯å›æ»šâ€çš„æ•°æ®ç»“æ„ã€‚
 
-- **ºó¶ËÒÑÊµÏÖ**£º
-  - `PUT /runtime/profile` Ö§³Ö `asr_model`£¬²¢Í¨¹ı»·¾³±äÁ¿ `ASR_MODEL` Çı¶¯ ASR ¼ÓÔØ¡£
-  - ASR ¼ÓÔØÂß¼­Ö§³ÖÈÈÇĞ»»£ºµ± `asr_model / asr_device / asr_compute_type` ±ä»¯Ê±»á×Ô¶¯Ğ¶ÔØ²¢ÔÚÏÂÒ»´Î×ªĞ´Ê±ÖØÔØ¡£
-  - `GET/PUT /models/manifest`£ºÄ£ĞÍÇåµ¥£¨ÂäÅÌµ½ `${data_dir}/models/manifest.json`£©¡£
-  - `POST /models/activate`£ºÇĞ»» `asr_model` / `llm_model`£¬·µ»Ø `previous` ºÍ `current`£¬ÓÃÓÚ»Ø¹ö¡£
+- **åç«¯å·²å®ç°**ï¼š
 
-- **½¨ÒéÑéÖ¤²½Öè**£º
-  - **ASR ×´Ì¬**£º
-    - Settings -> Runtime Profile£ºÌîĞ´ `asr_model=small` »ò `asr_model=large-v3` ²¢±£´æ¡£
-    - µã»÷ ¡°Ë¢ĞÂ ASR ×´Ì¬¡±£¬È·ÈÏÏÔÊ¾µÄ `model/repo_id` ¸úËæ±ä»¯¡£
-  - **ASR ÕæÕıÈÈÇĞ»»**£º
-    - ÇĞ»» `asr_model` ºó£¬´´½¨Ò»´Î `transcribe` job£¨ÈÎÒâÊÓÆµ£©¡£
-    - Ô¤ÆÚ£ºÈÎÎñ¿ÉÕı³£Íê³É£¬ÇÒÇĞ»»ºóÊ×´Î×ªĞ´»á´¥·¢ ASR Ä£ĞÍ°´ĞÂÅäÖÃÖØÔØ¡£
-  - **LLM Ä£ĞÍºòÑ¡£¨±¾µØ llama-server£©**£º
-    - Settings -> ¡°±¾µØ llama-server ×´Ì¬¡±£ºË¢ĞÂ¡£
-    - Èô `/v1/models` ·µ»Ø `models` ÁĞ±í£¬Default LLM Preferences ÀïÓ¦³öÏÖÏÂÀ­£¬Ñ¡Ôñºó±£´æÉúĞ§¡£
-  - **»Ø¹ö**£º
-    - µ÷ÓÃ `POST /models/activate` µÃµ½ `previous`¡£
-    - ½« `previous.runtime.asr_model` Óë `previous.llm.model` ÔÙÌá½»Ò»´Î£¬È·ÈÏ¿É»Øµ½ÉÏÒ»×´Ì¬¡£
+  - `PUT /runtime/profile` æ”¯æŒ `asr_model`ï¼Œå¹¶é€šè¿‡ç¯å¢ƒå˜é‡ `ASR_MODEL` é©±åŠ¨ ASR åŠ è½½ã€‚
+  - ASR åŠ è½½é€»è¾‘æ”¯æŒçƒ­åˆ‡æ¢ï¼šå½“ `asr_model / asr_device / asr_compute_type` å˜åŒ–æ—¶ä¼šè‡ªåŠ¨å¸è½½å¹¶åœ¨ä¸‹ä¸€æ¬¡è½¬å†™æ—¶é‡è½½ã€‚
+  - `GET/PUT /models/manifest`ï¼šæ¨¡å‹æ¸…å•ï¼ˆè½ç›˜åˆ° `${data_dir}/models/manifest.json`ï¼‰ã€‚
+  - `POST /models/activate`ï¼šåˆ‡æ¢ `asr_model` / `llm_model`ï¼Œè¿”å› `previous` å’Œ `current`ï¼Œç”¨äºå›æ»šã€‚
+- **å»ºè®®éªŒè¯æ­¥éª¤**ï¼š
 
-- **±¸×¢£¨ASR »º´æÎÄ¼ş£©**£º
-  - Faster-Whisper ÔËĞĞÍ¨³£Ö»ĞèÒª `model.bin + config.json`¡£
-  - UI ÈôÏÔÊ¾È±Ê§ `tokenizer.json/vocabulary.json/...` µÈÎÄ¼ş£¬¶àÊıÊôÓÚ¡°¿ÉÑ¡ÎÄ¼ş¡±£¬²»Ó¦×èÖ¹Ê¹ÓÃ¡£
+  - **ASR çŠ¶æ€**ï¼š
+    - Settings -> Runtime Profileï¼šå¡«å†™ `asr_model=small` æˆ– `asr_model=large-v3` å¹¶ä¿å­˜ã€‚
+    - ç‚¹å‡» â€œåˆ·æ–° ASR çŠ¶æ€â€ï¼Œç¡®è®¤æ˜¾ç¤ºçš„ `model/repo_id` è·Ÿéšå˜åŒ–ã€‚
+  - **ASR çœŸæ­£çƒ­åˆ‡æ¢**ï¼š
+    - åˆ‡æ¢ `asr_model` åï¼Œåˆ›å»ºä¸€æ¬¡ `transcribe` jobï¼ˆä»»æ„è§†é¢‘ï¼‰ã€‚
+    - é¢„æœŸï¼šä»»åŠ¡å¯æ­£å¸¸å®Œæˆï¼Œä¸”åˆ‡æ¢åé¦–æ¬¡è½¬å†™ä¼šè§¦å‘ ASR æ¨¡å‹æŒ‰æ–°é…ç½®é‡è½½ã€‚
+  - **LLM æ¨¡å‹å€™é€‰ï¼ˆæœ¬åœ° llama-serverï¼‰**ï¼š
+    - Settings -> â€œæœ¬åœ° llama-server çŠ¶æ€â€ï¼šåˆ·æ–°ã€‚
+    - è‹¥ `/v1/models` è¿”å› `models` åˆ—è¡¨ï¼ŒDefault LLM Preferences é‡Œåº”å‡ºç°ä¸‹æ‹‰ï¼Œé€‰æ‹©åä¿å­˜ç”Ÿæ•ˆã€‚
+  - **å›æ»š**ï¼š
+    - è°ƒç”¨ `POST /models/activate` å¾—åˆ° `previous`ã€‚
+    - å°† `previous.runtime.asr_model` ä¸ `previous.llm.model` å†æäº¤ä¸€æ¬¡ï¼Œç¡®è®¤å¯å›åˆ°ä¸Šä¸€çŠ¶æ€ã€‚
+- **å¤‡æ³¨ï¼ˆASR ç¼“å­˜æ–‡ä»¶ï¼‰**ï¼š
 
-### MVP-4£ºscene_threshold µ÷²Î±¸Íü£¨³¡¾°ÇĞ»»³éÖ¡£©
+  - Faster-Whisper è¿è¡Œé€šå¸¸åªéœ€è¦ `model.bin + config.json`ã€‚
+  - UI è‹¥æ˜¾ç¤ºç¼ºå¤± `tokenizer.json/vocabulary.json/...` ç­‰æ–‡ä»¶ï¼Œå¤šæ•°å±äºâ€œå¯é€‰æ–‡ä»¶â€ï¼Œä¸åº”é˜»æ­¢ä½¿ç”¨ã€‚
 
-- `scene_threshold` µÄº¬Òå£º`ffmpeg` µÄ `scene` ¼ì²âÊÇÒ»¸ö 0~1 µÄ¡°¾µÍ·ÇĞ»»Ç¿¶È¡±ÆÀ·Ö£¬¹ıÂËÌõ¼şÊÇ `scene_score > scene_threshold`¡£
-  - ãĞÖµ **Ô½µÍ**£ººòÑ¡Ö¡ **Ô½¶à**£¨¸üÃô¸Ğ£¬¿ÉÄÜÒıÈëÔëÉù£©
-  - ãĞÖµ **Ô½¸ß**£ººòÑ¡Ö¡ **Ô½ÉÙ**£¨¸ü±£ÊØ£¬¿ÉÄÜÄ³Ğ©ÕÂ½ÚÃ»ÓĞÖ¡£©
-- ½¨ÒéµÄµ÷²ÎÁ÷³Ì£¨ÏÈ±£Ö¤¡°ÓĞÖ¡¡±£¬ÔÙ¿ØÖÆ¡°ÖÊÁ¿/ÃÜ¶È¡±£©£º
-  - µÚÒ»´Î½¨Òé´Ó `0.3` ¿ªÊ¼£¨Ä¬ÈÏÍÆ¼öÖµ£©¡£
-  - Èô `GET /videos/{id}/keyframes?method=scene` ·µ»ØÊıÁ¿¹ıÉÙ£ºÖğ²½½µµÍãĞÖµ£¬ÀıÈç `0.3 -> 0.2 -> 0.15 -> 0.1`¡£
-  - ÈôºòÑ¡¹ı¶à/Ì«ÃÜ£ºÌá¸ßãĞÖµ£¬ÀıÈç `0.3 -> 0.4 -> 0.5`£¬²¢ÅäºÏÔö´ó `min_gap_seconds`¡£
-- ´îÅä²ÎÊı£¨ÓÅÏÈ¼¶½¨Òé£©£º
-  - **`min_gap_seconds`**£ºÓÃÓÚÈ¥ÖØ/¿ØÃÜ¶È¡£ÏëÒª¡°Ã¿ÕÂ 2 ÕÅµ«²»ÒªÌ«½ü¡±£¬ÓÅÏÈµ÷Ëü£¨³£ÓÃ `2~5` Ãë£©¡£
-  - **`max_frames`**£ºÉÏÏŞ±£»¤£¬±ÜÃâ¹ı¶à³éÖ¡µ¼ÖÂ CPU/IO Ê±¼ä¹ı³¤£¨³£ÓÃ `20~60`£©¡£
-  - **`target_width`**£º½µµÍÍ¼Æ¬¿í¶È¿ÉÏÔÖø¼õÉÙ´æ´¢Óë IO£¨ÀıÈç `640`£©¡£
-- ¿ìËÙ¹Û²ìÓë¾ö²ß£¨PowerShell£©£º
+### MVP-4ï¼šscene_threshold è°ƒå‚å¤‡å¿˜ï¼ˆåœºæ™¯åˆ‡æ¢æŠ½å¸§ï¼‰
+
+- `scene_threshold` çš„å«ä¹‰ï¼š`ffmpeg` çš„ `scene` æ£€æµ‹æ˜¯ä¸€ä¸ª 0~1 çš„â€œé•œå¤´åˆ‡æ¢å¼ºåº¦â€è¯„åˆ†ï¼Œè¿‡æ»¤æ¡ä»¶æ˜¯ `scene_score > scene_threshold`ã€‚
+  - é˜ˆå€¼ **è¶Šä½**ï¼šå€™é€‰å¸§ **è¶Šå¤š**ï¼ˆæ›´æ•æ„Ÿï¼Œå¯èƒ½å¼•å…¥å™ªå£°ï¼‰
+  - é˜ˆå€¼ **è¶Šé«˜**ï¼šå€™é€‰å¸§ **è¶Šå°‘**ï¼ˆæ›´ä¿å®ˆï¼Œå¯èƒ½æŸäº›ç« èŠ‚æ²¡æœ‰å¸§ï¼‰
+- å»ºè®®çš„è°ƒå‚æµç¨‹ï¼ˆå…ˆä¿è¯â€œæœ‰å¸§â€ï¼Œå†æ§åˆ¶â€œè´¨é‡/å¯†åº¦â€ï¼‰ï¼š
+  - ç¬¬ä¸€æ¬¡å»ºè®®ä» `0.3` å¼€å§‹ï¼ˆé»˜è®¤æ¨èå€¼ï¼‰ã€‚
+  - è‹¥ `GET /videos/{id}/keyframes?method=scene` è¿”å›æ•°é‡è¿‡å°‘ï¼šé€æ­¥é™ä½é˜ˆå€¼ï¼Œä¾‹å¦‚ `0.3 -> 0.2 -> 0.15 -> 0.1`ã€‚
+  - è‹¥å€™é€‰è¿‡å¤š/å¤ªå¯†ï¼šæé«˜é˜ˆå€¼ï¼Œä¾‹å¦‚ `0.3 -> 0.4 -> 0.5`ï¼Œå¹¶é…åˆå¢å¤§ `min_gap_seconds`ã€‚
+- æ­é…å‚æ•°ï¼ˆä¼˜å…ˆçº§å»ºè®®ï¼‰ï¼š
+  - **`min_gap_seconds`**ï¼šç”¨äºå»é‡/æ§å¯†åº¦ã€‚æƒ³è¦â€œæ¯ç«  2 å¼ ä½†ä¸è¦å¤ªè¿‘â€ï¼Œä¼˜å…ˆè°ƒå®ƒï¼ˆå¸¸ç”¨ `2~5` ç§’ï¼‰ã€‚
+  - **`max_frames`**ï¼šä¸Šé™ä¿æŠ¤ï¼Œé¿å…è¿‡å¤šæŠ½å¸§å¯¼è‡´ CPU/IO æ—¶é—´è¿‡é•¿ï¼ˆå¸¸ç”¨ `20~60`ï¼‰ã€‚
+  - **`target_width`**ï¼šé™ä½å›¾ç‰‡å®½åº¦å¯æ˜¾è‘—å‡å°‘å­˜å‚¨ä¸ IOï¼ˆä¾‹å¦‚ `640`ï¼‰ã€‚
+- å¿«é€Ÿè§‚å¯Ÿä¸å†³ç­–ï¼ˆPowerShellï¼‰ï¼š
 
 ```powershell
 $BaseUrl = "http://127.0.0.1:8001"
 $VideoId = "<VIDEO_ID>"
 
-# ¹Û²ì scene ³éÖ¡ÊıÁ¿Óë score ·Ö²¼
+# è§‚å¯Ÿ scene æŠ½å¸§æ•°é‡ä¸ score åˆ†å¸ƒ
 $scene = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes?method=scene&limit=200"
 ($scene.items | Measure-Object).Count
 $scene.items | Select-Object -First 5 id,timestamp_ms,score
 
-# ÈôÕÂ½ÚÄÚ²»×ã per_section£¬¿É¿ªÆô¶µµ×£¨²»¸ÄãĞÖµÒ²ÄÜÏÈ²ú³ö¡°Ã¿ÕÂ¶¼ÓĞÍ¼¡±£©
+# è‹¥ç« èŠ‚å†…ä¸è¶³ per_sectionï¼Œå¯å¼€å¯å…œåº•ï¼ˆä¸æ”¹é˜ˆå€¼ä¹Ÿèƒ½å…ˆäº§å‡ºâ€œæ¯ç« éƒ½æœ‰å›¾â€ï¼‰
 $aligned = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes/aligned?method=scene&per_section=2&min_gap_seconds=2.0&fallback=nearest"
 $aligned | ConvertTo-Json -Depth 50
 ```
 
-## ÏêÏ¸²âÊÔ²½Öè£¨PowerShell£©
+## è¯¦ç»†æµ‹è¯•æ­¥éª¤ï¼ˆPowerShellï¼‰
 
-> ËµÃ÷£ºÒÔÏÂÊ¾ÀıÒÔ±¾»ú `127.0.0.1:8001` ÎªÀı¡£Â·¾¶ÖĞµÄÊÓÆµÎÄ¼şÇëÌæ»»ÎªÄãµçÄÔÉÏÕæÊµ´æÔÚµÄÎÄ¼ş¡£
+> è¯´æ˜ï¼šä»¥ä¸‹ç¤ºä¾‹ä»¥æœ¬æœº `127.0.0.1:8001` ä¸ºä¾‹ã€‚è·¯å¾„ä¸­çš„è§†é¢‘æ–‡ä»¶è¯·æ›¿æ¢ä¸ºä½ ç”µè„‘ä¸ŠçœŸå®å­˜åœ¨çš„æ–‡ä»¶ã€‚
 
-### 0. Æô¶¯·şÎñ
+### 0. å¯åŠ¨æœåŠ¡
 
-- ÍÆ¼ö£¨±¾µØÕ»Ò»¼üÆô¶¯ llama-server + backend£©£ºÔÚ²Ö¿â¸ùÄ¿Â¼£º
+- æ¨èï¼ˆæœ¬åœ°æ ˆä¸€é”®å¯åŠ¨ llama-server + backendï¼‰ï¼šåœ¨ä»“åº“æ ¹ç›®å½•ï¼š
 
 ```powershell
 ./scripts/run_local_stack.ps1
 ```
 
-- ×ÀÃæ¶Ë¿ª·¢£¨ÍÆ¼ö£¬Æô¶¯ llama-server + backend + Electron Ç°¶Ë£©£ºË«»÷²Ö¿â¸ùÄ¿Â¼ `start_dev.cmd`
-
-- ÊÖ¶¯Æô¶¯ backend£¨½öºó¶Ë£¬²»°üº¬ llama-server£©£ºÔÚÏîÄ¿ `backend` Ä¿Â¼ÏÂ£º
+- æ¡Œé¢ç«¯å¼€å‘ï¼ˆæ¨èï¼Œå¯åŠ¨ llama-server + backend + Electron å‰ç«¯ï¼‰ï¼šåŒå‡»ä»“åº“æ ¹ç›®å½• `start_dev.cmd`
+- æ‰‹åŠ¨å¯åŠ¨ backendï¼ˆä»…åç«¯ï¼Œä¸åŒ…å« llama-serverï¼‰ï¼šåœ¨é¡¹ç›® `backend` ç›®å½•ä¸‹ï¼š
 
 ```powershell
-# ½¨ÒéÏÈ´´½¨²¢¼¤»îĞéÄâ»·¾³£¨¿ÉÑ¡£©
+# å»ºè®®å…ˆåˆ›å»ºå¹¶æ¿€æ´»è™šæ‹Ÿç¯å¢ƒï¼ˆå¯é€‰ï¼‰
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
 pip install -r requirements.txt
 
-# Æô¶¯ FastAPI
+# å¯åŠ¨ FastAPI
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```
 
-### 1. ½¡¿µ¼ì²é
+### 1. å¥åº·æ£€æŸ¥
 
 ```powershell
 curl.exe http://127.0.0.1:8001/health
 ```
 
-### 2. µ¼ÈëÊÓÆµ
+### 2. å¯¼å…¥è§†é¢‘
 
 ```powershell
 $body = @{ file_path = "F:\\TEST\\Edge-AI-Video-Summarizer\\Vedio\\test_vedio.mp4" } | ConvertTo-Json
 curl.exe -X POST http://127.0.0.1:8001/videos/import -H "Content-Type: application/json" -d $body
 ```
 
-¼ÇÂ¼·µ»ØÀïµÄ `video_id`¡£
+è®°å½•è¿”å›é‡Œçš„ `video_id`ã€‚
 
-### 3. ´´½¨×ªĞ´ Job
+### 3. åˆ›å»ºè½¬å†™ Job
 
 ```powershell
 $body = @{ video_id = "<VIDEO_ID>"; segment_seconds = 60; overlap_seconds = 3 } | ConvertTo-Json
 curl.exe -X POST http://127.0.0.1:8001/jobs/transcribe -H "Content-Type: application/json" -d $body
 ```
 
-¼ÇÂ¼·µ»ØÀïµÄ `job_id`¡£
+è®°å½•è¿”å›é‡Œçš„ `job_id`ã€‚
 
-### 4. ÆÕÍ¨ÂÖÑ¯²é¿´½ø¶È
+### 4. æ™®é€šè½®è¯¢æŸ¥çœ‹è¿›åº¦
 
 ```powershell
 curl.exe http://127.0.0.1:8001/jobs/<JOB_ID>
 ```
 
-### 5. SSE ÊµÊ±¶©ÔÄ£¨ÍÆ¼ö£©
+### 5. SSE å®æ—¶è®¢é˜…ï¼ˆæ¨èï¼‰
 
 ```powershell
-# -N ÈÃ curl ²»Òª»º³åÊä³ö
+# -N è®© curl ä¸è¦ç¼“å†²è¾“å‡º
 curl.exe -N http://127.0.0.1:8001/jobs/<JOB_ID>/events
 ```
 
-Äã»á³ÖĞø¿´µ½ `event: job` µÄ data£¨JSON£©¡£
+ä½ ä¼šæŒç»­çœ‹åˆ° `event: job` çš„ dataï¼ˆJSONï¼‰ã€‚
 
-### 6. WebSocket ÑéÖ¤£¨ÍÆ¼öÓÃ½Å±¾£©
+### 6. WebSocket éªŒè¯ï¼ˆæ¨èç”¨è„šæœ¬ï¼‰
 
-> PowerShell ´¿ÃüÁîĞĞ²»Ì«·½±ãÖ±½ÓÅÜ WS ¿Í»§¶Ë£¬½¨ÒéÓÃ Node.js »ò Python Ğ´Ò»¸ö 10 ĞĞĞ¡½Å±¾¡£
+> PowerShell çº¯å‘½ä»¤è¡Œä¸å¤ªæ–¹ä¾¿ç›´æ¥è·‘ WS å®¢æˆ·ç«¯ï¼Œå»ºè®®ç”¨ Node.js æˆ– Python å†™ä¸€ä¸ª 10 è¡Œå°è„šæœ¬ã€‚
 
-#### Node.js Ê¾Àı£¨ĞèÒªÄã±¾»ú×° Node£©
+#### Node.js ç¤ºä¾‹ï¼ˆéœ€è¦ä½ æœ¬æœºè£… Nodeï¼‰
 
 ```javascript
-// ±£´æÎª ws_test.js
+// ä¿å­˜ä¸º ws_test.js
 import WebSocket from "ws";
 
 const jobId = process.argv[2];
@@ -466,61 +466,61 @@ ws.on("message", (msg) => console.log(msg.toString()));
 ws.on("open", () => console.log("connected"));
 ```
 
-PowerShell ÔËĞĞ£º
+PowerShell è¿è¡Œï¼š
 
 ```powershell
 node .\ws_test.js <JOB_ID>
 ```
 
-### 7. µ¼³ö×ÖÄ»£¨¿É²¥·Å£©
+### 7. å¯¼å‡ºå­—å¹•ï¼ˆå¯æ’­æ”¾ï¼‰
 
 ```powershell
 curl.exe http://127.0.0.1:8001/videos/<VIDEO_ID>/subtitles/vtt
 curl.exe http://127.0.0.1:8001/videos/<VIDEO_ID>/subtitles/srt
 ```
 
-> ×¢Òâ£ºÈç¹û¸ÃÊÓÆµÉĞÎ´Íê³É×ªĞ´/ÎŞ transcript£¬µ¼³ö½«·µ»Ø `404 TRANSCRIPT_NOT_FOUND`¡£
+> æ³¨æ„ï¼šå¦‚æœè¯¥è§†é¢‘å°šæœªå®Œæˆè½¬å†™/æ—  transcriptï¼Œå¯¼å‡ºå°†è¿”å› `404 TRANSCRIPT_NOT_FOUND`ã€‚
 
-### 8. È¡ÏûÓëÖØÊÔ
+### 8. å–æ¶ˆä¸é‡è¯•
 
 ```powershell
-# È¡Ïû
+# å–æ¶ˆ
 curl.exe -X POST http://127.0.0.1:8001/jobs/<JOB_ID>/cancel
 
-# ÖØÊÔ£¨ĞøÅÜ£©
+# é‡è¯•ï¼ˆç»­è·‘ï¼‰
 curl.exe -X POST http://127.0.0.1:8001/jobs/<JOB_ID>/retry -H "Content-Type: application/json" -d '{"from_scratch": false}'
 
-# ÖØÊÔ£¨´ÓÍ·£©
+# é‡è¯•ï¼ˆä»å¤´ï¼‰
 curl.exe -X POST http://127.0.0.1:8001/jobs/<JOB_ID>/retry -H "Content-Type: application/json" -d '{"from_scratch": true}'
 ```
 
-### 9. Ë÷Òı / ¼ìË÷ / ÎÊ´ğ£¨MVP-2£©
+### 9. ç´¢å¼• / æ£€ç´¢ / é—®ç­”ï¼ˆMVP-2ï¼‰
 
 ```powershell
-# ´´½¨/¸´ÓÃË÷ÒıÈÎÎñ£¨Î´Íê³ÉË÷Òı»á·µ»Ø 202 + job_id£©
+# åˆ›å»º/å¤ç”¨ç´¢å¼•ä»»åŠ¡ï¼ˆæœªå®Œæˆç´¢å¼•ä¼šè¿”å› 202 + job_idï¼‰
 curl.exe -X POST http://127.0.0.1:8001/videos/<VIDEO_ID>/index -H "Content-Type: application/json" -d '{"from_scratch": false}'
 
-# ²éÑ¯Ë÷Òı×´Ì¬
+# æŸ¥è¯¢ç´¢å¼•çŠ¶æ€
 curl.exe http://127.0.0.1:8001/videos/<VIDEO_ID>/index
 
-# ÁĞ³ö chunks£¨ĞèË÷ÒıÍê³É£©
+# åˆ—å‡º chunksï¼ˆéœ€ç´¢å¼•å®Œæˆï¼‰
 curl.exe http://127.0.0.1:8001/videos/<VIDEO_ID>/chunks?limit=5
 
-# ÏòÁ¿¼ìË÷£¨GET£»ÈôÎ´Ë÷ÒıÍê³ÉÍ¬Ñù»á·µ»Ø 202 + job_id£©
+# å‘é‡æ£€ç´¢ï¼ˆGETï¼›è‹¥æœªç´¢å¼•å®ŒæˆåŒæ ·ä¼šè¿”å› 202 + job_idï¼‰
 curl.exe "http://127.0.0.1:8001/search?video_id=<VIDEO_ID>&query=%E8%AE%B2%E4%BA%86%E4%BB%80%E4%B9%88&top_k=5"
 
-# ÎŞ LLM ÎÊ´ğ£¨retrieval-only£»·µ»Ø answer + citations£»±ØÒªÊ±»áÏÈ´¥·¢Ë÷Òı£©
-$body = @{ video_id = "<VIDEO_ID>"; query = "Õâ¶ÎÊÓÆµÖ÷Òª½²ÁËÊ²Ã´£¿"; top_k = 5 } | ConvertTo-Json
+# æ—  LLM é—®ç­”ï¼ˆretrieval-onlyï¼›è¿”å› answer + citationsï¼›å¿…è¦æ—¶ä¼šå…ˆè§¦å‘ç´¢å¼•ï¼‰
+$body = @{ video_id = "<VIDEO_ID>"; query = "è¿™æ®µè§†é¢‘ä¸»è¦è®²äº†ä»€ä¹ˆï¼Ÿ"; top_k = 5 } | ConvertTo-Json
 curl.exe -X POST http://127.0.0.1:8001/chat -H "Content-Type: application/json" -d $body
 ```
 
-### 10. ÕªÒªÓë´ó¸Ù£¨MVP-3£©
+### 10. æ‘˜è¦ä¸å¤§çº²ï¼ˆMVP-3ï¼‰
 
 ```powershell
 $BaseUrl = "http://127.0.0.1:8001"
 $VideoId = "<VIDEO_ID>"
 
-# ´´½¨/¸´ÓÃ summarize ÈÎÎñ
+# åˆ›å»º/å¤ç”¨ summarize ä»»åŠ¡
 $resp = Invoke-RestMethod -Method Post -Uri "$BaseUrl/videos/$VideoId/summarize" `
   -ContentType "application/json; charset=utf-8" `
   -Body (@{ from_scratch = $false } | ConvertTo-Json)
@@ -533,19 +533,19 @@ while ($true) {
   Start-Sleep -Milliseconds 800
 }
 
-# »ñÈ¡ summary / outline / export
+# è·å– summary / outline / export
 Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/summary" | ConvertTo-Json -Depth 20
 Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/outline" | ConvertTo-Json -Depth 50
 Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/export/markdown"
 ```
 
-### 11. ¹Ø¼üÖ¡£¨MVP-4£©
+### 11. å…³é”®å¸§ï¼ˆMVP-4ï¼‰
 
 ```powershell
 $BaseUrl = "http://127.0.0.1:8001"
 $VideoId = "<VIDEO_ID>"
 
-# A) ¹Ì¶¨¼ä¸ô³éÖ¡£¨interval£©
+# A) å›ºå®šé—´éš”æŠ½å¸§ï¼ˆintervalï¼‰
 $req = @{ from_scratch = $true; mode = "interval"; interval_seconds = 10; max_frames = 60; target_width = 640 }
 $resp = Invoke-RestMethod -Method Post -Uri "$BaseUrl/videos/$VideoId/keyframes" `
   -ContentType "application/json; charset=utf-8" `
@@ -559,11 +559,11 @@ while ($true) {
   Start-Sleep -Milliseconds 800
 }
 
-# ÁĞ±íÓë¶ş½øÖÆÍ¼Æ¬
+# åˆ—è¡¨ä¸äºŒè¿›åˆ¶å›¾ç‰‡
 $list = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes?method=interval&limit=5"
 $list | ConvertTo-Json -Depth 30
 
-# B) ³¡¾°ÇĞ»»³éÖ¡£¨scene + score£©
+# B) åœºæ™¯åˆ‡æ¢æŠ½å¸§ï¼ˆscene + scoreï¼‰
 $req = @{ from_scratch = $true; mode = "scene"; scene_threshold = 0.3; min_gap_seconds = 2.0; max_frames = 30; target_width = 640 }
 $resp = Invoke-RestMethod -Method Post -Uri "$BaseUrl/videos/$VideoId/keyframes" `
   -ContentType "application/json; charset=utf-8" `
@@ -580,24 +580,24 @@ while ($true) {
 $scene = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes?method=scene&limit=10"
 $scene | ConvertTo-Json -Depth 30
 
-# aligned£ºÕÂ½ÚÄÚÓÅÏÈ¸ß·Ö + min_gap È¥ÖØ£¨·µ»Ø score£©
+# alignedï¼šç« èŠ‚å†…ä¼˜å…ˆé«˜åˆ† + min_gap å»é‡ï¼ˆè¿”å› scoreï¼‰
 $aligned = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes/aligned?method=scene&per_section=2&min_gap_seconds=2.0"
 $aligned | ConvertTo-Json -Depth 50
 
-# ¿ÉÑ¡ÕÂ½Ú¶µµ×£¨Ä¬ÈÏ¹Ø±Õ£©£ºÕÂ½ÚÄÚ²»×ã per_section Ê±°´ÕÂ½ÚÖĞµã×î½ü²¹Æë
+# å¯é€‰ç« èŠ‚å…œåº•ï¼ˆé»˜è®¤å…³é—­ï¼‰ï¼šç« èŠ‚å†…ä¸è¶³ per_section æ—¶æŒ‰ç« èŠ‚ä¸­ç‚¹æœ€è¿‘è¡¥é½
 $aligned2 = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes/aligned?method=scene&per_section=2&min_gap_seconds=2.0&fallback=nearest"
 $aligned2 | ConvertTo-Json -Depth 50
 ```
 
-## ¿ª·¢ÖÊÁ¿¹¤¾ß£¨±¾µØ£©
+## å¼€å‘è´¨é‡å·¥å…·ï¼ˆæœ¬åœ°ï¼‰
 
-- Ò»¼ü£º
+- ä¸€é”®ï¼š
 
 ```powershell
 ./scripts/run_quality_checks.ps1
 ```
 
-- flake8£º
+- flake8ï¼š
 
 ```powershell
 cd backend
@@ -605,7 +605,7 @@ cd backend
 .venv\Scripts\flake8.exe app
 ```
 
-- mypy£º
+- mypyï¼š
 
 ```powershell
 cd backend
@@ -613,87 +613,291 @@ cd backend
 .venv\Scripts\python.exe -m mypy app --ignore-missing-imports --show-error-codes
 ```
 
-- pyright£º
+- pyrightï¼š
 
 ```powershell
 cd backend
 powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\.venv\\Scripts\\pyright.exe' -p 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend'"
 ```
 
-> ËµÃ÷£º`backend/pyrightconfig.json` ÒÑÅÅ³ı `.venv`£¬±ÜÃâÉ¨ÃèĞéÄâ»·¾³µ¼ÖÂ·ÖÎö¿¨¶Ù¡£
+> è¯´æ˜ï¼š`backend/pyrightconfig.json` å·²æ’é™¤ `.venv`ï¼Œé¿å…æ‰«æè™šæ‹Ÿç¯å¢ƒå¯¼è‡´åˆ†æå¡é¡¿ã€‚
 
 ---
 
-## ·¢²¼Óë¸üĞÂËµÃ÷Ä£°å£¨Î¬»¤Õß£©
+## å‘å¸ƒä¸æ›´æ–°è¯´æ˜æ¨¡æ¿ï¼ˆç»´æŠ¤è€…ï¼‰
 
-### Release Notes£¨Ä£°å£©
+### Release Notesï¼ˆæ¨¡æ¿ï¼‰
 
-- Version£º`vX.Y.Z`£¨stable£©»ò `vX.Y.Z-beta.N`£¨beta£©
-- Date£ºYYYY-MM-DD
-- Channel£ºstable / beta
-- Highlights£º
-  - 
-- Breaking changes£¨ÈçÓĞ£©£º
-  - 
-- Known issues£¨ÈçÓĞ£©£º
-  - 
-- Assets£¨Windows£¬ÍÆ¼öÉÏ´«£©£º
+- Versionï¼š`vX.Y.Z`ï¼ˆstableï¼‰æˆ– `vX.Y.Z-beta.N`ï¼ˆbetaï¼‰
+- Dateï¼šYYYY-MM-DD
+- Channelï¼šstable / beta
+- Highlightsï¼š
+  ------------
+- Breaking changesï¼ˆå¦‚æœ‰ï¼‰ï¼š
+  --------------------------
+- Known issuesï¼ˆå¦‚æœ‰ï¼‰ï¼š
+  ----------------------
+- Assetsï¼ˆWindowsï¼Œæ¨èä¸Šä¼ ï¼‰ï¼š
   - `Edge Video Agent Setup <version>.exe`
   - `Edge Video Agent Setup <version>.exe.blockmap`
   - `Edge Video Agent-<version>-win.zip`
   - `SHA256SUMS.txt`
 
-### Éı¼¶ / »Ø¹öÖ¸Òı£¨Ä£°å£©
+### å‡çº§ / å›æ»šæŒ‡å¼•ï¼ˆæ¨¡æ¿ï¼‰
 
-- Éı¼¶£º
-  - ½¨ÒéÏÈ¹Ø±ÕÕıÔÚÔËĞĞµÄÓ¦ÓÃ³ÌĞòºóÔÙ°²×°ĞÂ°æ
-  - ÈôÉæ¼°Êı¾İÄ¿Â¼±ä¸ü/Ç¨ÒÆ£¬ĞèÔÚ´ËËµÃ÷Ç¨ÒÆ²½Öè
-- Êı¾İÄ¿Â¼Óë¼æÈİĞÔ£º
-  - ËµÃ÷Ä¬ÈÏÊı¾İÄ¿Â¼Î»ÖÃÓëÊÇ·ñÏòºó¼æÈİ
-  - ËµÃ÷ÊÇ·ñĞèÒªÒ»´ÎĞÔÇ¨ÒÆ¡¢ÊÇ·ñ¿É»Ø¹ö
-- »Ø¹ö£º
-  - ÈôĞÂ°æ´æÔÚÎÊÌâ£¬¿ÉĞ¶ÔØ²¢°²×°¾É°æ±¾
-  - ÈôÊı¾İÄ¿Â¼ÓĞ±ä¸ü£¬ĞèÔÚ´ËËµÃ÷ÈçºÎ»Ö¸´¾ÉÊı¾İÄ¿Â¼
-
----
-
-## GitHub Releases ÇåÀí½¨Òé£¨Î¬»¤Õß±¸Íü£©
-
-> Ä¿±ê£º**±£ÁôËùÓĞ tags**£»Releases Ò³ÃæÖ»±£Áô¡°¶ÔÓÃ»§ÓĞ¼ÛÖµµÄÏÂÔØÈë¿Ú¡±£¬¼õÉÙÔëÉù¡£
-
-- ½¨Òé±£Áô£º
-  - ×îĞÂ stable£¨µ±Ç°£º`v0.0.3`£©
-  - ÉÏÒ»¸ö stable£¨µ±Ç°£º`v0.0.2`£¬ÓÃÓÚ¶ÌÆÚ»Ø¹ö/Ó¦¼±£©
-  - ×îĞÂ beta/prerelease£¨Èç¹ûÄãÏ£Íû¼ÌĞøÎ¬»¤ beta Í¨µÀ£©
-- ½¨ÒéÓÅÏÈÉ¾³ı£º
-  - ÔçÆÚ beta/prerelease£¨ÀıÈç `v0.0.1-beta.1`¡¢`v0.0.1-beta.4` µÈ£©£¬ÔÚÈ·ÈÏ²»ÔÙĞèÒª»Ø¹ö/¶ÔÕÕºóÔÙÉ¾
-- É¾³ı Release Ê±×¢Òâ£º
-  - Ö»É¾³ı Release£¨assets + Ò³Ãæ£©£¬**²»ÒªÉ¾³ı tag**£¨³ı·ÇÄãÃ÷È·ÒªÒÆ³ı¸Ã°æ±¾£©
-  - ²»ÒªÉ¾³ı×îĞÂ stable µÄ `latest.yml` / `*.exe` / `*.blockmap`£¬·ñÔò»áÓ°Ïì×Ô¶¯¸üĞÂ
+- å‡çº§ï¼š
+  - å»ºè®®å…ˆå…³é—­æ­£åœ¨è¿è¡Œçš„åº”ç”¨ç¨‹åºåå†å®‰è£…æ–°ç‰ˆ
+  - è‹¥æ¶‰åŠæ•°æ®ç›®å½•å˜æ›´/è¿ç§»ï¼Œéœ€åœ¨æ­¤è¯´æ˜è¿ç§»æ­¥éª¤
+- æ•°æ®ç›®å½•ä¸å…¼å®¹æ€§ï¼š
+  - è¯´æ˜é»˜è®¤æ•°æ®ç›®å½•ä½ç½®ä¸æ˜¯å¦å‘åå…¼å®¹
+  - è¯´æ˜æ˜¯å¦éœ€è¦ä¸€æ¬¡æ€§è¿ç§»ã€æ˜¯å¦å¯å›æ»š
+- å›æ»šï¼š
+  - è‹¥æ–°ç‰ˆå­˜åœ¨é—®é¢˜ï¼Œå¯å¸è½½å¹¶å®‰è£…æ—§ç‰ˆæœ¬
+  - è‹¥æ•°æ®ç›®å½•æœ‰å˜æ›´ï¼Œéœ€åœ¨æ­¤è¯´æ˜å¦‚ä½•æ¢å¤æ—§æ•°æ®ç›®å½•
 
 ---
 
-## ±ä¸ü¼ÇÂ¼£¨ÊÖ¶¯Î¬»¤£©
+## GitHub Releases æ¸…ç†å»ºè®®ï¼ˆç»´æŠ¤è€…å¤‡å¿˜ï¼‰
 
-- 2026-01-09£ºĞÂÔö SSE/WS job ½ø¶ÈÍÆËÍ£»ĞÂÔö PROJECT_STATUS ÎÄµµÓë¸üÏêÏ¸²âÊÔ²½Öè¡£
-- 2026-01-10£º²¹Æë²¢Í¨¹ıÒ»¼üÑéÖ¤½Å±¾£¨ÁĞ±í·ÖÒ³/µ¼³öÓë´íÎó´¦Àí/ÔÆÕªÒª¿ª¹Ø£©£»×ÖÄ»µ¼³öÔö¼Ó transcript ±ØĞèĞ£Ñé£¨ÎŞ transcript ·µ»Ø `TRANSCRIPT_NOT_FOUND`£©¡£
-- 2026-01-10£ºMVP-2 Ë÷Òı/¼ìË÷/ÎÊ´ğ½Ó¿ÚÂäµØ£¨`/videos/{video_id}/index`¡¢`/videos/{video_id}/chunks`¡¢`/search`¡¢`/chat`£©£»ĞŞ¸´ Windows PowerShell ÖĞÎÄ JSON ÂÒÂë£¨Ç¿ÖÆ `charset=utf-8`£©¡£
-- 2026-01-11£ºĞÂÔö `/index`¡¢`/search`¡¢`/chat` »Ø¹é½Å±¾£¨¾ºÌ¬ÈİÈÌ 200/202 ÇÒÑÏ¸ñ¶ÏÑÔË÷Òı job È¥ÖØ¸´ÓÃ£©£»ÍêÉÆ `scripts/run_backend_dev.ps1` ÒÔÇ¿ÖÆÊ¹ÓÃ `backend/.venv` Python ²¢ĞŞ¸´²ÎÊıÃû³åÍ»£»Í³Ò» ChromaDB Òì³£°ü×°Îª `VectorStoreUnavailable`£»ÒıÈë²¢ÅÜÍ¨ mypy/pyright£¬ĞÂÔö `backend/pyrightconfig.json`¡¢`backend/requirements-dev.txt`¡¢`backend/.flake8`¡£
-- 2026-01-11£ºĞÂÔö GitHub Actions CI£¨`.github/workflows/quality.yml`£ºflake8/mypy/pyright/pytest£©£»³õÊ¼»¯²¢ÍÆËÍ GitHub ²Ö¿â£»¸ùÄ¿Â¼ `.gitignore` ºöÂÔ `demo/`¡¢`artifacts/`¡¢`backend/.venv/`¡£
-- 2026-01-13£ºMVP-3£ºĞÂÔö `summarize` job + summary/outline/export API£»ÔöÇ¿ JSON ´ó¸Ù½âÎöÓëĞŞ¸´Âß¼­£»Ìá¸ß reduce/outline ½×¶Î `max_tokens` Ä¬ÈÏÖµ£¬±ÜÃâµ¼³ö Markdown/´ó¸Ù±»½Ø¶Ï£»¶Ëµ½¶ËÑéÖ¤Í¨¹ı£¨outline Îª½á¹¹»¯Êı×é£¬export/markdown ³É¹¦ÂäÅÌ£©¡£
-- 2026-01-13£ºMVP-4£ºĞÂÔö `keyframes` job Óë SQLite ÂäÅÌ£¨interval/scene£©£»scene Ä£Ê½Ğ´Èë `score`£»aligned Ö§³Ö scene ÓÅÏÈ¸ß·Ö²¢¿É·µ»Ø `score`£¬¿ÉÑ¡ `fallback=nearest`¡£
-- 2026-01-13£º×ÀÃæ¶Ë¿ª·¢»·¾³ÅÜÍ¨£ºÒ»¼üÆô¶¯/Í£Ö¹½Å±¾ÍêÉÆ£¨º¬Ä¬ÈÏÆô¶¯ llama-server£©£»ĞŞ¸´ Electron-Vite entry/host Óë dev server µÈ´ıÂß¼­£»dev Ä£Ê½ CORS ÈÆ¹ı£»Ç°¶ËÖĞÎÄ UI ÎÄ°¸¸ÄÎª Unicode escape£¬±ÜÃâ GBK/GB2312 ±àÂëµ¼ÖÂÂÒÂë¡£
-- 2026-01-14£º×ÀÃæ¶ËÁªµ÷£ºÍê³É Library/Video Detail Ò³Ãæ£¨µ¼Èë/ÁĞ±í/µ¼º½£©£»×ªĞ´²ÎÊıÃæ°å + SSE ½ø¶È + transcript Ô¤ÀÀ£»Ë÷Òı/ÕªÒª/¹Ø¼üÖ¡ SSE ½ø¶È¶©ÔÄÓë½á¹ûÔ¤ÀÀ£»ĞŞ¸´Ô¤ÀÀÇøÖØ¸´ÇëÇó·ç±©µ¼ÖÂµÄºó¶ËÈÕÖ¾Ë¢ÆÁÓëÅ¼·¢ ¡°Failed to fetch¡±¡£
-- 2026-01-14£º×ÀÃæ¶ËÌåÑéÔöÇ¿£¨Video Detail£©£ºNotes/Chat ²àÀ¸ Tab ÂäµØ²¢ÓÅ»¯ÔÄ¶ÁÌåÑé£¨ÕªÒª markdown äÖÈ¾¡¢´ó¸Ù¿ÉÕÛµşÓë×Ô¶¯Õ¹¿ª¿ª¹Ø¡¢aligned keyframes ËõÂÔÍ¼ÓëÈ¥ÖØ£©£»Chat Ö§³Ö´ğ°¸ markdown¡¢ÒıÓÃÌø×ªÓë¿ì½İ¼ü£»²¥·ÅÆ÷Ôö¼Ó `-15s/+15s`¡¢±¶ËÙ¡¢¸´ÖÆÊ±¼ä´ÁÓë×Ô¶¯×ÖÄ»¿ª¹Ø£¬²¢ÓÅ»¯×ªÂ¼¸ßÁÁÓë×Ô¶¯¹ö¶¯¡£
-- 2026-01-14£º¹ú¼Ê»¯ÓëÊä³öÓïÑÔ£ºĞÂÔöÈ«¾Ö UI ÓïÑÔÇĞ»»£¨ÖĞÎÄ/English£¬localStorage ³Ö¾Ã»¯£©£»Settings ĞÂÔö LLM Êä³öÓïÑÔ `output_language`£¨`zh/en/auto`£©£¬²¢ÔÚ Chat/ÕªÒª/´ó¸Ù/ÔÆÕªÒªÈ«Á´Â·ÉúĞ§£»ĞŞ¸´ `SettingsPage.tsx` ÎÄ¼ş±àÂëÎª UTF-8 ÒÔ±ã¼ÌĞøµü´ú UI ÎÄ°¸¡£
-- 2026-01-15£ºWindows ´ò°üÓë·¢²¼£ººó¶Ë PyInstaller onedir exe ¼¯³Éµ½ Electron£»ÒıÈë electron-builder ²¢½«ºó¶Ë×÷Îª extraResources£»release Ä¿Â¼°´ stable/beta ·ÖÁ÷²¢°´°æ±¾¸ôÀëÊä³ö£»Ôö¼Ó¹¹½¨Ç°×Ô¶¯Í£Ö¹ release/win-unpacked ½ø³ÌÒÔ¹æ±Ü `app.asar` ÎÄ¼şËø£»ÒÑ´´½¨²¢ÉÏ´« `v0.0.1-beta.1` GitHub Ô¤·¢²¼°æ×Ê²ú¡£
+> ç›®æ ‡ï¼š**ä¿ç•™æ‰€æœ‰ tags**ï¼›Releases é¡µé¢åªä¿ç•™â€œå¯¹ç”¨æˆ·æœ‰ä»·å€¼çš„ä¸‹è½½å…¥å£â€ï¼Œå‡å°‘å™ªå£°ã€‚
 
-- 2026-01-20£º·¢²¼Óë¸üĞÂÁ´Â·ÍÆ½ø£º
-  - `v0.0.2`£ºĞŞ¸´/ÑéÖ¤ ASR Ä£ĞÍ»º´æÂ·¾¶£¨`Systran/faster-whisper-small`£©¿ÉÓÃ
-  - `v0.0.3`£ºĞÂÔö ASR Ò»¼üÏÂÔØ/ĞŞ¸´½Ó¿ÚÓëÇ°¶Ë°´Å¥£»Ö§³Ö×Ô¶¨Òå ASR »º´æÄ¿Â¼£¨`HF_HUB_CACHE`£©£»NSIS °²×°/Ğ¶ÔØ²à `taskkill /T /F` ¶µµ×£»ÒÑÑéÖ¤ `0.0.2 -> 0.0.3` Ó¦ÓÃÄÚ¸üĞÂ³É¹¦£»Ö÷·ÖÖ§ÖÊÁ¿¼ì²â»Ö¸´Í¨¹ı
+- å»ºè®®ä¿ç•™ï¼š
+  - æœ€æ–° stableï¼ˆå½“å‰ï¼š`v0.0.3`ï¼‰
+  - ä¸Šä¸€ä¸ª stableï¼ˆå½“å‰ï¼š`v0.0.2`ï¼Œç”¨äºçŸ­æœŸå›æ»š/åº”æ€¥ï¼‰
+  - æœ€æ–° beta/prereleaseï¼ˆå¦‚æœä½ å¸Œæœ›ç»§ç»­ç»´æŠ¤ beta é€šé“ï¼‰
+- å»ºè®®ä¼˜å…ˆåˆ é™¤ï¼š
+  - æ—©æœŸ beta/prereleaseï¼ˆä¾‹å¦‚ `v0.0.1-beta.1`ã€`v0.0.1-beta.4` ç­‰ï¼‰ï¼Œåœ¨ç¡®è®¤ä¸å†éœ€è¦å›æ»š/å¯¹ç…§åå†åˆ 
+- åˆ é™¤ Release æ—¶æ³¨æ„ï¼š
+  - åªåˆ é™¤ Releaseï¼ˆassets + é¡µé¢ï¼‰ï¼Œ**ä¸è¦åˆ é™¤ tag**ï¼ˆé™¤éä½ æ˜ç¡®è¦ç§»é™¤è¯¥ç‰ˆæœ¬ï¼‰
+  - ä¸è¦åˆ é™¤æœ€æ–° stable çš„ `latest.yml` / `*.exe` / `*.blockmap`ï¼Œå¦åˆ™ä¼šå½±å“è‡ªåŠ¨æ›´æ–°
 
-- 2026-02-05£º³¤ÊÓÆµµ¼ÈëÎÈ¶¨ĞÔÓë¿ÉÕï¶ÏĞÔÔöÇ¿£º
-  - Ç°¶Ë£º`fetchJson/fetchJsonWithStatus` Ö§³Öºó¶Ë·Ç JSON 500 ÏìÓ¦£¨±ÜÃâ `Unexpected token`£©£¬²¢ÔÚ´íÎóÊ±»ØÏÔÎÄ±¾Æ¬¶Î
-  - ºó¶Ë£º`POST /videos/import` ²¶»ñÒì³£²¢·µ»Ø JSON `detail`£¨`IMPORT_VIDEO_FAILED:<Type>:<message>`£©£¬±ãÓÚ UI Ö±½ÓÕ¹Ê¾¸ùÒò
-  - Ê±³¤Ì½²â£º`get_duration_seconds` ÔöÇ¿£¨Windows ÏÂÌ½²â `ffprobe.exe`¡¢¼æÈİ¶ººÅĞ¡Êı¡¢`stream=duration` ¶µµ×¡¢Ê§°ÜÊä³ö°üº¬ cmd/returncode/tail£©
-  - ¿ª·¢Æô¶¯£º`start_dev.cmd` ²»ÔÙÄ¬ÈÏÇ¿ÖÆÆô¶¯ llama-server£¨ĞèÒª±¾µØ LLM Ê±ÏÔÊ½ `-StartLlama`£©£»`run_llama_server.ps1` Æô¶¯³¬Ê±ÌáÉı²¢ÔÚÊ§°ÜÊ±Êä³öÈÕÖ¾Î²²¿±ãÓÚ¶¨Î»
+---
+
+## å˜æ›´è®°å½•ï¼ˆæ‰‹åŠ¨ç»´æŠ¤ï¼‰
+
+- 2026-01-09ï¼šæ–°å¢ SSE/WS job è¿›åº¦æ¨é€ï¼›æ–°å¢ PROJECT_STATUS æ–‡æ¡£ä¸æ›´è¯¦ç»†æµ‹è¯•æ­¥éª¤ã€‚
+- 2026-01-10ï¼šè¡¥é½å¹¶é€šè¿‡ä¸€é”®éªŒè¯è„šæœ¬ï¼ˆåˆ—è¡¨åˆ†é¡µ/å¯¼å‡ºä¸é”™è¯¯å¤„ç†/äº‘æ‘˜è¦å¼€å…³ï¼‰ï¼›å­—å¹•å¯¼å‡ºå¢åŠ  transcript å¿…éœ€æ ¡éªŒï¼ˆæ—  transcript è¿”å› `TRANSCRIPT_NOT_FOUND`ï¼‰ã€‚
+- 2026-01-10ï¼šMVP-2 ç´¢å¼•/æ£€ç´¢/é—®ç­”æ¥å£è½åœ°ï¼ˆ`/videos/{video_id}/index`ã€`/videos/{video_id}/chunks`ã€`/search`ã€`/chat`ï¼‰ï¼›ä¿®å¤ Windows PowerShell ä¸­æ–‡ JSON ä¹±ç ï¼ˆå¼ºåˆ¶ `charset=utf-8`ï¼‰ã€‚
+- 2026-01-11ï¼šæ–°å¢ `/index`ã€`/search`ã€`/chat` å›å½’è„šæœ¬ï¼ˆç«æ€å®¹å¿ 200/202 ä¸”ä¸¥æ ¼æ–­è¨€ç´¢å¼• job å»é‡å¤ç”¨ï¼‰ï¼›å®Œå–„ `scripts/run_backend_dev.ps1` ä»¥å¼ºåˆ¶ä½¿ç”¨ `backend/.venv` Python å¹¶ä¿®å¤å‚æ•°åå†²çªï¼›ç»Ÿä¸€ ChromaDB å¼‚å¸¸åŒ…è£…ä¸º `VectorStoreUnavailable`ï¼›å¼•å…¥å¹¶è·‘é€š mypy/pyrightï¼Œæ–°å¢ `backend/pyrightconfig.json`ã€`backend/requirements-dev.txt`ã€`backend/.flake8`ã€‚
+- 2026-01-11ï¼šæ–°å¢ GitHub Actions CIï¼ˆ`.github/workflows/quality.yml`ï¼šflake8/mypy/pyright/pytestï¼‰ï¼›åˆå§‹åŒ–å¹¶æ¨é€ GitHub ä»“åº“ï¼›æ ¹ç›®å½• `.gitignore` å¿½ç•¥ `demo/`ã€`artifacts/`ã€`backend/.venv/`ã€‚
+- 2026-01-13ï¼šMVP-3ï¼šæ–°å¢ `summarize` job + summary/outline/export APIï¼›å¢å¼º JSON å¤§çº²è§£æä¸ä¿®å¤é€»è¾‘ï¼›æé«˜ reduce/outline é˜¶æ®µ `max_tokens` é»˜è®¤å€¼ï¼Œé¿å…å¯¼å‡º Markdown/å¤§çº²è¢«æˆªæ–­ï¼›ç«¯åˆ°ç«¯éªŒè¯é€šè¿‡ï¼ˆoutline ä¸ºç»“æ„åŒ–æ•°ç»„ï¼Œexport/markdown æˆåŠŸè½ç›˜ï¼‰ã€‚
+- 2026-01-13ï¼šMVP-4ï¼šæ–°å¢ `keyframes` job ä¸ SQLite è½ç›˜ï¼ˆinterval/sceneï¼‰ï¼›scene æ¨¡å¼å†™å…¥ `score`ï¼›aligned æ”¯æŒ scene ä¼˜å…ˆé«˜åˆ†å¹¶å¯è¿”å› `score`ï¼Œå¯é€‰ `fallback=nearest`ã€‚
+- 2026-01-13ï¼šæ¡Œé¢ç«¯å¼€å‘ç¯å¢ƒè·‘é€šï¼šä¸€é”®å¯åŠ¨/åœæ­¢è„šæœ¬å®Œå–„ï¼ˆå«é»˜è®¤å¯åŠ¨ llama-serverï¼‰ï¼›ä¿®å¤ Electron-Vite entry/host ä¸ dev server ç­‰å¾…é€»è¾‘ï¼›dev æ¨¡å¼ CORS ç»•è¿‡ï¼›å‰ç«¯ä¸­æ–‡ UI æ–‡æ¡ˆæ”¹ä¸º Unicode escapeï¼Œé¿å… GBK/GB2312 ç¼–ç å¯¼è‡´ä¹±ç ã€‚
+- 2026-01-14ï¼šæ¡Œé¢ç«¯è”è°ƒï¼šå®Œæˆ Library/Video Detail é¡µé¢ï¼ˆå¯¼å…¥/åˆ—è¡¨/å¯¼èˆªï¼‰ï¼›è½¬å†™å‚æ•°é¢æ¿ + SSE è¿›åº¦ + transcript é¢„è§ˆï¼›ç´¢å¼•/æ‘˜è¦/å…³é”®å¸§ SSE è¿›åº¦è®¢é˜…ä¸ç»“æœé¢„è§ˆï¼›ä¿®å¤é¢„è§ˆåŒºé‡å¤è¯·æ±‚é£æš´å¯¼è‡´çš„åç«¯æ—¥å¿—åˆ·å±ä¸å¶å‘ â€œFailed to fetchâ€ã€‚
+- 2026-01-14ï¼šæ¡Œé¢ç«¯ä½“éªŒå¢å¼ºï¼ˆVideo Detailï¼‰ï¼šNotes/Chat ä¾§æ  Tab è½åœ°å¹¶ä¼˜åŒ–é˜…è¯»ä½“éªŒï¼ˆæ‘˜è¦ markdown æ¸²æŸ“ã€å¤§çº²å¯æŠ˜å ä¸è‡ªåŠ¨å±•å¼€å¼€å…³ã€aligned keyframes ç¼©ç•¥å›¾ä¸å»é‡ï¼‰ï¼›Chat æ”¯æŒç­”æ¡ˆ markdownã€å¼•ç”¨è·³è½¬ä¸å¿«æ·é”®ï¼›æ’­æ”¾å™¨å¢åŠ  `-15s/+15s`ã€å€é€Ÿã€å¤åˆ¶æ—¶é—´æˆ³ä¸è‡ªåŠ¨å­—å¹•å¼€å…³ï¼Œå¹¶ä¼˜åŒ–è½¬å½•é«˜äº®ä¸è‡ªåŠ¨æ»šåŠ¨ã€‚
+- 2026-01-14ï¼šå›½é™…åŒ–ä¸è¾“å‡ºè¯­è¨€ï¼šæ–°å¢å…¨å±€ UI è¯­è¨€åˆ‡æ¢ï¼ˆä¸­æ–‡/Englishï¼ŒlocalStorage æŒä¹…åŒ–ï¼‰ï¼›Settings æ–°å¢ LLM è¾“å‡ºè¯­è¨€ `output_language`ï¼ˆ`zh/en/auto`ï¼‰ï¼Œå¹¶åœ¨ Chat/æ‘˜è¦/å¤§çº²/äº‘æ‘˜è¦å…¨é“¾è·¯ç”Ÿæ•ˆï¼›ä¿®å¤ `SettingsPage.tsx` æ–‡ä»¶ç¼–ç ä¸º UTF-8 ä»¥ä¾¿ç»§ç»­è¿­ä»£ UI æ–‡æ¡ˆã€‚
+- 2026-01-15ï¼šWindows æ‰“åŒ…ä¸å‘å¸ƒï¼šåç«¯ PyInstaller onedir exe é›†æˆåˆ° Electronï¼›å¼•å…¥ electron-builder å¹¶å°†åç«¯ä½œä¸º extraResourcesï¼›release ç›®å½•æŒ‰ stable/beta åˆ†æµå¹¶æŒ‰ç‰ˆæœ¬éš”ç¦»è¾“å‡ºï¼›å¢åŠ æ„å»ºå‰è‡ªåŠ¨åœæ­¢ release/win-unpacked è¿›ç¨‹ä»¥è§„é¿ `app.asar` æ–‡ä»¶é”ï¼›å·²åˆ›å»ºå¹¶ä¸Šä¼  `v0.0.1-beta.1` GitHub é¢„å‘å¸ƒç‰ˆèµ„äº§ã€‚
+- 2026-01-20ï¼šå‘å¸ƒä¸æ›´æ–°é“¾è·¯æ¨è¿›ï¼š
+
+  - `v0.0.2`ï¼šä¿®å¤/éªŒè¯ ASR æ¨¡å‹ç¼“å­˜è·¯å¾„ï¼ˆ`Systran/faster-whisper-small`ï¼‰å¯ç”¨
+  - `v0.0.3`ï¼šæ–°å¢ ASR ä¸€é”®ä¸‹è½½/ä¿®å¤æ¥å£ä¸å‰ç«¯æŒ‰é’®ï¼›æ”¯æŒè‡ªå®šä¹‰ ASR ç¼“å­˜ç›®å½•ï¼ˆ`HF_HUB_CACHE`ï¼‰ï¼›NSIS å®‰è£…/å¸è½½ä¾§ `taskkill /T /F` å…œåº•ï¼›å·²éªŒè¯ `0.0.2 -> 0.0.3` åº”ç”¨å†…æ›´æ–°æˆåŠŸï¼›ä¸»åˆ†æ”¯è´¨é‡æ£€æµ‹æ¢å¤é€šè¿‡
+
+```powershell
+# åˆ›å»º/å¤ç”¨ç´¢å¼•ä»»åŠ¡ï¼ˆæœªå®Œæˆç´¢å¼•ä¼šè¿”å› 202 + job_idï¼‰
+curl.exe -X POST http://127.0.0.1:8001/videos/<VIDEO_ID>/index -H "Content-Type: application/json" -d '{"from_scratch": false}'
+
+# æŸ¥è¯¢ç´¢å¼•çŠ¶æ€
+curl.exe http://127.0.0.1:8001/videos/<VIDEO_ID>/index
+
+# åˆ—å‡º chunksï¼ˆéœ€ç´¢å¼•å®Œæˆï¼‰
+curl.exe http://127.0.0.1:8001/videos/<VIDEO_ID>/chunks?limit=5
+
+# å‘é‡æ£€ç´¢ï¼ˆGETï¼›è‹¥æœªç´¢å¼•å®ŒæˆåŒæ ·ä¼šè¿”å› 202 + job_idï¼‰
+curl.exe "http://127.0.0.1:8001/search?video_id=<VIDEO_ID>&query=%E8%AE%B2%E4%BA%86%E4%BB%80%E4%B9%88&top_k=5"
+
+# æ—  LLM é—®ç­”ï¼ˆretrieval-onlyï¼›è¿”å› answer + citationsï¼›å¿…è¦æ—¶ä¼šå…ˆè§¦å‘ç´¢å¼•ï¼‰
+$body = @{ video_id = "<VIDEO_ID>"; query = "è¿™æ®µè§†é¢‘ä¸»è¦è®²äº†ä»€ä¹ˆï¼Ÿ"; top_k = 5 } | ConvertTo-Json
+curl.exe -X POST http://127.0.0.1:8001/chat -H "Content-Type: application/json" -d $body
+```
+
+### 10. æ‘˜è¦ä¸å¤§çº²ï¼ˆMVP-3ï¼‰
+
+```powershell
+$BaseUrl = "http://127.0.0.1:8001"
+$VideoId = "<VIDEO_ID>"
+
+# åˆ›å»º/å¤ç”¨ summarize ä»»åŠ¡
+$resp = Invoke-RestMethod -Method Post -Uri "$BaseUrl/videos/$VideoId/summarize" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body (@{ from_scratch = $false } | ConvertTo-Json)
+
+$JobId = $resp.job_id
+while ($true) {
+  $j = Invoke-RestMethod -Method Get -Uri "$BaseUrl/jobs/$JobId"
+  Write-Host ("status={0} progress={1} message={2}" -f $j.status, $j.progress, $j.message)
+  if ($j.status -in @("completed","failed","cancelled")) { break }
+  Start-Sleep -Milliseconds 800
+}
+
+# è·å– summary / outline / export
+Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/summary" | ConvertTo-Json -Depth 20
+Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/outline" | ConvertTo-Json -Depth 50
+Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/export/markdown"
+```
+
+### 11. å…³é”®å¸§ï¼ˆMVP-4ï¼‰
+
+```powershell
+$BaseUrl = "http://127.0.0.1:8001"
+$VideoId = "<VIDEO_ID>"
+
+# A) å›ºå®šé—´éš”æŠ½å¸§ï¼ˆintervalï¼‰
+$req = @{ from_scratch = $true; mode = "interval"; interval_seconds = 10; max_frames = 60; target_width = 640 }
+$resp = Invoke-RestMethod -Method Post -Uri "$BaseUrl/videos/$VideoId/keyframes" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body ($req | ConvertTo-Json)
+
+$JobId = $resp.job_id
+while ($true) {
+  $j = Invoke-RestMethod -Method Get -Uri "$BaseUrl/jobs/$JobId"
+  Write-Host ("status={0} progress={1} message={2}" -f $j.status, $j.progress, $j.message)
+  if ($j.status -in @("completed","failed","cancelled")) { break }
+  Start-Sleep -Milliseconds 800
+}
+
+# åˆ—è¡¨ä¸äºŒè¿›åˆ¶å›¾ç‰‡
+$list = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes?method=interval&limit=5"
+$list | ConvertTo-Json -Depth 30
+
+# B) åœºæ™¯åˆ‡æ¢æŠ½å¸§ï¼ˆscene + scoreï¼‰
+$req = @{ from_scratch = $true; mode = "scene"; scene_threshold = 0.3; min_gap_seconds = 2.0; max_frames = 30; target_width = 640 }
+$resp = Invoke-RestMethod -Method Post -Uri "$BaseUrl/videos/$VideoId/keyframes" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body ($req | ConvertTo-Json)
+
+$JobId = $resp.job_id
+while ($true) {
+  $j = Invoke-RestMethod -Method Get -Uri "$BaseUrl/jobs/$JobId"
+  Write-Host ("status={0} progress={1} message={2}" -f $j.status, $j.progress, $j.message)
+  if ($j.status -in @("completed","failed","cancelled")) { break }
+  Start-Sleep -Milliseconds 800
+}
+
+$scene = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes?method=scene&limit=10"
+$scene | ConvertTo-Json -Depth 30
+
+# alignedï¼šç« èŠ‚å†…ä¼˜å…ˆé«˜åˆ† + min_gap å»é‡ï¼ˆè¿”å› scoreï¼‰
+$aligned = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes/aligned?method=scene&per_section=2&min_gap_seconds=2.0"
+$aligned | ConvertTo-Json -Depth 50
+
+# å¯é€‰ç« èŠ‚å…œåº•ï¼ˆé»˜è®¤å…³é—­ï¼‰ï¼šç« èŠ‚å†…ä¸è¶³ per_section æ—¶æŒ‰ç« èŠ‚ä¸­ç‚¹æœ€è¿‘è¡¥é½
+$aligned2 = Invoke-RestMethod -Method Get -Uri "$BaseUrl/videos/$VideoId/keyframes/aligned?method=scene&per_section=2&min_gap_seconds=2.0&fallback=nearest"
+$aligned2 | ConvertTo-Json -Depth 50
+```
+
+## å¼€å‘è´¨é‡å·¥å…·ï¼ˆæœ¬åœ°ï¼‰
+
+- ä¸€é”®ï¼š
+
+```powershell
+./scripts/run_quality_checks.ps1
+```
+
+- flake8ï¼š
+
+```powershell
+cd backend
+.
+.venv\Scripts\flake8.exe app
+```
+
+- mypyï¼š
+
+```powershell
+cd backend
+.
+.venv\Scripts\python.exe -m mypy app --ignore-missing-imports --show-error-codes
+```
+
+- pyrightï¼š
+
+```powershell
+cd backend
+powershell -NoProfile -Command "& 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend\\.venv\\Scripts\\pyright.exe' -p 'F:\\TEST\\Edge-AI-Video-Summarizer\\backend'"
+```
+
+> è¯´æ˜ï¼š`backend/pyrightconfig.json` å·²æ’é™¤ `.venv`ï¼Œé¿å…æ‰«æè™šæ‹Ÿç¯å¢ƒå¯¼è‡´åˆ†æå¡é¡¿ã€‚
+
+---
+
+## å‘å¸ƒä¸æ›´æ–°è¯´æ˜æ¨¡æ¿ï¼ˆç»´æŠ¤è€…ï¼‰
+
+### Release Notesï¼ˆæ¨¡æ¿ï¼‰
+
+- Versionï¼š`vX.Y.Z`ï¼ˆstableï¼‰æˆ– `vX.Y.Z-beta.N`ï¼ˆbetaï¼‰
+- Dateï¼šYYYY-MM-DD
+- Channelï¼šstable / beta
+- Highlightsï¼š
+  ------------
+- Breaking changesï¼ˆå¦‚æœ‰ï¼‰ï¼š
+  --------------------------
+- Known issuesï¼ˆå¦‚æœ‰ï¼‰ï¼š
+  ----------------------
+- Assetsï¼ˆWindowsï¼Œæ¨èä¸Šä¼ ï¼‰ï¼š
+  - `Edge Video Agent Setup <version>.exe`
+  - `Edge Video Agent Setup <version>.exe.blockmap`
+  - `Edge Video Agent-<version>-win.zip`
+  - `SHA256SUMS.txt`
+
+### å‡çº§ / å›æ»šæŒ‡å¼•ï¼ˆæ¨¡æ¿ï¼‰
+
+- å‡çº§ï¼š
+  - å»ºè®®å…ˆå…³é—­æ­£åœ¨è¿è¡Œçš„åº”ç”¨ç¨‹åºåå†å®‰è£…æ–°ç‰ˆ
+  - è‹¥æ¶‰åŠæ•°æ®ç›®å½•å˜æ›´/è¿ç§»ï¼Œéœ€åœ¨æ­¤è¯´æ˜è¿ç§»æ­¥éª¤
+- æ•°æ®ç›®å½•ä¸å…¼å®¹æ€§ï¼š
+  - è¯´æ˜é»˜è®¤æ•°æ®ç›®å½•ä½ç½®ä¸æ˜¯å¦å‘åå…¼å®¹
+  - è¯´æ˜æ˜¯å¦éœ€è¦ä¸€æ¬¡æ€§è¿ç§»ã€æ˜¯å¦å¯å›æ»š
+- å›æ»šï¼š
+  - è‹¥æ–°ç‰ˆå­˜åœ¨é—®é¢˜ï¼Œå¯å¸è½½å¹¶å®‰è£…æ—§ç‰ˆæœ¬
+  - è‹¥æ•°æ®ç›®å½•æœ‰å˜æ›´ï¼Œéœ€åœ¨æ­¤è¯´æ˜å¦‚ä½•æ¢å¤æ—§æ•°æ®ç›®å½•
+
+---
+
+## GitHub Releases æ¸…ç†å»ºè®®ï¼ˆç»´æŠ¤è€…å¤‡å¿˜ï¼‰
+
+> ç›®æ ‡ï¼š**ä¿ç•™æ‰€æœ‰ tags**ï¼›Releases é¡µé¢åªä¿ç•™â€œå¯¹ç”¨æˆ·æœ‰ä»·å€¼çš„ä¸‹è½½å…¥å£â€ï¼Œå‡å°‘å™ªå£°ã€‚
+
+- å»ºè®®ä¿ç•™ï¼š
+  - æœ€æ–° stableï¼ˆå½“å‰ï¼š`v0.0.3`ï¼‰
+  - ä¸Šä¸€ä¸ª stableï¼ˆå½“å‰ï¼š`v0.0.2`ï¼Œç”¨äºçŸ­æœŸå›æ»š/åº”æ€¥ï¼‰
+  - æœ€æ–° beta/prereleaseï¼ˆå¦‚æœä½ å¸Œæœ›ç»§ç»­ç»´æŠ¤ beta é€šé“ï¼‰
+- å»ºè®®ä¼˜å…ˆåˆ é™¤ï¼š
+  - æ—©æœŸ beta/prereleaseï¼ˆä¾‹å¦‚ `v0.0.1-beta.1`ã€`v0.0.1-beta.4` ç­‰ï¼‰ï¼Œåœ¨ç¡®è®¤ä¸å†éœ€è¦å›æ»š/å¯¹ç…§åå†åˆ 
+- åˆ é™¤ Release æ—¶æ³¨æ„ï¼š
+  - åªåˆ é™¤ Releaseï¼ˆassets + é¡µé¢ï¼‰ï¼Œ**ä¸è¦åˆ é™¤ tag**ï¼ˆé™¤éä½ æ˜ç¡®è¦ç§»é™¤è¯¥ç‰ˆæœ¬ï¼‰
+  - ä¸è¦åˆ é™¤æœ€æ–° stable çš„ `latest.yml` / `*.exe` / `*.blockmap`ï¼Œå¦åˆ™ä¼šå½±å“è‡ªåŠ¨æ›´æ–°
+
+---
+
+## å˜æ›´è®°å½•ï¼ˆæ‰‹åŠ¨ç»´æŠ¤ï¼‰
+
+- 2026-01-09ï¼šæ–°å¢ SSE/WS job è¿›åº¦æ¨é€ï¼›æ–°å¢ PROJECT_STATUS æ–‡æ¡£ä¸æ›´è¯¦ç»†æµ‹è¯•æ­¥éª¤ã€‚
+- 2026-01-10ï¼šè¡¥é½å¹¶é€šè¿‡ä¸€é”®éªŒè¯è„šæœ¬ï¼ˆåˆ—è¡¨åˆ†é¡µ/å¯¼å‡ºä¸é”™è¯¯å¤„ç†/äº‘æ‘˜è¦å¼€å…³ï¼‰ï¼›å­—å¹•å¯¼å‡ºå¢åŠ  transcript å¿…éœ€æ ¡éªŒï¼ˆæ—  transcript è¿”å› `TRANSCRIPT_NOT_FOUND`ï¼‰ã€‚
+- 2026-01-10ï¼šMVP-2 ç´¢å¼•/æ£€ç´¢/é—®ç­”æ¥å£è½åœ°ï¼ˆ`/videos/{video_id}/index`ã€`/videos/{video_id}/chunks`ã€`/search`ã€`/chat`ï¼‰ï¼›ä¿®å¤ Windows PowerShell ä¸­æ–‡ JSON ä¹±ç ï¼ˆå¼ºåˆ¶ `charset=utf-8`ï¼‰ã€‚
+- 2026-01-11ï¼šæ–°å¢ `/index`ã€`/search`ã€`/chat` å›å½’è„šæœ¬ï¼ˆç«æ€å®¹å¿ 200/202 ä¸”ä¸¥æ ¼æ–­è¨€ç´¢å¼• job å»é‡å¤ç”¨ï¼‰ï¼›å®Œå–„ `scripts/run_backend_dev.ps1` ä»¥å¼ºåˆ¶ä½¿ç”¨ `backend/.venv` Python å¹¶ä¿®å¤å‚æ•°åå†²çªï¼›ç»Ÿä¸€ ChromaDB å¼‚å¸¸åŒ…è£…ä¸º `VectorStoreUnavailable`ï¼›å¼•å…¥å¹¶è·‘é€š mypy/pyrightï¼Œæ–°å¢ `backend/pyrightconfig.json`ã€`backend/requirements-dev.txt`ã€`backend/.flake8`ã€‚
+- 2026-01-11ï¼šæ–°å¢ GitHub Actions CIï¼ˆ`.github/workflows/quality.yml`ï¼šflake8/mypy/pyright/pytestï¼‰ï¼›åˆå§‹åŒ–å¹¶æ¨é€ GitHub ä»“åº“ï¼›æ ¹ç›®å½• `.gitignore` å¿½ç•¥ `demo/`ã€`artifacts/`ã€`backend/.venv/`ã€‚
+- 2026-01-13ï¼šMVP-3ï¼šæ–°å¢ `summarize` job + summary/outline/export APIï¼›å¢å¼º JSON å¤§çº²è§£æä¸ä¿®å¤é€»è¾‘ï¼›æé«˜ reduce/outline é˜¶æ®µ `max_tokens` é»˜è®¤å€¼ï¼Œé¿å…å¯¼å‡º Markdown/å¤§çº²è¢«æˆªæ–­ï¼›ç«¯åˆ°ç«¯éªŒè¯é€šè¿‡ï¼ˆoutline ä¸ºç»“æ„åŒ–æ•°ç»„ï¼Œexport/markdown æˆåŠŸè½ç›˜ï¼‰ã€‚
+- 2026-01-13ï¼šMVP-4ï¼šæ–°å¢ `keyframes` job ä¸ SQLite è½ç›˜ï¼ˆinterval/sceneï¼‰ï¼›scene æ¨¡å¼å†™å…¥ `score`ï¼›aligned æ”¯æŒ scene ä¼˜å…ˆé«˜åˆ†å¹¶å¯è¿”å› `score`ï¼Œå¯é€‰ `fallback=nearest`ã€‚
+- 2026-01-13ï¼šæ¡Œé¢ç«¯å¼€å‘ç¯å¢ƒè·‘é€šï¼šä¸€é”®å¯åŠ¨/åœæ­¢è„šæœ¬å®Œå–„ï¼ˆå«é»˜è®¤å¯åŠ¨ llama-serverï¼‰ï¼›ä¿®å¤ Electron-Vite entry/host ä¸ dev server ç­‰å¾…é€»è¾‘ï¼›dev æ¨¡å¼ CORS ç»•è¿‡ï¼›å‰ç«¯ä¸­æ–‡ UI æ–‡æ¡ˆæ”¹ä¸º Unicode escapeï¼Œé¿å… GBK/GB2312 ç¼–ç å¯¼è‡´ä¹±ç ã€‚
+- 2026-01-14ï¼šæ¡Œé¢ç«¯è”è°ƒï¼šå®Œæˆ Library/Video Detail é¡µé¢ï¼ˆå¯¼å…¥/åˆ—è¡¨/å¯¼èˆªï¼‰ï¼›è½¬å†™å‚æ•°é¢æ¿ + SSE è¿›åº¦ + transcript é¢„è§ˆï¼›ç´¢å¼•/æ‘˜è¦/å…³é”®å¸§ SSE è¿›åº¦è®¢é˜…ä¸ç»“æœé¢„è§ˆï¼›ä¿®å¤é¢„è§ˆåŒºé‡å¤è¯·æ±‚é£æš´å¯¼è‡´çš„åç«¯æ—¥å¿—åˆ·å±ä¸å¶å‘ â€œFailed to fetchâ€ã€‚
+- 2026-01-14ï¼šæ¡Œé¢ç«¯ä½“éªŒå¢å¼ºï¼ˆVideo Detailï¼‰ï¼šNotes/Chat ä¾§æ  Tab è½åœ°å¹¶ä¼˜åŒ–é˜…è¯»ä½“éªŒï¼ˆæ‘˜è¦ markdown æ¸²æŸ“ã€å¤§çº²å¯æŠ˜å ä¸è‡ªåŠ¨å±•å¼€å¼€å…³ã€aligned keyframes ç¼©ç•¥å›¾ä¸å»é‡ï¼‰ï¼›Chat æ”¯æŒç­”æ¡ˆ markdownã€å¼•ç”¨è·³è½¬ä¸å¿«æ·é”®ï¼›æ’­æ”¾å™¨å¢åŠ  `-15s/+15s`ã€å€é€Ÿã€å¤åˆ¶æ—¶é—´æˆ³ä¸è‡ªåŠ¨å­—å¹•å¼€å…³ï¼Œå¹¶ä¼˜åŒ–è½¬å½•é«˜äº®ä¸è‡ªåŠ¨æ»šåŠ¨ã€‚
+- 2026-01-14ï¼šå›½é™…åŒ–ä¸è¾“å‡ºè¯­è¨€ï¼šæ–°å¢å…¨å±€ UI è¯­è¨€åˆ‡æ¢ï¼ˆä¸­æ–‡/Englishï¼ŒlocalStorage æŒä¹…åŒ–ï¼‰ï¼›Settings æ–°å¢ LLM è¾“å‡ºè¯­è¨€ `output_language`ï¼ˆ`zh/en/auto`ï¼‰ï¼Œå¹¶åœ¨ Chat/æ‘˜è¦/å¤§çº²/äº‘æ‘˜è¦å…¨é“¾è·¯ç”Ÿæ•ˆï¼›ä¿®å¤ `SettingsPage.tsx` æ–‡ä»¶ç¼–ç ä¸º UTF-8 ä»¥ä¾¿ç»§ç»­è¿­ä»£ UI æ–‡æ¡ˆã€‚
+- 2026-01-15ï¼šWindows æ‰“åŒ…ä¸å‘å¸ƒï¼šåç«¯ PyInstaller onedir exe é›†æˆåˆ° Electronï¼›å¼•å…¥ electron-builder å¹¶å°†åç«¯ä½œä¸º extraResourcesï¼›release ç›®å½•æŒ‰ stable/beta åˆ†æµå¹¶æŒ‰ç‰ˆæœ¬éš”ç¦»è¾“å‡ºï¼›å¢åŠ æ„å»ºå‰è‡ªåŠ¨åœæ­¢ release/win-unpacked è¿›ç¨‹ä»¥è§„é¿ `app.asar` æ–‡ä»¶é”ï¼›å·²åˆ›å»ºå¹¶ä¸Šä¼  `v0.0.1-beta.1` GitHub é¢„å‘å¸ƒç‰ˆèµ„äº§ã€‚
+- 2026-01-20ï¼šå‘å¸ƒä¸æ›´æ–°é“¾è·¯æ¨è¿›ï¼š
+
+  - `v0.0.2`ï¼šä¿®å¤/éªŒè¯ ASR æ¨¡å‹ç¼“å­˜è·¯å¾„ï¼ˆ`Systran/faster-whisper-small`ï¼‰å¯ç”¨
+  - `v0.0.3`ï¼šæ–°å¢ ASR ä¸€é”®ä¸‹è½½/ä¿®å¤æ¥å£ä¸å‰ç«¯æŒ‰é’®ï¼›æ”¯æŒè‡ªå®šä¹‰ ASR ç¼“å­˜ç›®å½•ï¼ˆ`HF_HUB_CACHE`ï¼‰ï¼›NSIS å®‰è£…/å¸è½½ä¾§ `taskkill /T /F` å…œåº•ï¼›å·²éªŒè¯ `0.0.2 -> 0.0.3` åº”ç”¨å†…æ›´æ–°æˆåŠŸï¼›ä¸»åˆ†æ”¯è´¨é‡æ£€æµ‹æ¢å¤é€šè¿‡
+- 2026-02-05ï¼šé•¿è§†é¢‘å¯¼å…¥ç¨³å®šæ€§ä¸å¯è¯Šæ–­æ€§å¢å¼ºï¼š
+
+  - å‰ç«¯ï¼š`fetchJson/fetchJsonWithStatus` æ”¯æŒåç«¯é JSON 500 å“åº”ï¼ˆé¿å… `Unexpected token`ï¼‰ï¼Œå¹¶åœ¨é”™è¯¯æ—¶å›æ˜¾æ–‡æœ¬ç‰‡æ®µ
+  - åç«¯ï¼š`POST /videos/import` æ•è·å¼‚å¸¸å¹¶è¿”å› JSON `detail`ï¼ˆ`IMPORT_VIDEO_FAILED:<Type>:<message>`ï¼‰ï¼Œä¾¿äº UI ç›´æ¥å±•ç¤ºæ ¹å› 
+  - æ—¶é•¿æ¢æµ‹ï¼š`get_duration_seconds` å¢å¼ºï¼ˆWindows ä¸‹æ¢æµ‹ `ffprobe.exe`ã€å…¼å®¹é€—å·å°æ•°ã€`stream=duration` å…œåº•ã€å¤±è´¥è¾“å‡ºåŒ…å« cmd/returncode/tailï¼‰
+  - å¼€å‘å¯åŠ¨ï¼š`start_dev.cmd` ä¸å†é»˜è®¤å¼ºåˆ¶å¯åŠ¨ llama-serverï¼ˆéœ€è¦æœ¬åœ° LLM æ—¶æ˜¾å¼ `-StartLlama`ï¼‰ï¼›`run_llama_server.ps1` å¯åŠ¨è¶…æ—¶æå‡å¹¶åœ¨å¤±è´¥æ—¶è¾“å‡ºæ—¥å¿—å°¾éƒ¨ä¾¿äºå®šä½
+- 2026-02-22ï¼šä»£ç è´¨é‡ä¸å·¥ç¨‹æ–‡æ¡£ä¼˜åŒ–ï¼š
+
+  - ä¸ºåç«¯æ•°æ®åº“å±‚ï¼ˆ`db.py`, `repo.py`ï¼‰ä»¥åŠå‰ç«¯æ ¸å¿ƒç»„ä»¶ï¼ˆ`VideoDetailPage.tsx`ï¼‰ç­‰æ–‡ä»¶æ·»åŠ å¹¶å®Œå–„äº†å…³é”®çš„ä¸­æ–‡å·¥ç¨‹æ¶æ„å’Œè®¾è®¡è¯´æ˜æ³¨é‡Šã€‚
+  - æ•´ç†äº† `PROJECT_STATUS.md` ä¸­å†—ä½™é›¶æ•£çš„ç¬”è®°è®°å½•ï¼Œä¿æŒé¡¹ç›®çŠ¶æ€åŒæ­¥æ–‡æ¡£æ•´æ´ã€‚
+- 2026-02-23ï¼šLLM å¥å£®æ€§é˜²æŠ¤æ”¹è¿›ï¼š
+
+  - `main.py`ï¼š`POST /videos/{video_id}/summarize` æ¥å£åœ¨åˆ›å»ºä»»åŠ¡å‰æ£€æŸ¥ LLM provider é…ç½®ï¼›è‹¥å½“å‰ provider ä¸º `fake`/`none`ï¼Œåœ¨å“åº” 202 JSON ä¸­é™„åŠ  `warning` å­—æ®µï¼Œæç¤ºç”¨æˆ·å» Settings ä¸­æ­£ç¡®é…ç½® LLMï¼Œé¿å…é™é»˜ç”Ÿæˆæ— æ•ˆæ‘˜è¦ã€‚
+  - `runtime.py`ï¼šå°† LLM å¹¶å‘é”ç­‰å¾…è¶…æ—¶é»˜è®¤å€¼ä» 3 ç§’æå‡è‡³ **30 ç§’**ï¼ŒASR å’Œé‡å‹ä»»åŠ¡ï¼ˆHeavyï¼‰ä» 3 ç§’æå‡è‡³ **10 ç§’**ï¼Œé˜²æ­¢é«˜è´Ÿè½½ä¸‹å› ä¿¡å·é‡ç­‰å¾…è¶…æ—¶å¯¼è‡´ä»»åŠ¡æ„å¤–å¤±è´¥ã€‚ä»¥ä¸Šè¶…æ—¶å€¼å‡å¯é€šè¿‡ç¯å¢ƒå˜é‡ï¼ˆ`LLM_CONCURRENCY_TIMEOUT_SECONDS` ç­‰ï¼‰è¦†ç›–ã€‚

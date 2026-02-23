@@ -39,6 +39,11 @@ _client: Any = None
 
 
 def get_client():
+    """
+    【向量数据库客户端初始化】
+    获取 ChromaDB 持久化客户端实例，数据保存在本地 `.chroma` 目录中。
+    使用单例模式 `_client` 避免重复初始化。
+    """
     global _client
     if _client is not None:
         return _client
@@ -97,6 +102,12 @@ def upsert_vectors(
     embeddings: List[List[float]],
     metadatas: List[Dict[str, Any]],
 ) -> None:
+    """
+    【向量入库】
+    将处理好的 Chunks (文本片段 + 对应的向量表示 + 元数据) 插入到指定的 ChromaDB 集合中。
+    `upsert` 表示如果 ID 存在则更新，不存在则插入。
+    此函数被 `worker.py` 的 `_run_index` 任务调用。
+    """
     try:
         col = get_collection(collection_name)
         col.upsert(
@@ -119,6 +130,13 @@ def query_vectors(
     where: Optional[Dict[str, Any]] = None,
     create_if_missing: bool = True,
 ) -> Dict[str, Any]:
+    """
+    【向量检索 (相似度搜索)】
+    核心 Retrieval 函数：给定用户 Query 的向量 `query_embedding`，
+    在 ChromaDB 中找出距离最近（最相似）的 `top_k` 个文本块。
+    支持附加过滤条件 `where` (比如只搜索特定 video_id 下的文本块)。
+    被 `main.py` 的 `/chat` 和 `/search` 接口调用。
+    """
     try:
         if create_if_missing:
             col = get_collection(collection_name)

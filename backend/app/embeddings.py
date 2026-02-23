@@ -18,6 +18,13 @@ def embed_texts(
     model: str,
     dim: int,
 ) -> List[List[float]]:
+    """
+    【文本向量化入口 (Embedding)】
+    将一段文本转换成对应维度的浮点数数组。
+    目前支持两种模式:
+    1. 'hash': 一种伪向量化（通过对文本进行 sha256 哈希然后映射到浮点数），主要用于降级测试或系统无可用嵌入模型时。
+    2. 'fastembed:XXXX': 生产环境常用的本地化轻量级词向量方案，相比调用 OpenAI API，它能完全在本地（甚至没有GPU）运行。
+    """
     model_raw = (model or "").strip()
     model_norm = model_raw.lower()
     dim_i = int(dim)

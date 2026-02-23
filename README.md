@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Backend Quality](https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer/actions/workflows/quality.yml/badge.svg)
 
-[English](#english) | [ÖĞÎÄ](#chinese)
+[English](#english) | [ä¸­æ–‡](#chinese)
 
 ---
 
@@ -122,27 +122,27 @@ npm run dist
 ---
 
 <a name="chinese"></a>
-## ÖĞÎÄ
+## ä¸­æ–‡
 
-**Edge AI Video Summarizer** ÊÇÒ»¸ö±¾µØÓÅÏÈ£¨local-first£©µÄÊÓÆµ´¦ÀíÓë×Ü½á/¼ìË÷ÖúÊÖ¡£
+**Edge AI Video Summarizer** æ˜¯ä¸€ä¸ªæœ¬åœ°ä¼˜å…ˆï¼ˆlocal-firstï¼‰çš„è§†é¢‘å¤„ç†ä¸æ€»ç»“/æ£€ç´¢åŠ©æ‰‹ã€‚
 
-ËüÍêÈ«ÔÚ±¾µØÔËĞĞ£¬½«³¤ÊÓÆµ×ª»¯Îª½á¹¹»¯ÖªÊ¶£¨ÕªÒª¡¢´ó¸Ù¡¢¿É¼ìË÷ÎÄ±¾¿é£©£¬ÎŞĞèÉÏ´«Êı¾İµ½ÔÆ¶Ë¡£
+å®ƒå®Œå…¨åœ¨æœ¬åœ°è¿è¡Œï¼Œå°†é•¿è§†é¢‘è½¬åŒ–ä¸ºç»“æ„åŒ–çŸ¥è¯†ï¼ˆæ‘˜è¦ã€å¤§çº²ã€å¯æ£€ç´¢æ–‡æœ¬å—ï¼‰ï¼Œæ— éœ€ä¸Šä¼ æ•°æ®åˆ°äº‘ç«¯ã€‚
 
-### ¿ì½İÁ´½Ó
+### å¿«æ·é“¾æ¥
 
-- **Releases£¨Windows °²×°°ü/zip£©**: https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer/releases
-- **ÎÄµµË÷Òı**£º`docs/README.md`
-- **¼Ü¹¹Éè¼Æ**£º`Architecture_Design.md`
-- **ÏîÄ¿½ø¶È / Roadmap**£º`PROJECT_STATUS.md`
+- **Releasesï¼ˆWindows å®‰è£…åŒ…/zipï¼‰**: https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer/releases
+- **æ–‡æ¡£ç´¢å¼•**ï¼š`docs/README.md`
+- **æ¶æ„è®¾è®¡**ï¼š`Architecture_Design.md`
+- **é¡¹ç›®è¿›åº¦ / Roadmap**ï¼š`PROJECT_STATUS.md`
 
-### ºËĞÄ¹¦ÄÜ
+### æ ¸å¿ƒåŠŸèƒ½
 
-- **ÒşË½ÓÅÏÈ**£ºASR¡¢ÏòÁ¿»¯¡¢Ë÷ÒıÓëÎÊ´ğ¶¼¿ÉÔÚ±¾µØÍê³É¡£
-- **¸ßĞ§ÉãÈë**£ºÕë¶Ô³¤ÊÓÆµµÄ Map-Reduce ·Ö²ãÕªÒª¡£
-- **±¾µØ RAG**£ºÍ¨¹ı±¾µØ OpenAI ¼æÈİ½Ó¿Ú¶ÔÊÓÆµ¿â½øĞĞÎÊ´ğ£¨ÀıÈç `llama.cpp` µÄ `llama-server`£©¡£
-- **Í¼ÎÄ¶ÔÆë**£º¹Ø¼üÖ¡ÌáÈ¡ÓëÕªÒª/´ó¸Ù¶ÔÆë£¬±ãÓÚÑéÖ¤¡£
+- **éšç§ä¼˜å…ˆ**ï¼šASRã€å‘é‡åŒ–ã€ç´¢å¼•ä¸é—®ç­”éƒ½å¯åœ¨æœ¬åœ°å®Œæˆã€‚
+- **é«˜æ•ˆæ‘„å…¥**ï¼šé’ˆå¯¹é•¿è§†é¢‘çš„ Map-Reduce åˆ†å±‚æ‘˜è¦ã€‚
+- **æœ¬åœ° RAG**ï¼šé€šè¿‡æœ¬åœ° OpenAI å…¼å®¹æ¥å£å¯¹è§†é¢‘åº“è¿›è¡Œé—®ç­”ï¼ˆä¾‹å¦‚ `llama.cpp` çš„ `llama-server`ï¼‰ã€‚
+- **å›¾æ–‡å¯¹é½**ï¼šå…³é”®å¸§æå–ä¸æ‘˜è¦/å¤§çº²å¯¹é½ï¼Œä¾¿äºéªŒè¯ã€‚
 
-### ÏµÍ³¼Ü¹¹
+### ç³»ç»Ÿæ¶æ„
 
 ```mermaid
 graph TD
@@ -151,63 +151,63 @@ graph TD
     classDef storage fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
     classDef ai fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
 
-    subgraph Desktop["Windows ×ÀÃæÓ¦ÓÃ"]
-        Renderer["äÖÈ¾½ø³Ì (React)"]:::frontend
-        Main["Electron Ö÷½ø³Ì"]:::frontend
+    subgraph Desktop["Windows æ¡Œé¢åº”ç”¨"]
+        Renderer["æ¸²æŸ“è¿›ç¨‹ (React)"]:::frontend
+        Main["Electron ä¸»è¿›ç¨‹"]:::frontend
     end
 
-    subgraph Core["ºËĞÄºó¶Ë"]
-        API["FastAPI ºó¶Ë"]:::backend
+    subgraph Core["æ ¸å¿ƒåç«¯"]
+        API["FastAPI åç«¯"]:::backend
         FFmpeg["FFmpeg"]:::backend
     end
 
-    subgraph Data["±¾µØ´æ´¢"]
-        SQLite[("SQLite (ÔªÊı¾İ)")]:::storage
-        Chroma[("ChromaDB (ÏòÁ¿¿â)")]:::storage
+    subgraph Data["æœ¬åœ°å­˜å‚¨"]
+        SQLite[("SQLite (å…ƒæ•°æ®)")]:::storage
+        Chroma[("ChromaDB (å‘é‡åº“)")]:::storage
     end
 
-    subgraph AI_Engine["AI ÒıÇæ"]
+    subgraph AI_Engine["AI å¼•æ“"]
         Llama["llama-server"]:::ai
-        Models[("GGUF Ä£ĞÍ\n(Whisper / LLM)")]:::ai
+        Models[("GGUF æ¨¡å‹\n(Whisper / LLM)")]:::ai
     end
 
     Renderer -- HTTP API --> API
-    Main -.->|À­ÆğÓë¼à¿Ø| API
+    Main -.->|æ‹‰èµ·ä¸ç›‘æ§| API
 
     API --> FFmpeg
     API <--> SQLite
     API <--> Chroma
 
-    API -- OpenAI ¼æÈİ½Ó¿Ú --> Llama
+    API -- OpenAI å…¼å®¹æ¥å£ --> Llama
     Llama <--> Models
 ```
 
-### °²×°Ê¹ÓÃ
+### å®‰è£…ä½¿ç”¨
 
-ÇëÇ°ÍùÏÂÔØ£º
+è¯·å‰å¾€ä¸‹è½½ï¼š
 
 - **GitHub Releases**: https://github.com/Caria-Tarnished/Edge-AI-Video-Summarizer/releases
 
-ËµÃ÷£º
+è¯´æ˜ï¼š
 
-- **°²×°°ü**£º`Edge.Video.Agent.Setup.<version>.exe`
-- **Ãâ°²×°°æ**£º`Edge.Video.Agent-<version>-win.zip`
-- **Ğ£ÑéÎÄ¼ş**£º`SHA256SUMS.txt`£¨°üº¬Ö÷Òª×Ê²úµÄ SHA256£©
+- **å®‰è£…åŒ…**ï¼š`Edge.Video.Agent.Setup.<version>.exe`
+- **å…å®‰è£…ç‰ˆ**ï¼š`Edge.Video.Agent-<version>-win.zip`
+- **æ ¡éªŒæ–‡ä»¶**ï¼š`SHA256SUMS.txt`ï¼ˆåŒ…å«ä¸»è¦èµ„äº§çš„ SHA256ï¼‰
 
-### ¿ª·¢ÕßÖ¸ÄÏ
+### å¼€å‘è€…æŒ‡å—
 
 <details>
-<summary>µã»÷Õ¹¿ª¿ª·¢ÎÄµµ</summary>
+<summary>ç‚¹å‡»å±•å¼€å¼€å‘æ–‡æ¡£</summary>
 
-#### »·¾³ÒªÇó
+#### ç¯å¢ƒè¦æ±‚
 
 - Python 3.10+
 - Node.js 18+
 - PowerShell
 
-#### ¿ìËÙÆô¶¯
+#### å¿«é€Ÿå¯åŠ¨
 
-1) ºó¶Ë»·¾³ÅäÖÃ£º
+1) åç«¯ç¯å¢ƒé…ç½®ï¼š
 
 ```powershell
 cd backend
@@ -216,15 +216,15 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-2) Ò»¼üÆô¶¯£¨Dev Mode£©£º
+2) ä¸€é”®å¯åŠ¨ï¼ˆDev Modeï¼‰ï¼š
 
-ÔÚ²Ö¿â¸ùÄ¿Â¼ÔËĞĞ£º
+åœ¨ä»“åº“æ ¹ç›®å½•è¿è¡Œï¼š
 
 ```powershell
 ./start_dev.cmd
 ```
 
-3) ´ò°ü·¢²¼£¨Windows£©£º
+3) æ‰“åŒ…å‘å¸ƒï¼ˆWindowsï¼‰ï¼š
 
 ```powershell
 cd frontend
@@ -253,59 +253,59 @@ npm run dist
 <details>
 <summary>Click to expand (legacy detailed notes)</summary>
 
-## ¹¦ÄÜ¸ÅÀÀ
+## åŠŸèƒ½æ¦‚è§ˆ
 
-### MVP-1£º×ªĞ´Óë×ÖÄ»µ¼³ö
+### MVP-1ï¼šè½¬å†™ä¸å­—å¹•å¯¼å‡º
 
-- ±¾µØÊÓÆµµ¼ÈëÓëÈ¥ÖØÈë¿â
-- ÈÎÎñÏµÍ³£¨Job£©£º×ªĞ´ÈÎÎñ¡¢È¡Ïû¡¢ÖØÊÔ¡¢ÖØÆô»Ö¸´
-- ×ªĞ´½á¹û°´ JSONL ·Ö¶ÎÂäÅÌ£¬Ö§³Ö¶ÏµãĞøÅÜ
-- ×ÖÄ»µ¼³ö£º`SRT` / `VTT`
-- ÁĞ±í²éÑ¯£ºÊÓÆµÁĞ±í¡¢ÈÎÎñÁĞ±í
+- æœ¬åœ°è§†é¢‘å¯¼å…¥ä¸å»é‡å…¥åº“
+- ä»»åŠ¡ç³»ç»Ÿï¼ˆJobï¼‰ï¼šè½¬å†™ä»»åŠ¡ã€å–æ¶ˆã€é‡è¯•ã€é‡å¯æ¢å¤
+- è½¬å†™ç»“æœæŒ‰ JSONL åˆ†æ®µè½ç›˜ï¼Œæ”¯æŒæ–­ç‚¹ç»­è·‘
+- å­—å¹•å¯¼å‡ºï¼š`SRT` / `VTT`
+- åˆ—è¡¨æŸ¥è¯¢ï¼šè§†é¢‘åˆ—è¡¨ã€ä»»åŠ¡åˆ—è¡¨
 
-### MVP-2£ºÎÄ±¾ÖªÊ¶¿â£¨Index/Search/Chat£©
+### MVP-2ï¼šæ–‡æœ¬çŸ¥è¯†åº“ï¼ˆIndex/Search/Chatï¼‰
 
-- Chunking£º°´Ê±¼ä´°¾ÛºÏ×ªĞ´ segments£¬Ö§³Ö overlap
-- Embedding£ºÄ¬ÈÏÌá¹©±¾µØ¿ÉÓÃµÄ `hash` embedding£¨`384` Î¬£©
-- ÏòÁ¿¿â£ºChromaDB ³Ö¾Ã»¯
-- Index Job£º·Ö¿é ¡ú embedding ¡ú upsert µ½ÏòÁ¿¿â
-- ËÑË÷£º`GET /search`
-- ÎÊ´ğ£º`POST /chat`
-  - retrieval-only£º·µ»Ø `answer + citations`
-  - ±¾µØ LLM£¨RAG£©£º·µ»Ø `answer + citations`£¬LLM provider Í¨¹ı `/llm/preferences/default` ÅäÖÃ
-- Ë÷Òı¹ıÆÚ¼ì²â£º»ùÓÚ transcript ÎÄ¼ş hash ÅĞ¶Ï stale index£¬²¢×Ô¶¯´¥·¢ÖØ½¨
-- Chroma collection °æ±¾»¯£º°´ `embed_model + embed_dim` ¸ôÀë£¬±ÜÃâÎ¬¶È³åÍ»£»±ØÒªÊ±¶Ô legacy collection ×ö¼æÈİ»ØÍË
+- Chunkingï¼šæŒ‰æ—¶é—´çª—èšåˆè½¬å†™ segmentsï¼Œæ”¯æŒ overlap
+- Embeddingï¼šé»˜è®¤æä¾›æœ¬åœ°å¯ç”¨çš„ `hash` embeddingï¼ˆ`384` ç»´ï¼‰
+- å‘é‡åº“ï¼šChromaDB æŒä¹…åŒ–
+- Index Jobï¼šåˆ†å— â†’ embedding â†’ upsert åˆ°å‘é‡åº“
+- æœç´¢ï¼š`GET /search`
+- é—®ç­”ï¼š`POST /chat`
+  - retrieval-onlyï¼šè¿”å› `answer + citations`
+  - æœ¬åœ° LLMï¼ˆRAGï¼‰ï¼šè¿”å› `answer + citations`ï¼ŒLLM provider é€šè¿‡ `/llm/preferences/default` é…ç½®
+- ç´¢å¼•è¿‡æœŸæ£€æµ‹ï¼šåŸºäº transcript æ–‡ä»¶ hash åˆ¤æ–­ stale indexï¼Œå¹¶è‡ªåŠ¨è§¦å‘é‡å»º
+- Chroma collection ç‰ˆæœ¬åŒ–ï¼šæŒ‰ `embed_model + embed_dim` éš”ç¦»ï¼Œé¿å…ç»´åº¦å†²çªï¼›å¿…è¦æ—¶å¯¹ legacy collection åšå…¼å®¹å›é€€
 
-### MVP-2£º±¾µØ LLM£¨llama-server£©
+### MVP-2ï¼šæœ¬åœ° LLMï¼ˆllama-serverï¼‰
 
-- Ö§³Ö `llama.cpp` µÄ `llama-server`£¨OpenAI-compatible `/v1/chat/completions`£©
-- ºó¶ËÍ¨¹ı provider `openai_local` µ÷ÓÃ±¾µØ LLM
-- Ö§³Ö·ÇÁ÷Ê½Óë SSE Á÷Ê½Êä³ö
-- Ä¬ÈÏ LLM Æ«ºÃÖ§³Ö `output_language`£¨`zh/en/auto`£©£¬ÓÃÓÚ¿ØÖÆ Chat/ÕªÒª/´ó¸Ù/ÔÆÕªÒªÊä³öÓïÑÔ
+- æ”¯æŒ `llama.cpp` çš„ `llama-server`ï¼ˆOpenAI-compatible `/v1/chat/completions`ï¼‰
+- åç«¯é€šè¿‡ provider `openai_local` è°ƒç”¨æœ¬åœ° LLM
+- æ”¯æŒéæµå¼ä¸ SSE æµå¼è¾“å‡º
+- é»˜è®¤ LLM åå¥½æ”¯æŒ `output_language`ï¼ˆ`zh/en/auto`ï¼‰ï¼Œç”¨äºæ§åˆ¶ Chat/æ‘˜è¦/å¤§çº²/äº‘æ‘˜è¦è¾“å‡ºè¯­è¨€
 
-### MVP-3£º²ã¼¶ÕªÒª£¨Map-Reduce£©Óë´ó¸Ù½á¹¹ + µ¼³ö
+### MVP-3ï¼šå±‚çº§æ‘˜è¦ï¼ˆMap-Reduceï¼‰ä¸å¤§çº²ç»“æ„ + å¯¼å‡º
 
-- ĞÂÔö `summarize` job£ºMap-Reduce Éú³É·Ö¶ÎÕªÒªÓë×îÖÕÕªÒª
-- Êä³ö½á¹¹»¯´ó¸Ù£¨JSON£©Óëµ¼³ö Markdown
-- Ïà¹Ø½Ó¿Ú£º`/videos/{video_id}/summarize`¡¢`/videos/{video_id}/summary`¡¢`/videos/{video_id}/outline`¡¢`/videos/{video_id}/export/markdown`
+- æ–°å¢ `summarize` jobï¼šMap-Reduce ç”Ÿæˆåˆ†æ®µæ‘˜è¦ä¸æœ€ç»ˆæ‘˜è¦
+- è¾“å‡ºç»“æ„åŒ–å¤§çº²ï¼ˆJSONï¼‰ä¸å¯¼å‡º Markdown
+- ç›¸å…³æ¥å£ï¼š`/videos/{video_id}/summarize`ã€`/videos/{video_id}/summary`ã€`/videos/{video_id}/outline`ã€`/videos/{video_id}/export/markdown`
 
-### MVP-4£º¹Ø¼üÖ¡ÌáÈ¡£¨interval / scene£©
+### MVP-4ï¼šå…³é”®å¸§æå–ï¼ˆinterval / sceneï¼‰
 
-- ĞÂÔö `keyframes` job
-- Stage 1£¨¹Ì¶¨¼ä¸ô³éÖ¡£©£º`ffmpeg` ³éÖ¡Êä³ö JPG£¬Ö§³Ö `target_width`£¬²¢Ğ´Èë SQLite£¨º¬ `timestamp_ms`¡¢`width/height`£©
-- Stage 2£¨³¡¾°ÇĞ»»¼ì²â£©£º`ffmpeg select=gt(scene,thr)` ¼ì²âºòÑ¡Ö¡²¢Ğ´Èë `score`
-- Óë´ó¸Ù¶ÔÆë£º`/videos/{video_id}/keyframes/aligned`
-  - `method=scene`£ºÓÅÏÈ¸ß·ÖÖ¡²¢Ö§³Ö `min_gap_seconds` È¥ÖØ
-  - ¿ÉÑ¡¶µµ×£º`fallback=nearest`£¨ÕÂ½ÚÄÚ²»×ãÊ±°´ÕÂ½ÚÖĞµã×î½ü²¹Æë£»Ä¬ÈÏ¹Ø±Õ£©
+- æ–°å¢ `keyframes` job
+- Stage 1ï¼ˆå›ºå®šé—´éš”æŠ½å¸§ï¼‰ï¼š`ffmpeg` æŠ½å¸§è¾“å‡º JPGï¼Œæ”¯æŒ `target_width`ï¼Œå¹¶å†™å…¥ SQLiteï¼ˆå« `timestamp_ms`ã€`width/height`ï¼‰
+- Stage 2ï¼ˆåœºæ™¯åˆ‡æ¢æ£€æµ‹ï¼‰ï¼š`ffmpeg select=gt(scene,thr)` æ£€æµ‹å€™é€‰å¸§å¹¶å†™å…¥ `score`
+- ä¸å¤§çº²å¯¹é½ï¼š`/videos/{video_id}/keyframes/aligned`
+  - `method=scene`ï¼šä¼˜å…ˆé«˜åˆ†å¸§å¹¶æ”¯æŒ `min_gap_seconds` å»é‡
+  - å¯é€‰å…œåº•ï¼š`fallback=nearest`ï¼ˆç« èŠ‚å†…ä¸è¶³æ—¶æŒ‰ç« èŠ‚ä¸­ç‚¹æœ€è¿‘è¡¥é½ï¼›é»˜è®¤å…³é—­ï¼‰
 
-### ÊµÊ±½ø¶ÈÍÆËÍ
+### å®æ—¶è¿›åº¦æ¨é€
 
-- SSE£º`GET /jobs/{job_id}/events`
-- WebSocket£º`GET ws://127.0.0.1:8001/ws/jobs/{job_id}`
+- SSEï¼š`GET /jobs/{job_id}/events`
+- WebSocketï¼š`GET ws://127.0.0.1:8001/ws/jobs/{job_id}`
 
 ---
 
-## ÏµÍ³¼Ü¹¹£¨¼òÍ¼£©
+## ç³»ç»Ÿæ¶æ„ï¼ˆç®€å›¾ï¼‰
 
 ```mermaid
 graph LR
@@ -321,19 +321,19 @@ graph LR
     Llama["llama-server"]
     Models[("Models: Whisper / LLM")]
 
-    %% 1. ĞŞ¸´Ë«Ïò¼ıÍ·£º¸ÄÎªµ¥Ïò£¬·ûºÏ v8.8.0 ½âÎö¹æÔò
-    %% HTTP Í¨ĞÅÍ¨³£ÓÉÇ°¶Ë·¢ÆğÇëÇó£¬µ¥Ïò¼ıÍ·ÓïÒåÇåÎúÇÒÎÈ¶¨
+    %% 1. ä¿®å¤åŒå‘ç®­å¤´ï¼šæ”¹ä¸ºå•å‘ï¼Œç¬¦åˆ v8.8.0 è§£æè§„åˆ™
+    %% HTTP é€šä¿¡é€šå¸¸ç”±å‰ç«¯å‘èµ·è¯·æ±‚ï¼Œå•å‘ç®­å¤´è¯­ä¹‰æ¸…æ™°ä¸”ç¨³å®š
     Renderer -- HTTP API --> Backend
 
-    %% 2. Í³Ò»¼ıÍ·±êÇ©¸ñÊ½
+    %% 2. ç»Ÿä¸€ç®­å¤´æ ‡ç­¾æ ¼å¼
     Main -- spawn backend exe + health --> Backend
 
-    %% ÄÚ²¿×é¼şÁ¬½Ó
+    %% å†…éƒ¨ç»„ä»¶è¿æ¥
     Backend --> SQLite
     Backend --> Chroma
     Backend --> FFmpeg
   
-    %% 3. ĞŞ¸´Ë«Ïò¼ıÍ·
+    %% 3. ä¿®å¤åŒå‘ç®­å¤´
     Backend -- HTTP --> Llama
 
     Llama --> Models
@@ -341,26 +341,26 @@ graph LR
 
 ```
 
-## Ä¿Â¼½á¹¹
+## ç›®å½•ç»“æ„
 
-- `backend/`£ºFastAPI ºó¶ËÔ´Âë¡¢²âÊÔÓë¿ª·¢¹¤¾ßÅäÖÃ
-- `frontend/`£ºElectron + Vite + React ×ÀÃæ¶Ë£¨¿ª·¢ÖĞ£»ÒÑÊµÏÖÊÓÆµ¿â/µ¼Èë/ÏêÇéÒ³ÓëÈÎÎñ½ø¶ÈÔ¤ÀÀ£©
-- `scripts/`£ºPowerShell ×Ô¶¯»¯ÑéÖ¤/ÖÊÁ¿¼ì²é½Å±¾
-- `artifacts/`£º½Å±¾Êä³öÓëµ¼³öÎÄ¼ş£¨Ä¬ÈÏºöÂÔ£©
-- `release/`£º×ÀÃæ¶Ë´ò°ü²úÎïÊä³öÄ¿Â¼£¨Ä¬ÈÏºöÂÔ£©
-  - `release/stable/<version>/`£ºÕıÊ½°æ²úÎï
-  - `release/beta/<version>/`£ºÔ¤·¢²¼°æ²úÎï£¨°æ±¾ºÅ°üº¬ `-`£©
-- `start_dev.cmd`£º×ÀÃæ¶Ë¿ª·¢Ò»¼üÆô¶¯£¨llama-server + backend + Electron Ç°¶Ë£©
-- `Architecture_Design.md`£º¼Ü¹¹ÓëÀï³Ì±®¹æ»®
-- `PROJECT_STATUS.md`£ºÏîÄ¿½ø¶È¡¢²âÊÔ±¸Íü¡¢±ä¸ü¼ÇÂ¼
+- `backend/`ï¼šFastAPI åç«¯æºç ã€æµ‹è¯•ä¸å¼€å‘å·¥å…·é…ç½®
+- `frontend/`ï¼šElectron + Vite + React æ¡Œé¢ç«¯ï¼ˆå¼€å‘ä¸­ï¼›å·²å®ç°è§†é¢‘åº“/å¯¼å…¥/è¯¦æƒ…é¡µä¸ä»»åŠ¡è¿›åº¦é¢„è§ˆï¼‰
+- `scripts/`ï¼šPowerShell è‡ªåŠ¨åŒ–éªŒè¯/è´¨é‡æ£€æŸ¥è„šæœ¬
+- `artifacts/`ï¼šè„šæœ¬è¾“å‡ºä¸å¯¼å‡ºæ–‡ä»¶ï¼ˆé»˜è®¤å¿½ç•¥ï¼‰
+- `release/`ï¼šæ¡Œé¢ç«¯æ‰“åŒ…äº§ç‰©è¾“å‡ºç›®å½•ï¼ˆé»˜è®¤å¿½ç•¥ï¼‰
+  - `release/stable/<version>/`ï¼šæ­£å¼ç‰ˆäº§ç‰©
+  - `release/beta/<version>/`ï¼šé¢„å‘å¸ƒç‰ˆäº§ç‰©ï¼ˆç‰ˆæœ¬å·åŒ…å« `-`ï¼‰
+- `start_dev.cmd`ï¼šæ¡Œé¢ç«¯å¼€å‘ä¸€é”®å¯åŠ¨ï¼ˆllama-server + backend + Electron å‰ç«¯ï¼‰
+- `Architecture_Design.md`ï¼šæ¶æ„ä¸é‡Œç¨‹ç¢‘è§„åˆ’
+- `PROJECT_STATUS.md`ï¼šé¡¹ç›®è¿›åº¦ã€æµ‹è¯•å¤‡å¿˜ã€å˜æ›´è®°å½•
 
 ---
 
-## ¿ìËÙ¿ªÊ¼£¨Windows / PowerShell£©
+## å¿«é€Ÿå¼€å§‹ï¼ˆWindows / PowerShellï¼‰
 
-### 1) ´´½¨ĞéÄâ»·¾³²¢°²×°ÒÀÀµ
+### 1) åˆ›å»ºè™šæ‹Ÿç¯å¢ƒå¹¶å®‰è£…ä¾èµ–
 
-ÔÚ `backend/` Ä¿Â¼£º
+åœ¨ `backend/` ç›®å½•ï¼š
 
 ```powershell
 python -m venv .venv
@@ -369,58 +369,58 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-ÈçĞè¿ª·¢ÖÊÁ¿¹¤¾ß£¨flake8/mypy/pyright/pytest£©£º
+å¦‚éœ€å¼€å‘è´¨é‡å·¥å…·ï¼ˆflake8/mypy/pyright/pytestï¼‰ï¼š
 
 ```powershell
 pip install -r requirements-dev.txt
 ```
 
-### 2) Æô¶¯ºó¶Ë
+### 2) å¯åŠ¨åç«¯
 
-·½Ê½ 0£¨ÍÆ¼ö£¬Æô¶¯±¾µØÕ»£©£ºÒ»¼üÆô¶¯ llama-server + backend
+æ–¹å¼ 0ï¼ˆæ¨èï¼Œå¯åŠ¨æœ¬åœ°æ ˆï¼‰ï¼šä¸€é”®å¯åŠ¨ llama-server + backend
 
 ```powershell
 ./scripts/run_local_stack.ps1
 ```
 
-Í£Ö¹±¾µØÕ»£º
+åœæ­¢æœ¬åœ°æ ˆï¼š
 
 ```powershell
 ./scripts/stop_local_stack.ps1 -ForceStop
 ```
 
-·½Ê½ A£ºÖ±½ÓÓÃ uvicorn
+æ–¹å¼ Aï¼šç›´æ¥ç”¨ uvicorn
 
 ```powershell
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```
 
-·½Ê½ B£ºÊ¹ÓÃ½Å±¾£¨»áÇ¿ÖÆÊ¹ÓÃ `backend/.venv` µÄ python£©
+æ–¹å¼ Bï¼šä½¿ç”¨è„šæœ¬ï¼ˆä¼šå¼ºåˆ¶ä½¿ç”¨ `backend/.venv` çš„ pythonï¼‰
 
 ```powershell
 ./scripts/run_backend_dev.ps1
 ```
 
-### 2.5) Æô¶¯×ÀÃæ¶Ë£¨Electron / Ç°ºó¶ËÁªµ÷£©
+### 2.5) å¯åŠ¨æ¡Œé¢ç«¯ï¼ˆElectron / å‰åç«¯è”è°ƒï¼‰
 
-ÍÆ¼ö·½Ê½£ºÔÚ²Ö¿â¸ùÄ¿Â¼Ö±½ÓË«»÷£º`start_dev.cmd`
+æ¨èæ–¹å¼ï¼šåœ¨ä»“åº“æ ¹ç›®å½•ç›´æ¥åŒå‡»ï¼š`start_dev.cmd`
 
-- Ä¬ÈÏĞĞÎª£º×Ô¶¯Æô¶¯ `llama-server` + ºó¶Ë + Electron Ç°¶Ë
-- ¿ÉÑ¡£ºÄãÒ²¿ÉÒÔÔÚ PowerShell ÖĞÔËĞĞ£¨±ãÓÚ¿´ÈÕÖ¾/´«²Î£©£º
+- é»˜è®¤è¡Œä¸ºï¼šè‡ªåŠ¨å¯åŠ¨ `llama-server` + åç«¯ + Electron å‰ç«¯
+- å¯é€‰ï¼šä½ ä¹Ÿå¯ä»¥åœ¨ PowerShell ä¸­è¿è¡Œï¼ˆä¾¿äºçœ‹æ—¥å¿—/ä¼ å‚ï¼‰ï¼š
 
 ```powershell
 ./start_dev.cmd
 ```
 
-Í£Ö¹×ÀÃæ¶Ë£º
+åœæ­¢æ¡Œé¢ç«¯ï¼š
 
 ```powershell
 ./scripts/stop_dev.ps1 -ForceStop
 ```
 
-> ËµÃ÷£ºllama-server µÄ×´Ì¬ÓÉºó¶ËÌ½²â `LLM_LOCAL_BASE_URL + /models`¡£Èç¹û Settings ÀïÏÔÊ¾ÎŞ·¨Á¬½Ó£¬ÓÅÏÈÈ·ÈÏ `http://127.0.0.1:8080/v1/models` ÊÇ·ñ¿É·ÃÎÊ£¬ÒÔ¼°²é¿´ `artifacts/logs/llama_server_*.stderr.log`¡£
+> è¯´æ˜ï¼šllama-server çš„çŠ¶æ€ç”±åç«¯æ¢æµ‹ `LLM_LOCAL_BASE_URL + /models`ã€‚å¦‚æœ Settings é‡Œæ˜¾ç¤ºæ— æ³•è¿æ¥ï¼Œä¼˜å…ˆç¡®è®¤ `http://127.0.0.1:8080/v1/models` æ˜¯å¦å¯è®¿é—®ï¼Œä»¥åŠæŸ¥çœ‹ `artifacts/logs/llama_server_*.stderr.log`ã€‚
 
-### 3) ½¡¿µ¼ì²é
+### 3) å¥åº·æ£€æŸ¥
 
 ```powershell
 curl.exe http://127.0.0.1:8001/health
@@ -428,7 +428,7 @@ curl.exe http://127.0.0.1:8001/health
 
 ---
 
-## ³£ÓÃ½Ó¿Ú
+## å¸¸ç”¨æ¥å£
 
 - `POST /videos/import`
 - `POST /jobs/transcribe`
@@ -452,26 +452,26 @@ curl.exe http://127.0.0.1:8001/health
 - `GET /videos/{video_id}/keyframes/aligned`
 - `GET /videos/{video_id}/keyframes/{keyframe_id}/image`
 
-¸üÍêÕû API Óë PowerShell Ê¾Àı¼û£º`PROJECT_STATUS.md`¡£
+æ›´å®Œæ•´ API ä¸ PowerShell ç¤ºä¾‹è§ï¼š`PROJECT_STATUS.md`ã€‚
 
 ---
 
-## ×Ô¶¯»¯½Å±¾£¨PowerShell£©
+## è‡ªåŠ¨åŒ–è„šæœ¬ï¼ˆPowerShellï¼‰
 
-- `scripts/index_search_chat_test.ps1`£º»Ø¹éÑéÖ¤ `/index`¡¢`/search`¡¢`/chat`£¨º¬ 200/202 ¾ºÌ¬ÈİÈÌÓë job_id ¸´ÓÃ¶ÏÑÔ£©
-- `scripts/local_llm_e2e_test.ps1`£º¶Ëµ½¶ËÑéÖ¤±¾µØ LLM£¨llama-server£©+ ÉèÖÃÄ¬ÈÏ LLM Æ«ºÃ + index + `/chat` ·ÇÁ÷Ê½Óë SSE
-- `scripts/run_llama_server.ps1`£ºÒ»¼üÆô¶¯±¾µØ `llama-server`£¨º¬ `/v1/models` ½¡¿µ¼ì²éÓëÈÕÖ¾ÂäÅÌ£©
-- `scripts/run_local_stack.ps1`£ºÒ»¼üÆô¶¯ llama-server + backend£¬²¢¿ÉÑ¡×Ô¶¯ÔËĞĞ `local_llm_e2e_test.ps1`£¨Ö§³Ö `-ForceReindex`£¬²¢¾¡Á¿¸´ÓÃÒÑÔËĞĞ·şÎñ£©
-- `scripts/stop_local_stack.ps1`£ºÍ£Ö¹ `run_local_stack.ps1` Æô¶¯µÄ½ø³Ì£¨¶ÁÈ¡ `artifacts/*.pid` Óë `artifacts/local_stack_pids.json`£©
-- `scripts/restart_recovery_test.ps1`£ºÑéÖ¤ÖØÆô»Ö¸´
-- `scripts/cancel_retry_test.ps1`£ºÑéÖ¤È¡Ïû/ÖØÊÔ
-- `scripts/run_quality_checks.ps1`£ºÒ»¼üÔËĞĞ flake8/mypy/pyright/pytest
+- `scripts/index_search_chat_test.ps1`ï¼šå›å½’éªŒè¯ `/index`ã€`/search`ã€`/chat`ï¼ˆå« 200/202 ç«æ€å®¹å¿ä¸ job_id å¤ç”¨æ–­è¨€ï¼‰
+- `scripts/local_llm_e2e_test.ps1`ï¼šç«¯åˆ°ç«¯éªŒè¯æœ¬åœ° LLMï¼ˆllama-serverï¼‰+ è®¾ç½®é»˜è®¤ LLM åå¥½ + index + `/chat` éæµå¼ä¸ SSE
+- `scripts/run_llama_server.ps1`ï¼šä¸€é”®å¯åŠ¨æœ¬åœ° `llama-server`ï¼ˆå« `/v1/models` å¥åº·æ£€æŸ¥ä¸æ—¥å¿—è½ç›˜ï¼‰
+- `scripts/run_local_stack.ps1`ï¼šä¸€é”®å¯åŠ¨ llama-server + backendï¼Œå¹¶å¯é€‰è‡ªåŠ¨è¿è¡Œ `local_llm_e2e_test.ps1`ï¼ˆæ”¯æŒ `-ForceReindex`ï¼Œå¹¶å°½é‡å¤ç”¨å·²è¿è¡ŒæœåŠ¡ï¼‰
+- `scripts/stop_local_stack.ps1`ï¼šåœæ­¢ `run_local_stack.ps1` å¯åŠ¨çš„è¿›ç¨‹ï¼ˆè¯»å– `artifacts/*.pid` ä¸ `artifacts/local_stack_pids.json`ï¼‰
+- `scripts/restart_recovery_test.ps1`ï¼šéªŒè¯é‡å¯æ¢å¤
+- `scripts/cancel_retry_test.ps1`ï¼šéªŒè¯å–æ¶ˆ/é‡è¯•
+- `scripts/run_quality_checks.ps1`ï¼šä¸€é”®è¿è¡Œ flake8/mypy/pyright/pytest
 
 ---
 
-## CI£¨GitHub Actions£©
+## CIï¼ˆGitHub Actionsï¼‰
 
-ÒÑ½ÓÈë GitHub Actions£º`.github/workflows/quality.yml`
+å·²æ¥å…¥ GitHub Actionsï¼š`.github/workflows/quality.yml`
 
 - flake8
 - mypy
@@ -480,34 +480,34 @@ curl.exe http://127.0.0.1:8001/health
 
 ---
 
-## ·¢²¼Óë°æ±¾²ßÂÔ£¨×ÀÃæ¶Ë£¬Î¬»¤Õß£©
+## å‘å¸ƒä¸ç‰ˆæœ¬ç­–ç•¥ï¼ˆæ¡Œé¢ç«¯ï¼Œç»´æŠ¤è€…ï¼‰
 
-### °æ±¾ÓëÇşµÀ
+### ç‰ˆæœ¬ä¸æ¸ é“
 
-- `x.y.z`£ºstable£¨ÕıÊ½°æ£©
-- `x.y.z-...`£ºbeta£¨Ô¤·¢²¼°æ£¬ÀıÈç `0.0.1-beta.1`£©
-- Git tag£º½¨ÒéÊ¹ÓÃ `v<version>`£¨ÀıÈç `v0.0.1-beta.1`£©
+- `x.y.z`ï¼šstableï¼ˆæ­£å¼ç‰ˆï¼‰
+- `x.y.z-...`ï¼šbetaï¼ˆé¢„å‘å¸ƒç‰ˆï¼Œä¾‹å¦‚ `0.0.1-beta.1`ï¼‰
+- Git tagï¼šå»ºè®®ä½¿ç”¨ `v<version>`ï¼ˆä¾‹å¦‚ `v0.0.1-beta.1`ï¼‰
 
-×ÀÃæ¶Ë´ò°ü²úÎïÊä³öÄ¿Â¼£º
+æ¡Œé¢ç«¯æ‰“åŒ…äº§ç‰©è¾“å‡ºç›®å½•ï¼š
 
-- stable£º`release/stable/<version>/`
-- beta£º`release/beta/<version>/`
+- stableï¼š`release/stable/<version>/`
+- betaï¼š`release/beta/<version>/`
 
-### ÍÆ¼öÉÏ´«µÄ Release ×Ê²ú£¨Windows£©
+### æ¨èä¸Šä¼ çš„ Release èµ„äº§ï¼ˆWindowsï¼‰
 
 - `Edge Video Agent Setup <version>.exe`
 - `Edge Video Agent Setup <version>.exe.blockmap`
 - `Edge Video Agent-<version>-win.zip`
-- `SHA256SUMS.txt`£¨ÍÆ¼ö£©
+- `SHA256SUMS.txt`ï¼ˆæ¨èï¼‰
 
-²»½¨ÒéÉÏ´«£º
+ä¸å»ºè®®ä¸Šä¼ ï¼š
 
-- `win-unpacked/`£¨Ìå»ı´óÇÒÔÚ Windows ÉÏ¸üÈİÒ×³öÏÖÎÄ¼şÕ¼ÓÃµ¼ÖÂÉ¾³ı/¸²¸ÇÊ§°Ü£©
+- `win-unpacked/`ï¼ˆä½“ç§¯å¤§ä¸”åœ¨ Windows ä¸Šæ›´å®¹æ˜“å‡ºç°æ–‡ä»¶å ç”¨å¯¼è‡´åˆ é™¤/è¦†ç›–å¤±è´¥ï¼‰
 - `builder-debug.yml` / `builder-effective-config.yaml`
 
-### Éú³É SHA256SUMS£¨PowerShell£©
+### ç”Ÿæˆ SHA256SUMSï¼ˆPowerShellï¼‰
 
-ÔÚ²Ö¿â¸ùÄ¿Â¼£º
+åœ¨ä»“åº“æ ¹ç›®å½•ï¼š
 
 ```powershell
 $ver = "0.0.1-beta.1"
@@ -521,7 +521,7 @@ Get-FileHash -Algorithm SHA256 `
   Set-Content -Encoding ASCII "$dir\SHA256SUMS.txt"
 ```
 
-### ´´½¨/ÉÏ´« GitHub Ô¤·¢²¼°æ£¨PowerShell£©
+### åˆ›å»º/ä¸Šä¼  GitHub é¢„å‘å¸ƒç‰ˆï¼ˆPowerShellï¼‰
 
 ```powershell
 $ver = "0.0.1-beta.1"
@@ -539,7 +539,7 @@ gh release create $tag `
   --prerelease
 ```
 
-Èô release ÒÑ´æÔÚ£¬¸ÄÓÃ `upload`£º
+è‹¥ release å·²å­˜åœ¨ï¼Œæ”¹ç”¨ `upload`ï¼š
 
 ```powershell
 $ver = "0.0.1-beta.1"
@@ -554,34 +554,34 @@ gh release upload "v$ver" `
   --clobber
 ```
 
-## »·¾³±äÁ¿£¨²¿·Ö£©
+## ç¯å¢ƒå˜é‡ï¼ˆéƒ¨åˆ†ï¼‰
 
-- `EDGE_VIDEO_AGENT_DATA_DIR`£ºÊı¾İÄ¿Â¼£¨SQLite/×ªĞ´/Ë÷ÒıµÈ£©
-- `EDGE_VIDEO_AGENT_DISABLE_WORKER`£º½ûÓÃºóÌ¨ worker£¨²âÊÔÓÃ£©
-- `ENABLE_CLOUD_SUMMARY`£ºÊÇ·ñÔÊĞíÔÆÕªÒª£¨Ä¬ÈÏ¹Ø±Õ£©
-- `LLM_LOCAL_BASE_URL`£º±¾µØ llama-server µÄ OpenAI API base url£¨Ä¬ÈÏ `http://127.0.0.1:8080/v1`£©
-- `LLM_LOCAL_MODEL`£º±¾µØ llama-server µÄÄ¬ÈÏ model id£¨Ä¬ÈÏ `llama`£©
-- `LLM_REQUEST_TIMEOUT_SECONDS`£ººó¶Ëµ÷ÓÃ LLM µÄ HTTP ³¬Ê±£¨Ãë£©£¬ÓÃÓÚ·ÇÁ÷Ê½ÇëÇó£¨Ä¬ÈÏ `600`£©
-- `VITE_BACKEND_BASE_URL`£º×ÀÃæ¶ËÇ°¶Ëµ÷ÓÃºó¶ËµÄ base url£¨¿ª·¢ÆÚÓÉ½Å±¾×¢Èë£¬Ä¬ÈÏ `http://127.0.0.1:8001`£©
+- `EDGE_VIDEO_AGENT_DATA_DIR`ï¼šæ•°æ®ç›®å½•ï¼ˆSQLite/è½¬å†™/ç´¢å¼•ç­‰ï¼‰
+- `EDGE_VIDEO_AGENT_DISABLE_WORKER`ï¼šç¦ç”¨åå° workerï¼ˆæµ‹è¯•ç”¨ï¼‰
+- `ENABLE_CLOUD_SUMMARY`ï¼šæ˜¯å¦å…è®¸äº‘æ‘˜è¦ï¼ˆé»˜è®¤å…³é—­ï¼‰
+- `LLM_LOCAL_BASE_URL`ï¼šæœ¬åœ° llama-server çš„ OpenAI API base urlï¼ˆé»˜è®¤ `http://127.0.0.1:8080/v1`ï¼‰
+- `LLM_LOCAL_MODEL`ï¼šæœ¬åœ° llama-server çš„é»˜è®¤ model idï¼ˆé»˜è®¤ `llama`ï¼‰
+- `LLM_REQUEST_TIMEOUT_SECONDS`ï¼šåç«¯è°ƒç”¨ LLM çš„ HTTP è¶…æ—¶ï¼ˆç§’ï¼‰ï¼Œç”¨äºéæµå¼è¯·æ±‚ï¼ˆé»˜è®¤ `600`ï¼‰
+- `VITE_BACKEND_BASE_URL`ï¼šæ¡Œé¢ç«¯å‰ç«¯è°ƒç”¨åç«¯çš„ base urlï¼ˆå¼€å‘æœŸç”±è„šæœ¬æ³¨å…¥ï¼Œé»˜è®¤ `http://127.0.0.1:8001`ï¼‰
 
-¸ü¶àÅäÖÃÏîÇë²Î¿¼£º`backend/app/settings.py`¡£
+æ›´å¤šé…ç½®é¡¹è¯·å‚è€ƒï¼š`backend/app/settings.py`ã€‚
 
-> ²¹³ä£ºLLM µÄÄ¬ÈÏÆ«ºÃÍ¨¹ı `GET/PUT /llm/preferences/default` ¹ÜÀí£¨provider/model/temperature/max_tokens/output_language£©¡£
+> è¡¥å……ï¼šLLM çš„é»˜è®¤åå¥½é€šè¿‡ `GET/PUT /llm/preferences/default` ç®¡ç†ï¼ˆprovider/model/temperature/max_tokens/output_languageï¼‰ã€‚
 
 ---
 
-## ÏÂÒ»²½£¨½¨ÒéË³Ğò£©
+## ä¸‹ä¸€æ­¥ï¼ˆå»ºè®®é¡ºåºï¼‰
 
-- Íê³É£º×ÀÃæ¶ËÊÓÆµ¿â£¨Library£©Ò³£¨ÁĞ±í + µ¼ÈëÈë¿Ú£©
-- Íê³É£º×ÀÃæ¶ËÊÓÆµÏêÇéÒ³£¨×ªĞ´/Ë÷Òı/ÕªÒª/¹Ø¼üÖ¡£©Óë½ø¶ÈÕ¹Ê¾£¨SSE£©+ ½á¹ûÔ¤ÀÀ
-- Íê³É£ºÈ«¾Ö UI ÓïÑÔÇĞ»»£¨ÖĞÎÄ/English£©Óë LLM Êä³öÓïÑÔ `output_language`£¨`zh/en/auto`£©È«Á´Â·ÉúĞ§
-- ÏÂÒ»²½£¨½¨Òé½øÈë P3£©£º
-  - ÒÑÍê³É£ºRelease ¹¤³Ì»¯£¨CI ¹¹½¨ Windows ²úÎï + ×Ô¶¯´´½¨/ÉÏ´« GitHub Release£¨º¬ SHA256 Ğ£ÑéÎÄ¼ş£©£©
-  - ×Ô¶¯¸üĞÂ²ßÂÔ£¨¿ÉÑ¡£©£ºelectron-updater / ÊÖ¶¯¼ì²é¸üĞÂ£¨¶şÑ¡Ò»£©
-  - Ê×´ÎÔËĞĞÏòµ¼£ºwhisper Ä£ĞÍ/llama-server/±¾µØÄ£ĞÍµÄ¿ÉÓÃĞÔ¼ì²éÓëÏÂÔØÖ¸Òı
-  - Êı¾İÄ¿Â¼£ºÑ¡Ôñ/Ç¨ÒÆ/±¸·İ²ßÂÔ£¨±ÜÃâÉı¼¶¸²¸ÇÓëÓÃ»§Êı¾İ¶ªÊ§£©
-  - ²¥·ÅÆ÷ÔöÇ¿£¨¿ÉÑ¡£©£º¼üÅÌ¿ì½İ¼ü¡¢ÕÂ½Úµ¼º½¡¢»­ÖĞ»­/È«ÆÁÌåÑéÓÅ»¯
-  - ÈÎÎñÖĞĞÄ£¨¿ÉÑ¡£©£ºÈ«¾Ö jobs ÁĞ±í + È¡Ïû/ÖØÊÔ + ½ø¶È¶©ÔÄ
+- å®Œæˆï¼šæ¡Œé¢ç«¯è§†é¢‘åº“ï¼ˆLibraryï¼‰é¡µï¼ˆåˆ—è¡¨ + å¯¼å…¥å…¥å£ï¼‰
+- å®Œæˆï¼šæ¡Œé¢ç«¯è§†é¢‘è¯¦æƒ…é¡µï¼ˆè½¬å†™/ç´¢å¼•/æ‘˜è¦/å…³é”®å¸§ï¼‰ä¸è¿›åº¦å±•ç¤ºï¼ˆSSEï¼‰+ ç»“æœé¢„è§ˆ
+- å®Œæˆï¼šå…¨å±€ UI è¯­è¨€åˆ‡æ¢ï¼ˆä¸­æ–‡/Englishï¼‰ä¸ LLM è¾“å‡ºè¯­è¨€ `output_language`ï¼ˆ`zh/en/auto`ï¼‰å…¨é“¾è·¯ç”Ÿæ•ˆ
+- ä¸‹ä¸€æ­¥ï¼ˆå»ºè®®è¿›å…¥ P3ï¼‰ï¼š
+  - å·²å®Œæˆï¼šRelease å·¥ç¨‹åŒ–ï¼ˆCI æ„å»º Windows äº§ç‰© + è‡ªåŠ¨åˆ›å»º/ä¸Šä¼  GitHub Releaseï¼ˆå« SHA256 æ ¡éªŒæ–‡ä»¶ï¼‰ï¼‰
+  - è‡ªåŠ¨æ›´æ–°ç­–ç•¥ï¼ˆå¯é€‰ï¼‰ï¼šelectron-updater / æ‰‹åŠ¨æ£€æŸ¥æ›´æ–°ï¼ˆäºŒé€‰ä¸€ï¼‰
+  - é¦–æ¬¡è¿è¡Œå‘å¯¼ï¼šwhisper æ¨¡å‹/llama-server/æœ¬åœ°æ¨¡å‹çš„å¯ç”¨æ€§æ£€æŸ¥ä¸ä¸‹è½½æŒ‡å¼•
+  - æ•°æ®ç›®å½•ï¼šé€‰æ‹©/è¿ç§»/å¤‡ä»½ç­–ç•¥ï¼ˆé¿å…å‡çº§è¦†ç›–ä¸ç”¨æˆ·æ•°æ®ä¸¢å¤±ï¼‰
+  - æ’­æ”¾å™¨å¢å¼ºï¼ˆå¯é€‰ï¼‰ï¼šé”®ç›˜å¿«æ·é”®ã€ç« èŠ‚å¯¼èˆªã€ç”»ä¸­ç”»/å…¨å±ä½“éªŒä¼˜åŒ–
+  - ä»»åŠ¡ä¸­å¿ƒï¼ˆå¯é€‰ï¼‰ï¼šå…¨å±€ jobs åˆ—è¡¨ + å–æ¶ˆ/é‡è¯• + è¿›åº¦è®¢é˜…
 
 -->
 

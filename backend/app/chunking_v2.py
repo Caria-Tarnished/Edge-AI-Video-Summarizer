@@ -13,6 +13,10 @@ def sha256_text(text: str) -> str:
 
 
 def _is_natural_boundary(text: str) -> bool:
+    """
+    判断文本片段是否以自然句读（标点符号）结尾。
+    在进行基于时间的 Chunking 时，如果达到目标时间长度且刚好遇到这些标点，就会断句，避免把一句话切断。
+    """
     t = (text or "").strip()
     if not t:
         return False
@@ -40,6 +44,16 @@ def segments_to_time_chunks(
     overlap_seconds: float,
     silence_gap_seconds: float = 0.8,
 ) -> List[Dict[str, Any]]:
+    """
+    【核心 Chunking 逻辑 - 基于时间的策略】
+    不同于传统的基于 Token 或字符数的切片 (如 LangChain 的 RecursiveCharacterTextSplitter)，
+    由于视频/音频的特殊性，这里的 Chunking 是基于时间跨度的。
+    参数说明:
+        - target: 期望每个 Chunk 覆盖多长时间的视频内容。
+        - max/min: 限制单个 Chunk 时间长度的上下限。
+        - overlap: 相邻两个 Chunk 时间上的重叠量，这在 RAG 中非常重要，可以避免关键上下文在切分处丢失。
+        - silence_gap: 如果两段语音之间有超过此阈值的静音，也会被视作一个天然的断句边界。
+    """
     segs: List[Tuple[float, float, str]] = []
     for seg in segments:
         start_v = seg.get("start")

@@ -33,16 +33,24 @@ jobs:
           .venv/bin/python -m pip install -U pip
           .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
 
+      # 【架构与 CI/CD 面试考点：自动化代码质量阀 (Quality Gates)】
+      # 在正式合并代码之前，强制通过以下静态语法和类型检查，保证代码的工程健壮性。
       - name: flake8
+        # flake8：轻量级代码风格与低级语法错误检查 (如未使用的 import、未定义的变量)。
         run: .venv/bin/python -m flake8 app
 
       - name: mypy
+        # mypy：Python 官方主推的静态类型检查器。强制遵循型提示规范。
         run: .venv/bin/python -m mypy app --ignore-missing-imports --show-error-codes
 
       - name: pyright
+        # pyright：微软推出的更严格且速度更快的类型检查器，这里采用了双重类型检查。
         run: .venv/bin/python -m pyright -p .
 
       - name: pytest
+        # pytest：回归测试与单元测试。
+        # 注意环境变量 EDGE_VIDEO_AGENT_DISABLE_WORKER="1"，这在测试环境中禁用了后台大模型/FFmpeg后台消费者，
+        # 因为我们通常不想在短小的 API 测试里真的去跑耗时的后台耗时任务或占用真实的设备资源。
         env:
           EDGE_VIDEO_AGENT_DISABLE_WORKER: "1"
         run: .venv/bin/python -m pytest -q

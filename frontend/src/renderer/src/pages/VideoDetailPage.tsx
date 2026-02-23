@@ -250,7 +250,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
       } catch {
       }
       if (play) {
-        void el.play().catch(() => {})
+        void el.play().catch(() => { })
       }
       return
     }
@@ -282,7 +282,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     } catch {
     }
     if (pending.play) {
-      void el.play().catch(() => {})
+      void el.play().catch(() => { })
     }
   }, [])
 
@@ -290,7 +290,7 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     const trackEl = generatedSubTrackRef.current
     if (!trackEl) return
     try {
-      ;(trackEl as any).track.mode = generatedSubtitlesEnabled ? 'showing' : 'disabled'
+      ; (trackEl as any).track.mode = generatedSubtitlesEnabled ? 'showing' : 'disabled'
     } catch {
     }
   }, [generatedSubtitlesEnabled, subtitlesVttUrl, videoId])
@@ -429,6 +429,12 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
           return
         }
 
+        /**
+         * Fetch 流式读取（ReadableStream）实现 SSE 打字机效果。
+         * 标准 `EventSource` 不支持发送复杂 POST Body 或自定义请求头，
+         * 因此使用原生 `fetch` 配合 `res.body.getReader()` 和 `TextDecoder` 逐步解码二进制流，
+         * 手动解析 `event: xxx` / `data: xxx` 的 SSE 协议格式以实现多行数据分包处理。
+         */
         const reader = res.body.getReader()
         const decoder = new TextDecoder('utf-8')
         let buf = ''
@@ -938,6 +944,11 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
     [transcriptBusy, transcriptLimit, videoId]
   )
 
+  /**
+   * 使用 `useEffect` 监听 `transcribeJobId` 变化，任务存在时创建 `EventSource` 订阅后端 SSE 进度事件。
+   * 清理函数（`return () => { es?.close() }`）：当组件卸载或 transcribeJobId 变化时，
+   * 必须主动调用 `es.close()` 关闭 SSE 连接，否则底层 TCP 长连接将持续占用资源，导致连接泄露。
+   */
   useEffect(() => {
     if (!transcribeJobId) {
       setTranscribeSseState('idle')
@@ -1584,476 +1595,476 @@ export default function VideoDetailPage({ videoId, onBack }: Props) {
   return (
     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
       <div className="stack" style={{ flex: '2 1 640px', minWidth: 320, maxWidth: 'none' }}>
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <div className="muted">{'\u89c6\u9891\u8be6\u60c5'}</div>
-            <h2 style={{ margin: '6px 0 0' }}>{headerTitle}</h2>
-          </div>
-          <div className="row" style={{ marginTop: 0 }}>
-            <button className="btn" onClick={onBack} disabled={busy}>
-              {'\u8fd4\u56de'}
-            </button>
-            <button className="btn" onClick={load} disabled={busy}>
-              {'\u5237\u65b0'}
-            </button>
-          </div>
-        </div>
-
-        {error ? <div className="alert alert-error">{error}</div> : null}
-        {info ? <div className="alert alert-info">{info}</div> : null}
-
-        {video ? (
-          <>
-            <div className="kv">
-              <div className="k">id</div>
-              <div className="v">{String(video.id)}</div>
-            </div>
-            <div className="kv">
-              <div className="k">status</div>
-              <div className="v">{String(video.status)}</div>
-            </div>
-            <div className="kv">
-              <div className="k">file_path</div>
-              <div className="v" style={{ wordBreak: 'break-all' }}>
-                {String(video.file_path)}
-              </div>
-            </div>
-          </>
-        ) : (
-          <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} />
-        )}
-      </div>
-
-      <div className="card">
-        <h3 style={{ margin: 0 }}>{'\u64ad\u653e\u5668'}</h3>
-        <div className="subcard" style={{ padding: 12 }}>
-          <video
-            key={videoId}
-            ref={videoElRef}
-            src={videoFileUrl}
-            controls
-            preload="metadata"
-            onLoadedMetadata={onVideoLoadedMetadata}
-            style={{ width: '100%', maxHeight: 520, background: 'rgba(0,0,0,0.35)', borderRadius: 8 }}
-          >
-            <track
-              ref={generatedSubTrackRef}
-              kind="subtitles"
-              src={subtitlesVttUrl}
-              srcLang="zh"
-              label={'\u4e2d\u6587'}
-              default
-            />
-          </video>
-          <div className="row" style={{ marginTop: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-            <div className="muted" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>
-              {fmtTime(playerTimeSeconds)} {'/'} {playerDurationSeconds > 0 ? fmtTime(playerDurationSeconds) : '-'}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div className="muted">{'\u89c6\u9891\u8be6\u60c5'}</div>
+              <h2 style={{ margin: '6px 0 0' }}>{headerTitle}</h2>
             </div>
             <div className="row" style={{ marginTop: 0 }}>
-              <button className="btn" onClick={() => nudgeVideoSeconds(-15)} disabled={busy}>
-                {'-15s'}
+              <button className="btn" onClick={onBack} disabled={busy}>
+                {'\u8fd4\u56de'}
               </button>
-              <button className="btn" onClick={() => nudgeVideoSeconds(15)} disabled={busy}>
-                {'+15s'}
-              </button>
-              <div className="muted">{'\u500d\u901f'}</div>
-              <select
-                className="input"
-                value={String(playerPlaybackRate)}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value)
-                  setPlaybackRate(Number.isFinite(v) ? v : 1)
-                }}
-                style={{ width: 96 }}
-                disabled={busy}
-              >
-                <option value="0.5">0.5x</option>
-                <option value="0.75">0.75x</option>
-                <option value="1">1x</option>
-                <option value="1.25">1.25x</option>
-                <option value="1.5">1.5x</option>
-                <option value="2">2x</option>
-              </select>
-              <button className="btn" onClick={copyPlayerTimestamp} disabled={busy}>
-                {'\u590d\u5236\u65f6\u95f4\u6233'}
-              </button>
-              <button className="btn" onClick={() => setGeneratedSubtitlesEnabled((v) => !v)} disabled={busy}>
-                {generatedSubtitlesEnabled ? '\u5b57\u5e55: \u5f00' : '\u5b57\u5e55: \u5173'}
+              <button className="btn" onClick={load} disabled={busy}>
+                {'\u5237\u65b0'}
               </button>
             </div>
           </div>
-          <div className="muted" style={{ marginTop: 8 }}>
-            {'\u652f\u6301\u70b9\u51fb\u8f6c\u5199\u6bb5\u843d\u6216\u5173\u952e\u5e27\u8df3\u8f6c\u5230\u5bf9\u5e94\u65f6\u95f4\u6233\u3002'}
+
+          {error ? <div className="alert alert-error">{error}</div> : null}
+          {info ? <div className="alert alert-info">{info}</div> : null}
+
+          {video ? (
+            <>
+              <div className="kv">
+                <div className="k">id</div>
+                <div className="v">{String(video.id)}</div>
+              </div>
+              <div className="kv">
+                <div className="k">status</div>
+                <div className="v">{String(video.status)}</div>
+              </div>
+              <div className="kv">
+                <div className="k">file_path</div>
+                <div className="v" style={{ wordBreak: 'break-all' }}>
+                  {String(video.file_path)}
+                </div>
+              </div>
+            </>
+          ) : (
+            <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} />
+          )}
+        </div>
+
+        <div className="card">
+          <h3 style={{ margin: 0 }}>{'\u64ad\u653e\u5668'}</h3>
+          <div className="subcard" style={{ padding: 12 }}>
+            <video
+              key={videoId}
+              ref={videoElRef}
+              src={videoFileUrl}
+              controls
+              preload="metadata"
+              onLoadedMetadata={onVideoLoadedMetadata}
+              style={{ width: '100%', maxHeight: 520, background: 'rgba(0,0,0,0.35)', borderRadius: 8 }}
+            >
+              <track
+                ref={generatedSubTrackRef}
+                kind="subtitles"
+                src={subtitlesVttUrl}
+                srcLang="zh"
+                label={'\u4e2d\u6587'}
+                default
+              />
+            </video>
+            <div className="row" style={{ marginTop: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+              <div className="muted" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>
+                {fmtTime(playerTimeSeconds)} {'/'} {playerDurationSeconds > 0 ? fmtTime(playerDurationSeconds) : '-'}
+              </div>
+              <div className="row" style={{ marginTop: 0 }}>
+                <button className="btn" onClick={() => nudgeVideoSeconds(-15)} disabled={busy}>
+                  {'-15s'}
+                </button>
+                <button className="btn" onClick={() => nudgeVideoSeconds(15)} disabled={busy}>
+                  {'+15s'}
+                </button>
+                <div className="muted">{'\u500d\u901f'}</div>
+                <select
+                  className="input"
+                  value={String(playerPlaybackRate)}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value)
+                    setPlaybackRate(Number.isFinite(v) ? v : 1)
+                  }}
+                  style={{ width: 96 }}
+                  disabled={busy}
+                >
+                  <option value="0.5">0.5x</option>
+                  <option value="0.75">0.75x</option>
+                  <option value="1">1x</option>
+                  <option value="1.25">1.25x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                </select>
+                <button className="btn" onClick={copyPlayerTimestamp} disabled={busy}>
+                  {'\u590d\u5236\u65f6\u95f4\u6233'}
+                </button>
+                <button className="btn" onClick={() => setGeneratedSubtitlesEnabled((v) => !v)} disabled={busy}>
+                  {generatedSubtitlesEnabled ? '\u5b57\u5e55: \u5f00' : '\u5b57\u5e55: \u5173'}
+                </button>
+              </div>
+            </div>
+            <div className="muted" style={{ marginTop: 8 }}>
+              {'\u652f\u6301\u70b9\u51fb\u8f6c\u5199\u6bb5\u843d\u6216\u5173\u952e\u5e27\u8df3\u8f6c\u5230\u5bf9\u5e94\u65f6\u95f4\u6233\u3002'}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="card">
-        <h3 style={{ margin: 0 }}>{'\u64cd\u4f5c'}</h3>
-        <div className="subcard">
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>{'\u8f6c\u5199\u53c2\u6570'}</div>
-          <div className="kv">
-            <div className="k">segment_seconds</div>
-            <div className="v">
-              <input
-                className="input"
-                value={asrSegmentSeconds}
-                onChange={(e) => setAsrSegmentSeconds(e.target.value)}
-                placeholder="(default)"
-                style={{ width: 140 }}
-                disabled={busy}
-              />
+        <div className="card">
+          <h3 style={{ margin: 0 }}>{'\u64cd\u4f5c'}</h3>
+          <div className="subcard">
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>{'\u8f6c\u5199\u53c2\u6570'}</div>
+            <div className="kv">
+              <div className="k">segment_seconds</div>
+              <div className="v">
+                <input
+                  className="input"
+                  value={asrSegmentSeconds}
+                  onChange={(e) => setAsrSegmentSeconds(e.target.value)}
+                  placeholder="(default)"
+                  style={{ width: 140 }}
+                  disabled={busy}
+                />
+              </div>
+            </div>
+            <div className="kv">
+              <div className="k">overlap_seconds</div>
+              <div className="v">
+                <input
+                  className="input"
+                  value={asrOverlapSeconds}
+                  onChange={(e) => setAsrOverlapSeconds(e.target.value)}
+                  placeholder="(default)"
+                  style={{ width: 140 }}
+                  disabled={busy}
+                />
+              </div>
+            </div>
+            <div className="kv">
+              <div className="k">from_scratch</div>
+              <div className="v">
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    className="checkbox"
+                    checked={asrFromScratch}
+                    onChange={(e) => setAsrFromScratch(e.target.checked)}
+                    disabled={busy}
+                  />
+                  <span className="muted">{'\u4ece\u5934\u8f6c\u5199'}</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="row" style={{ marginTop: 10 }}>
+              <button className="btn primary" onClick={startTranscribe} disabled={busy}>
+                {'\u542f\u52a8\u8f6c\u5199'}
+              </button>
+            </div>
+            <div className="muted" style={{ marginTop: 8 }}>
+              {'\u7559\u7a7a\u8868\u793a\u4f7f\u7528\u540e\u7aef\u9ed8\u8ba4\u503c\u3002'}
             </div>
           </div>
-          <div className="kv">
-            <div className="k">overlap_seconds</div>
-            <div className="v">
-              <input
-                className="input"
-                value={asrOverlapSeconds}
-                onChange={(e) => setAsrOverlapSeconds(e.target.value)}
-                placeholder="(default)"
-                style={{ width: 140 }}
-                disabled={busy}
-              />
+
+          <div className="row">
+            <button className="btn" onClick={() => startJob('index')} disabled={busy}>
+              {'\u7d22\u5f15'}
+            </button>
+            <button className="btn" onClick={() => startJob('summarize')} disabled={busy}>
+              {'\u6458\u8981'}
+            </button>
+            <button className="btn" onClick={() => startJob('keyframes')} disabled={busy}>
+              {'\u5173\u952e\u5e27'}
+            </button>
+          </div>
+
+          <div className="subcard">
+            <div className="muted">{'\u5df2\u652f\u6301\u7d22\u5f15/\u6458\u8981/\u5173\u952e\u5e27\u7684\u8fdb\u5ea6\u8ba2\u9605\uff08SSE\uff09\u548c\u7ed3\u679c\u9884\u89c8\u3002'}</div>
+          </div>
+
+          <div className="grid">
+            <div className="subcard">
+              <div style={{ fontWeight: 700 }}>{'\u8f6c\u5199'}</div>
+              <div className="muted">job: {transcribeJobId || (lastTranscribeJob ? lastTranscribeJob.id : '-')}</div>
+              <div className="muted">status: {transcribeJob ? String(transcribeJob.status) : '-'}</div>
+              <div className="muted">progress: {transcribeProgressText}</div>
+              <div className="muted">message: {transcribeJob ? String(transcribeJob.message || '') : '-'}</div>
+              <div className="muted">sse: {transcribeSseState}</div>
+              {transcribeSseError ? (
+                <div className="alert alert-error compact">{String(transcribeSseError)}</div>
+              ) : null}
+            </div>
+            <div className="subcard">
+              <div style={{ fontWeight: 700 }}>{'\u7d22\u5f15'}</div>
+              <div className="muted">job: {indexJobId || (lastIndexJob ? lastIndexJob.job_id || '-' : '-')}</div>
+              <div className="muted">status: {indexJob ? String(indexJob.status) : '-'}</div>
+              <div className="muted">progress: {indexProgressText}</div>
+              <div className="muted">message: {indexJob ? String(indexJob.message || '') : '-'}</div>
+              <div className="muted">sse: {indexSseState}</div>
+              {indexSseError ? (
+                <div className="alert alert-error compact">{String(indexSseError)}</div>
+              ) : null}
+            </div>
+            <div className="subcard">
+              <div style={{ fontWeight: 700 }}>{'\u6458\u8981'}</div>
+              <div className="muted">job: {summaryJobId || (lastSummarizeJob ? lastSummarizeJob.job_id || '-' : '-')}</div>
+              <div className="muted">status: {summaryJob ? String(summaryJob.status) : '-'}</div>
+              <div className="muted">progress: {summaryProgressText}</div>
+              <div className="muted">message: {summaryJob ? String(summaryJob.message || '') : '-'}</div>
+              <div className="muted">sse: {summarySseState}</div>
+              {summarySseError ? (
+                <div className="alert alert-error compact">{String(summarySseError)}</div>
+              ) : null}
+            </div>
+            <div className="subcard">
+              <div style={{ fontWeight: 700 }}>{'\u5173\u952e\u5e27'}</div>
+              <div className="muted">job: {keyframesJobId || (lastKeyframesJob ? lastKeyframesJob.job_id || '-' : '-')}</div>
+              <div className="muted">status: {keyframesJob ? String(keyframesJob.status) : '-'}</div>
+              <div className="muted">progress: {keyframesProgressText}</div>
+              <div className="muted">message: {keyframesJob ? String(keyframesJob.message || '') : '-'}</div>
+              <div className="muted">sse: {keyframesSseState}</div>
+              {keyframesSseError ? (
+                <div className="alert alert-error compact">{String(keyframesSseError)}</div>
+              ) : null}
             </div>
           </div>
-          <div className="kv">
-            <div className="k">from_scratch</div>
-            <div className="v">
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <h3 style={{ margin: 0 }}>{'\u7d22\u5f15\u7ed3\u679c\u9884\u89c8'}</h3>
+            <div className="row" style={{ marginTop: 0 }}>
+              <button className="btn" onClick={() => loadIndexStatus({ force: true })} disabled={busy || indexStatusBusy}>
+                {'\u5237\u65b0\u9884\u89c8'}
+              </button>
+            </div>
+          </div>
+
+          {indexStatusError ? <div className="alert alert-error">{indexStatusError}</div> : null}
+          {indexStatusBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
+
+          {!indexStatusBusy && !indexStatus ? <div className="muted">{'-'} </div> : null}
+
+          {indexStatus ? (
+            <div className="subcard">
+              <div className="kv">
+                <div className="k">status</div>
+                <div className="v">{String(indexStatus.status || '')}</div>
+              </div>
+              <div className="kv">
+                <div className="k">progress</div>
+                <div className="v">{fmtPct(typeof indexStatus.progress === 'number' ? indexStatus.progress : 0)}</div>
+              </div>
+              <div className="kv">
+                <div className="k">message</div>
+                <div className="v" style={{ wordBreak: 'break-word' }}>{String(indexStatus.message || '')}</div>
+              </div>
+              <div className="kv">
+                <div className="k">chunk_count</div>
+                <div className="v">{String(indexStatus.chunk_count ?? '')}</div>
+              </div>
+              <div className="kv">
+                <div className="k">indexed_count</div>
+                <div className="v">{String(indexStatus.indexed_count ?? '')}</div>
+              </div>
+              <div className="kv">
+                <div className="k">is_stale</div>
+                <div className="v">{String(Boolean(indexStatus.is_stale))}</div>
+              </div>
+              {indexStatus.error_code || indexStatus.error_message ? (
+                <div className="alert alert-error compact">
+                  {String(indexStatus.error_code || '')} {String(indexStatus.error_message || '')}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <h3 style={{ margin: 0 }}>{'\u5173\u952e\u5e27\u9884\u89c8'}</h3>
+            <div className="row" style={{ marginTop: 0 }}>
+              <div className="muted">method</div>
+              <select
+                className="input"
+                value={keyframesMethod}
+                onChange={(e) => setKeyframesMethod(e.target.value as any)}
+                style={{ width: 120 }}
+                disabled={busy}
+              >
+                <option value="interval">{'interval'}</option>
+                <option value="scene">{'scene'}</option>
+                <option value="all">{'all'}</option>
+              </select>
+              <div className="muted">limit</div>
+              <input
+                className="input"
+                value={String(keyframesLimit)}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value || '0', 10)
+                  setKeyframesLimit(Number.isFinite(n) && n > 0 ? n : 24)
+                }}
+                style={{ width: 80 }}
+                disabled={busy}
+              />
+              <button
+                className="btn"
+                onClick={() => {
+                  void loadKeyframesIndex({ force: true })
+                  void loadKeyframesList({ force: true })
+                }}
+                disabled={busy || keyframesIndexBusy || keyframesListBusy}
+              >
+                {'\u5237\u65b0\u9884\u89c8'}
+              </button>
+            </div>
+          </div>
+
+          {keyframesIndexError ? <div className="alert alert-error">{keyframesIndexError}</div> : null}
+          {keyframesListError ? <div className="alert alert-error">{keyframesListError}</div> : null}
+
+          {keyframesIndexBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
+
+          {keyframesIndex ? (
+            <div className="subcard">
+              <div className="kv">
+                <div className="k">status</div>
+                <div className="v">{String(keyframesIndex.status || '')}</div>
+              </div>
+              <div className="kv">
+                <div className="k">progress</div>
+                <div className="v">{fmtPct(typeof keyframesIndex.progress === 'number' ? keyframesIndex.progress : 0)}</div>
+              </div>
+              <div className="kv">
+                <div className="k">frame_count</div>
+                <div className="v">{String((keyframesIndex as any).frame_count ?? '')}</div>
+              </div>
+              <div className="kv">
+                <div className="k">message</div>
+                <div className="v" style={{ wordBreak: 'break-word' }}>{String(keyframesIndex.message || '')}</div>
+              </div>
+            </div>
+          ) : null}
+
+          {keyframesListBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
+
+          {!keyframesListBusy && keyframesItems.length === 0 ? (
+            <EmptyState compact description={'\u6682\u65e0\u9884\u89c8\u3002'} />
+          ) : null}
+
+          {keyframesItems.length > 0 ? (
+            <div
+              className="subcard"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                gap: 12,
+                maxHeight: 420,
+                overflow: 'auto'
+              }}
+            >
+              {keyframesItems.map((it) => {
+                const img = (it as any).image_url ? `${API_BASE}${String((it as any).image_url)}` : ''
+                const ts = typeof it.timestamp_ms === 'number' ? it.timestamp_ms : Number((it as any).timestamp_ms || 0)
+                const seconds = ts / 1000
+                return (
+                  <div
+                    key={String(it.id)}
+                    onClick={() => seekToSeconds(seconds, { play: true })}
+                    style={{
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: 8,
+                      padding: 8,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <div className="muted" style={{ marginBottom: 6 }}>
+                      {fmtTime(seconds)}
+                    </div>
+                    {img ? (
+                      <img
+                        src={img}
+                        style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6, display: 'block' }}
+                      />
+                    ) : (
+                      <div className="muted">{'(no image_url)'} </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <h3 style={{ margin: 0 }}>{'\u8f6c\u5199\u7ed3\u679c\u9884\u89c8'}</h3>
+            <div className="row" style={{ marginTop: 0, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="muted">limit</div>
+              <input
+                className="input"
+                value={String(transcriptLimit)}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value || '0', 10)
+                  setTranscriptLimit(Number.isFinite(n) && n > 0 ? n : 30)
+                }}
+                style={{ width: 80 }}
+                disabled={busy}
+              />
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <input
                   type="checkbox"
                   className="checkbox"
-                  checked={asrFromScratch}
-                  onChange={(e) => setAsrFromScratch(e.target.checked)}
+                  checked={transcriptAutoScroll}
+                  onChange={(e) => setTranscriptAutoScroll(e.target.checked)}
                   disabled={busy}
                 />
-                <span className="muted">{'\u4ece\u5934\u8f6c\u5199'}</span>
+                <span className="muted">{'\u81ea\u52a8\u6eda\u52a8'}</span>
               </label>
+              <button className="btn" onClick={() => loadTranscriptPreview({ force: true })} disabled={busy || transcriptBusy}>
+                {'\u5237\u65b0\u9884\u89c8'}
+              </button>
             </div>
           </div>
 
-          <div className="row" style={{ marginTop: 10 }}>
-            <button className="btn primary" onClick={startTranscribe} disabled={busy}>
-              {'\u542f\u52a8\u8f6c\u5199'}
-            </button>
-          </div>
-          <div className="muted" style={{ marginTop: 8 }}>
-            {'\u7559\u7a7a\u8868\u793a\u4f7f\u7528\u540e\u7aef\u9ed8\u8ba4\u503c\u3002'}
-          </div>
-        </div>
+          {transcriptError ? <div className="alert alert-error">{transcriptError}</div> : null}
 
-        <div className="row">
-          <button className="btn" onClick={() => startJob('index')} disabled={busy}>
-            {'\u7d22\u5f15'}
-          </button>
-          <button className="btn" onClick={() => startJob('summarize')} disabled={busy}>
-            {'\u6458\u8981'}
-          </button>
-          <button className="btn" onClick={() => startJob('keyframes')} disabled={busy}>
-            {'\u5173\u952e\u5e27'}
-          </button>
-        </div>
+          {transcriptBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
 
-        <div className="subcard">
-          <div className="muted">{'\u5df2\u652f\u6301\u7d22\u5f15/\u6458\u8981/\u5173\u952e\u5e27\u7684\u8fdb\u5ea6\u8ba2\u9605\uff08SSE\uff09\u548c\u7ed3\u679c\u9884\u89c8\u3002'}</div>
-        </div>
-
-        <div className="grid">
-          <div className="subcard">
-            <div style={{ fontWeight: 700 }}>{'\u8f6c\u5199'}</div>
-            <div className="muted">job: {transcribeJobId || (lastTranscribeJob ? lastTranscribeJob.id : '-')}</div>
-            <div className="muted">status: {transcribeJob ? String(transcribeJob.status) : '-'}</div>
-            <div className="muted">progress: {transcribeProgressText}</div>
-            <div className="muted">message: {transcribeJob ? String(transcribeJob.message || '') : '-'}</div>
-            <div className="muted">sse: {transcribeSseState}</div>
-            {transcribeSseError ? (
-              <div className="alert alert-error compact">{String(transcribeSseError)}</div>
-            ) : null}
-          </div>
-          <div className="subcard">
-            <div style={{ fontWeight: 700 }}>{'\u7d22\u5f15'}</div>
-            <div className="muted">job: {indexJobId || (lastIndexJob ? lastIndexJob.job_id || '-' : '-')}</div>
-            <div className="muted">status: {indexJob ? String(indexJob.status) : '-'}</div>
-            <div className="muted">progress: {indexProgressText}</div>
-            <div className="muted">message: {indexJob ? String(indexJob.message || '') : '-'}</div>
-            <div className="muted">sse: {indexSseState}</div>
-            {indexSseError ? (
-              <div className="alert alert-error compact">{String(indexSseError)}</div>
-            ) : null}
-          </div>
-          <div className="subcard">
-            <div style={{ fontWeight: 700 }}>{'\u6458\u8981'}</div>
-            <div className="muted">job: {summaryJobId || (lastSummarizeJob ? lastSummarizeJob.job_id || '-' : '-')}</div>
-            <div className="muted">status: {summaryJob ? String(summaryJob.status) : '-'}</div>
-            <div className="muted">progress: {summaryProgressText}</div>
-            <div className="muted">message: {summaryJob ? String(summaryJob.message || '') : '-'}</div>
-            <div className="muted">sse: {summarySseState}</div>
-            {summarySseError ? (
-              <div className="alert alert-error compact">{String(summarySseError)}</div>
-            ) : null}
-          </div>
-          <div className="subcard">
-            <div style={{ fontWeight: 700 }}>{'\u5173\u952e\u5e27'}</div>
-            <div className="muted">job: {keyframesJobId || (lastKeyframesJob ? lastKeyframesJob.job_id || '-' : '-')}</div>
-            <div className="muted">status: {keyframesJob ? String(keyframesJob.status) : '-'}</div>
-            <div className="muted">progress: {keyframesProgressText}</div>
-            <div className="muted">message: {keyframesJob ? String(keyframesJob.message || '') : '-'}</div>
-            <div className="muted">sse: {keyframesSseState}</div>
-            {keyframesSseError ? (
-              <div className="alert alert-error compact">{String(keyframesSseError)}</div>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <h3 style={{ margin: 0 }}>{'\u7d22\u5f15\u7ed3\u679c\u9884\u89c8'}</h3>
-          <div className="row" style={{ marginTop: 0 }}>
-            <button className="btn" onClick={() => loadIndexStatus({ force: true })} disabled={busy || indexStatusBusy}>
-              {'\u5237\u65b0\u9884\u89c8'}
-            </button>
-          </div>
-        </div>
-
-        {indexStatusError ? <div className="alert alert-error">{indexStatusError}</div> : null}
-        {indexStatusBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
-
-        {!indexStatusBusy && !indexStatus ? <div className="muted">{'-'} </div> : null}
-
-        {indexStatus ? (
-          <div className="subcard">
-            <div className="kv">
-              <div className="k">status</div>
-              <div className="v">{String(indexStatus.status || '')}</div>
-            </div>
-            <div className="kv">
-              <div className="k">progress</div>
-              <div className="v">{fmtPct(typeof indexStatus.progress === 'number' ? indexStatus.progress : 0)}</div>
-            </div>
-            <div className="kv">
-              <div className="k">message</div>
-              <div className="v" style={{ wordBreak: 'break-word' }}>{String(indexStatus.message || '')}</div>
-            </div>
-            <div className="kv">
-              <div className="k">chunk_count</div>
-              <div className="v">{String(indexStatus.chunk_count ?? '')}</div>
-            </div>
-            <div className="kv">
-              <div className="k">indexed_count</div>
-              <div className="v">{String(indexStatus.indexed_count ?? '')}</div>
-            </div>
-            <div className="kv">
-              <div className="k">is_stale</div>
-              <div className="v">{String(Boolean(indexStatus.is_stale))}</div>
-            </div>
-            {indexStatus.error_code || indexStatus.error_message ? (
-              <div className="alert alert-error compact">
-                {String(indexStatus.error_code || '')} {String(indexStatus.error_message || '')}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <h3 style={{ margin: 0 }}>{'\u5173\u952e\u5e27\u9884\u89c8'}</h3>
-          <div className="row" style={{ marginTop: 0 }}>
-            <div className="muted">method</div>
-            <select
-              className="input"
-              value={keyframesMethod}
-              onChange={(e) => setKeyframesMethod(e.target.value as any)}
-              style={{ width: 120 }}
-              disabled={busy}
-            >
-              <option value="interval">{'interval'}</option>
-              <option value="scene">{'scene'}</option>
-              <option value="all">{'all'}</option>
-            </select>
-            <div className="muted">limit</div>
-            <input
-              className="input"
-              value={String(keyframesLimit)}
-              onChange={(e) => {
-                const n = parseInt(e.target.value || '0', 10)
-                setKeyframesLimit(Number.isFinite(n) && n > 0 ? n : 24)
-              }}
-              style={{ width: 80 }}
-              disabled={busy}
+          {!transcriptBusy && transcriptSegments.length === 0 ? (
+            <EmptyState
+              compact
+              description={
+                '\u6682\u65e0\u9884\u89c8\u3002\u53ef\u5728\u8f6c\u5199\u5b8c\u6210\u540e\u81ea\u52a8\u51fa\u73b0\uff0c\u6216\u70b9\u51fb\u300c\u5237\u65b0\u9884\u89c8\u300d\u3002'
+              }
             />
-            <button
-              className="btn"
-              onClick={() => {
-                void loadKeyframesIndex({ force: true })
-                void loadKeyframesList({ force: true })
-              }}
-              disabled={busy || keyframesIndexBusy || keyframesListBusy}
-            >
-              {'\u5237\u65b0\u9884\u89c8'}
-            </button>
-          </div>
-        </div>
+          ) : null}
 
-        {keyframesIndexError ? <div className="alert alert-error">{keyframesIndexError}</div> : null}
-        {keyframesListError ? <div className="alert alert-error">{keyframesListError}</div> : null}
-
-        {keyframesIndexBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
-
-        {keyframesIndex ? (
-          <div className="subcard">
-            <div className="kv">
-              <div className="k">status</div>
-              <div className="v">{String(keyframesIndex.status || '')}</div>
-            </div>
-            <div className="kv">
-              <div className="k">progress</div>
-              <div className="v">{fmtPct(typeof keyframesIndex.progress === 'number' ? keyframesIndex.progress : 0)}</div>
-            </div>
-            <div className="kv">
-              <div className="k">frame_count</div>
-              <div className="v">{String((keyframesIndex as any).frame_count ?? '')}</div>
-            </div>
-            <div className="kv">
-              <div className="k">message</div>
-              <div className="v" style={{ wordBreak: 'break-word' }}>{String(keyframesIndex.message || '')}</div>
-            </div>
-          </div>
-        ) : null}
-
-        {keyframesListBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
-
-        {!keyframesListBusy && keyframesItems.length === 0 ? (
-          <EmptyState compact description={'\u6682\u65e0\u9884\u89c8\u3002'} />
-        ) : null}
-
-        {keyframesItems.length > 0 ? (
-          <div
-            className="subcard"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-              gap: 12,
-              maxHeight: 420,
-              overflow: 'auto'
-            }}
-          >
-            {keyframesItems.map((it) => {
-              const img = (it as any).image_url ? `${API_BASE}${String((it as any).image_url)}` : ''
-              const ts = typeof it.timestamp_ms === 'number' ? it.timestamp_ms : Number((it as any).timestamp_ms || 0)
-              const seconds = ts / 1000
-              return (
-                <div
-                  key={String(it.id)}
-                  onClick={() => seekToSeconds(seconds, { play: true })}
-                  style={{
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    borderRadius: 8,
-                    padding: 8,
-                    cursor: 'pointer'
-                  }}
-                >
-                  <div className="muted" style={{ marginBottom: 6 }}>
-                    {fmtTime(seconds)}
+          {transcriptSegments.length > 0 ? (
+            <div ref={transcriptListElRef} className="subcard" style={{ maxHeight: 320, overflow: 'auto' }}>
+              {transcriptSegments.map((seg, idx) => {
+                const start = typeof (seg as any).start === 'number' ? (seg as any).start : Number((seg as any).start || 0)
+                const end = typeof (seg as any).end === 'number' ? (seg as any).end : Number((seg as any).end || 0)
+                const text = String((seg as any).text || (seg as any).content || '')
+                const isActive = idx === activeTranscriptIndex
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      activeTranscriptIndexRef.current = idx
+                      setActiveTranscriptIndex(idx)
+                      seekToSeconds(start, { play: true })
+                    }}
+                    ref={isActive ? activeTranscriptElRef : undefined}
+                    style={{
+                      padding: '8px 0',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                      cursor: 'pointer',
+                      background: isActive ? 'rgba(59, 130, 246, 0.14)' : 'transparent',
+                      borderLeft: isActive ? '3px solid rgba(59, 130, 246, 0.9)' : '3px solid transparent',
+                      paddingLeft: isActive ? 10 : 0
+                    }}
+                  >
+                    <div className="muted" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>
+                      [{fmtTime(start)} - {fmtTime(end)}]
+                    </div>
+                    <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text}</div>
                   </div>
-                  {img ? (
-                    <img
-                      src={img}
-                      style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6, display: 'block' }}
-                    />
-                  ) : (
-                    <div className="muted">{'(no image_url)'} </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <h3 style={{ margin: 0 }}>{'\u8f6c\u5199\u7ed3\u679c\u9884\u89c8'}</h3>
-          <div className="row" style={{ marginTop: 0, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div className="muted">limit</div>
-            <input
-              className="input"
-              value={String(transcriptLimit)}
-              onChange={(e) => {
-                const n = parseInt(e.target.value || '0', 10)
-                setTranscriptLimit(Number.isFinite(n) && n > 0 ? n : 30)
-              }}
-              style={{ width: 80 }}
-              disabled={busy}
-            />
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="checkbox"
-                className="checkbox"
-                checked={transcriptAutoScroll}
-                onChange={(e) => setTranscriptAutoScroll(e.target.checked)}
-                disabled={busy}
-              />
-              <span className="muted">{'\u81ea\u52a8\u6eda\u52a8'}</span>
-            </label>
-            <button className="btn" onClick={() => loadTranscriptPreview({ force: true })} disabled={busy || transcriptBusy}>
-              {'\u5237\u65b0\u9884\u89c8'}
-            </button>
-          </div>
+                )
+              })}
+            </div>
+          ) : null}
         </div>
-
-        {transcriptError ? <div className="alert alert-error">{transcriptError}</div> : null}
-
-        {transcriptBusy ? <LoadingState compact description={'\u6b63\u5728\u52a0\u8f7d...'} /> : null}
-
-        {!transcriptBusy && transcriptSegments.length === 0 ? (
-          <EmptyState
-            compact
-            description={
-              '\u6682\u65e0\u9884\u89c8\u3002\u53ef\u5728\u8f6c\u5199\u5b8c\u6210\u540e\u81ea\u52a8\u51fa\u73b0\uff0c\u6216\u70b9\u51fb\u300c\u5237\u65b0\u9884\u89c8\u300d\u3002'
-            }
-          />
-        ) : null}
-
-        {transcriptSegments.length > 0 ? (
-          <div ref={transcriptListElRef} className="subcard" style={{ maxHeight: 320, overflow: 'auto' }}>
-            {transcriptSegments.map((seg, idx) => {
-              const start = typeof (seg as any).start === 'number' ? (seg as any).start : Number((seg as any).start || 0)
-              const end = typeof (seg as any).end === 'number' ? (seg as any).end : Number((seg as any).end || 0)
-              const text = String((seg as any).text || (seg as any).content || '')
-              const isActive = idx === activeTranscriptIndex
-              return (
-                <div
-                  key={idx}
-                  onClick={() => {
-                    activeTranscriptIndexRef.current = idx
-                    setActiveTranscriptIndex(idx)
-                    seekToSeconds(start, { play: true })
-                  }}
-                  ref={isActive ? activeTranscriptElRef : undefined}
-                  style={{
-                    padding: '8px 0',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
-                    cursor: 'pointer',
-                    background: isActive ? 'rgba(59, 130, 246, 0.14)' : 'transparent',
-                    borderLeft: isActive ? '3px solid rgba(59, 130, 246, 0.9)' : '3px solid transparent',
-                    paddingLeft: isActive ? 10 : 0
-                  }}
-                >
-                  <div className="muted" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>
-                    [{fmtTime(start)} - {fmtTime(end)}]
-                  </div>
-                  <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text}</div>
-                </div>
-              )
-            })}
-          </div>
-        ) : null}
-      </div>
 
       </div>
 

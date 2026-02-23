@@ -23,7 +23,13 @@ def init_db() -> None:
     with connect() as conn:
         conn.executescript(
             """
+            -- 开启 WAL (Write-Ahead Logging) 模式。
+            -- 默认的 SQLite 写入时会锁定整个数据库文件，导致读写互斥。
+            -- WAL 模式允许读写并发，这对于 JobWorker 后台异步写入和 FastAPI 接口并发读取至关重要。
             PRAGMA journal_mode=WAL;
+
+            -- 开启外键约束验证（SQLite 默认关闭）。
+            -- 确保删除视频时（ON DELETE CASCADE），相关的 jobs、indexes、summaries 等级联删除，避免产生孤儿数据。
             PRAGMA foreign_keys=ON;
 
             CREATE TABLE IF NOT EXISTS videos (
@@ -187,6 +193,13 @@ def init_db() -> None:
 
 @contextmanager
 def connect() -> Iterator[sqlite3.Connection]:
+    """
+    使用 @contextmanager 装饰器创建自动管理资源的数据库连接上下文管理器（`with connect() as conn:`）。
+    1. timeout=30：在 WAL 模式下发生锁争用时，给予等待时间以避免立刻抛出 "Database is locked" 错误。
+    2. isolation_level=None：开启手动事务控制模式，由调用方通过 `conn.commit()` 显式提交事务。
+    3. sqlite3.Row：令查询结果支持按列名访问（如 `row['file_path']`），而非仅支持元组下标索引。
+    4. finally 块确保无论是否发生异常，都会执行 `conn.close()` 释放数据库文件句柄，防止资源泄露。
+    """
     ensure_dirs()
     conn = sqlite3.connect(db_path(), timeout=30, isolation_level=None)
     conn.row_factory = sqlite3.Row
