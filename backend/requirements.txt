@@ -7,6 +7,6 @@ imageio-ffmpeg==0.5.1
 dashscope>=1.14.0
 chromadb>=0.5.0
 fastembed>=0.3.0; python_version < '3.13'
-# PyInstaller 6.3.0 Óë numpy 2.x ´æÔÚÄ£¿é¼ÓÔØ³åÍ»£¨cannot load module more than once per process£©£¬
-# ¹Ì¶¨µ½ numpy 1.x ¼æÈÝ·¶Î§ÒÔÈ·±£´ò°üºó faster-whisper µÈ C À©Õ¹ÄÜÕý³£¼ÓÔØ¡£
+# PyInstaller 6.3.0 ä¸Ž numpy 2.x å­˜åœ¨æ¨¡å—åŠ è½½å†²çªï¼ˆcannot load module more than once per processï¼‰ï¼Œ
+# å›ºå®šåˆ° numpy 1.x å…¼å®¹èŒƒå›´ä»¥ç¡®ä¿æ‰“åŒ…åŽ faster-whisper ç­‰ C æ‰©å±•èƒ½æ­£å¸¸åŠ è½½ã€‚
 numpy>=1.24.0,<2.0
