@@ -268,8 +268,10 @@ jobs:
 
           # Ensure release is NOT a draft (draft releases do not show up as normal assets and break auto-update)
           # Note: gh api "releases/tags/{tag}" returns 404 for Draft releases,
-          # so we use "gh release view --json id" which works for both draft and published.
-          $relId = (gh release view $tag --repo "${{ github.repository }}" --json id --jq ".id")
+          # so we use "gh release view --json databaseId" which works for both draft and published.
+          # 【修复】必须使用 databaseId（数字 REST ID），而非 id（GraphQL Node ID 如 RE_kwDO...），
+          # 否则后续 REST API PATCH 路径 /releases/{id} 会因路径不匹配而返回 404。
+          $relId = (gh release view $tag --repo "${{ github.repository }}" --json databaseId --jq ".databaseId")
           if ($relId) {
             $relId = $relId.Trim()
             $preVal = $isPre.ToString().ToLowerInvariant()
